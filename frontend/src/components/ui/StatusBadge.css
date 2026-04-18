@@ -1,0 +1,10 @@
+.badge {
+  display: inline-block; padding: 3px 10px; border-radius: 99px;
+  font-size: 12px; font-weight: 600;
+}
+.badge-pending, .badge-warning  { background: var(--color-warning-light); color: var(--color-warning); }
+.badge-confirmed, .badge-info   { background: var(--color-info-light);    color: var(--color-info); }
+.badge-checked_in, .badge-success, .badge-paid { background: var(--color-success-light); color: var(--color-success); }
+.badge-cancelled, .badge-danger, .badge-failed { background: var(--color-danger-light); color: var(--color-danger); }
+.badge-checked_out, .badge-muted, .badge-refunded { background: #f1f5f9; color: var(--color-muted); }
+.badge-default { background: var(--color-border); color: var(--color-ink); }

@@ -1,0 +1,246 @@
+1. CẤU TRÚC TỔNG PROJECT (ROOT)
+hotel-management-system/
+│
+├── backend/                 # Spring Boot
+├── frontend/                # React/Vue
+├── database/                # SQL + seed + migration
+├── docs/                    # tài liệu (ERD, API, diagram)
+├── scripts/                 # script deploy/test
+├── docker/                  # docker config
+├── .env
+├── docker-compose.yml
+└── README.md
+2. BACKEND STRUCTURE (CHI TIẾT)
+backend/
+│
+├── src/main/java/com/hotel/
+│
+│   ├── config/
+│   ├── security/
+│
+│   ├── common/
+│   │   ├── base/
+│   │   ├── constants/
+│   │   ├── enums/
+│   │   ├── response/
+│   │   └── pagination/
+│
+│   ├── modules/
+│
+│   │   ├── auth/
+│   │   ├── user/
+│   │   ├── branch/
+│   │   ├── room/
+│   │   ├── service/
+│   │   ├── booking/
+│   │   ├── payment/
+│   │   ├── feedback/
+│
+│   │   ├── pricing/
+│   │   │   ├── pricing/
+│   │   │   ├── request/
+│   │   │   └── log/
+│
+│   │   ├── dashboard/
+│   │   ├── report/
+│   │   └── notification/
+│
+│   ├── controllers/
+│   │   ├── public/
+│   │   ├── customer/
+│   │   ├── staff/
+│   │   ├── manager/
+│   │   ├── owner/
+│   │   └── internal/
+│
+│   ├── integrations/
+│   │   ├── vnpay/
+│   │   ├── email/
+│   │   └── logging/
+│
+│   ├── scheduler/
+│   ├── exception/
+│   └── Application.java
+│
+├── src/main/resources/
+│   ├── application.yml
+│   └── db/
+│       ├── migration/
+│       └── seed/
+│
+└── pom.xml
+3. FRONTEND STRUCTURE (FULL – QUAN TRỌNG)
+
+Đây là phần bạn đang thiếu rõ nhất → mình viết chi tiết theo role-based UI
+
+frontend/
+│
+├── public/
+│
+├── src/
+│
+│   ├── assets/                # hình ảnh, icon
+│   ├── components/            # reusable component
+│   │   ├── common/
+│   │   ├── ui/
+│   │   └── layout/
+│
+│   ├── layouts/
+│   │   ├── PublicLayout.jsx
+│   │   ├── CustomerLayout.jsx
+│   │   ├── StaffLayout.jsx
+│   │   ├── ManagerLayout.jsx
+│   │   └── OwnerLayout.jsx
+│
+│   ├── pages/
+│
+│   │   ├── public/
+│   │   │   ├── Home.jsx
+│   │   │   ├── RoomList.jsx
+│   │   │   ├── RoomDetail.jsx
+│   │   │   ├── About.jsx
+│   │   │   ├── Contact.jsx
+│   │   │   ├── Login.jsx
+│   │   │   └── Register.jsx
+│
+│   │   ├── customer/
+│   │   │   ├── Home.jsx
+│   │   │   ├── Search.jsx
+│   │   │   ├── RoomDetail.jsx
+│   │   │
+│   │   │   ├── Booking/
+│   │   │   │   ├── BookingCreate.jsx
+│   │   │   │   ├── BookingReview.jsx
+│   │   │   │   ├── BookingPayment.jsx
+│   │   │   │   └── BookingSuccess.jsx
+│   │   │
+│   │   │   ├── MyBookings/
+│   │   │   │   ├── BookingList.jsx
+│   │   │   │   └── BookingDetail.jsx
+│   │   │
+│   │   │   ├── Profile/
+│   │   │   │   ├── ProfileView.jsx
+│   │   │   │   └── ProfileEdit.jsx
+│   │   │
+│   │   │   ├── Settings/
+│   │   │   │   └── ChangePassword.jsx
+│   │   │
+│   │   │   └── Feedback/
+│   │   │       ├── CreateFeedback.jsx
+│   │   │       └── MyFeedbacks.jsx
+│
+│   │   ├── staff/
+│   │   │   ├── Dashboard.jsx
+│   │   │   ├── TodayBookings.jsx
+│   │   │   ├── Checkin.jsx
+│   │   │   ├── Checkout.jsx
+│   │   │   ├── RoomStatus.jsx
+│   │   │   └── ServiceUsage.jsx
+│
+│   │   ├── manager/
+│   │   │   ├── Dashboard.jsx
+│   │   │
+│   │   │   ├── Rooms/
+│   │   │   │   ├── RoomList.jsx
+│   │   │   │   ├── RoomCreate.jsx
+│   │   │   │   └── RoomEdit.jsx
+│   │   │
+│   │   │   ├── Bookings/
+│   │   │   │   ├── BookingList.jsx
+│   │   │   │   └── BookingDetail.jsx
+│   │   │
+│   │   │   ├── Services/
+│   │   │   │   ├── ServiceList.jsx
+│   │   │   │   ├── ServiceCreate.jsx
+│   │   │   │   └── ServiceEdit.jsx
+│   │   │
+│   │   │   ├── Feedbacks/
+│   │   │   │   ├── FeedbackList.jsx
+│   │   │   │   └── ReplyFeedback.jsx
+│   │   │
+│   │   │   ├── PricingRequests/
+│   │   │   │   ├── RequestList.jsx
+│   │   │   │   └── CreateRequest.jsx
+│   │   │
+│   │   │   └── Reports/
+│   │   │       ├── RevenueReport.jsx
+│   │   │       └── BookingReport.jsx
+│
+│   │   ├── owner/
+│   │   │   ├── Dashboard.jsx
+│   │   │
+│   │   │   ├── Branches/
+│   │   │   │   ├── BranchList.jsx
+│   │   │   │   ├── BranchCreate.jsx
+│   │   │   │   └── BranchEdit.jsx
+│   │   │
+│   │   │   ├── Users/
+│   │   │   │   ├── UserList.jsx
+│   │   │   │   └── RoleManagement.jsx
+│   │   │
+│   │   │   ├── Pricing/
+│   │   │   │   ├── PricingList.jsx
+│   │   │   │   ├── PricingCreate.jsx
+│   │   │   │   └── PricingEdit.jsx
+│   │   │
+│   │   │   ├── PricingRequests/
+│   │   │   │   ├── RequestList.jsx
+│   │   │   │   ├── ApproveRequest.jsx
+│   │   │   │   └── RejectRequest.jsx
+│   │   │
+│   │   │   ├── Reports/
+│   │   │   │   ├── GlobalRevenue.jsx
+│   │   │   │   └── BranchComparison.jsx
+│   │   │
+│   │   │   └── Logs/
+│   │   │       └── SystemLogs.jsx
+│
+│   ├── routes/
+│   │   ├── index.jsx
+│   │   └── roleRoutes.jsx
+│
+│   ├── services/              # gọi API backend
+│   │   ├── apiClient.js
+│   │   ├── authService.js
+│   │   ├── bookingService.js
+│   │   ├── pricingService.js
+│   │   └── userService.js
+│
+│   ├── store/                 # state management
+│   │   ├── auth/
+│   │   ├── booking/
+│   │   └── ui/
+│
+│   ├── hooks/
+│   ├── utils/
+│   ├── constants/
+│   └── App.jsx
+│
+├── package.json
+└── vite.config.js / webpack.config.js
+4. DATABASE FOLDER (RẤT QUAN TRỌNG CHO ĐỒ ÁN)
+database/
+│
+├── postgres/
+│   ├── schema.sql
+│   ├── seed.sql
+│   └── migration/
+│
+├── mongodb/
+│   ├── collections.json
+│   └── seed.json
+5. DOCS (ĐỂ NỘP)
+docs/
+│
+├── ERD.png
+├── architecture.png
+├── api-docs.md
+├── sequence/
+│   ├── booking.png
+│   └── pricing-approval.png
+6. DOCKER (OPTIONAL NHƯNG ĂN ĐIỂM)
+docker/
+│
+├── backend.Dockerfile
+├── frontend.Dockerfile
+└── nginx.conf

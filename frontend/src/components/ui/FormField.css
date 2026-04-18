@@ -1,0 +1,13 @@
+.form-field { display: flex; flex-direction: column; gap: 5px; }
+.form-label { font-size: 13px; font-weight: 600; color: var(--color-ink); }
+.form-required { color: var(--color-danger); }
+.form-input {
+  width: 100%; padding: 10px 13px; border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-sm); font-size: 14px; outline: none;
+  transition: border-color .18s; background: #fff; color: var(--color-ink);
+}
+.form-input:focus { border-color: var(--color-accent); }
+.form-field--error .form-input { border-color: var(--color-danger); }
+.form-textarea { resize: vertical; min-height: 90px; }
+.form-error { font-size: 12px; color: var(--color-danger); }
+.form-help { font-size: 12px; color: var(--color-muted); }

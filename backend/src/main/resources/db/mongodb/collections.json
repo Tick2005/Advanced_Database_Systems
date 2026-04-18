@@ -1,0 +1,12 @@
+{
+	"database": "hotel",
+	"collections": [
+		{ "name": "sessions" },
+		{ "name": "verification_tokens" },
+		{ "name": "feedbacks" },
+		{ "name": "activity_logs" },
+		{ "name": "room_cache" },
+		{ "name": "hotel_catalogs" }
+	]
+}
+

@@ -1,0 +1,66 @@
+{
+	"database": "hotel",
+	"indexes": [
+		{
+			"collection": "sessions",
+			"keys": { "expires_at": 1 },
+			"options": { "name": "ttl_sessions_expires_at", "expireAfterSeconds": 0 }
+		},
+		{
+			"collection": "sessions",
+			"keys": { "user_id": 1, "expires_at": -1 },
+			"options": { "name": "idx_sessions_user_expires" }
+		},
+		{
+			"collection": "verification_tokens",
+			"keys": { "expires_at": 1 },
+			"options": { "name": "ttl_verification_tokens_expires_at", "expireAfterSeconds": 0 }
+		},
+		{
+			"collection": "verification_tokens",
+			"keys": { "token_hash": 1 },
+			"options": { "name": "ux_verification_token_hash", "unique": true }
+		},
+		{
+			"collection": "feedbacks",
+			"keys": { "room_id": 1, "created_at": -1 },
+			"options": { "name": "idx_feedbacks_room_created" }
+		},
+		{
+			"collection": "feedbacks",
+			"keys": { "booking_id": 1 },
+			"options": { "name": "ux_feedbacks_booking", "unique": true }
+		},
+		{
+			"collection": "activity_logs",
+			"keys": { "user_id": 1, "timestamp": -1 },
+			"options": { "name": "idx_activity_user_time" }
+		},
+		{
+			"collection": "activity_logs",
+			"keys": { "action": 1, "target_type": 1, "timestamp": -1 },
+			"options": { "name": "idx_activity_action_target_time" }
+		},
+		{
+			"collection": "hotel_catalogs",
+			"keys": { "hotel_id": 1 },
+			"options": { "name": "ux_hotel_catalog_hotel_id", "unique": true }
+		},
+		{
+			"collection": "hotel_catalogs",
+			"keys": { "city": 1, "is_active": 1 },
+			"options": { "name": "idx_hotel_catalog_city_active" }
+		},
+		{
+			"collection": "hotel_catalogs",
+			"keys": { "amenities": 1 },
+			"options": { "name": "idx_hotel_catalog_amenities" }
+		},
+		{
+			"collection": "hotel_catalogs",
+			"keys": { "description": "text", "amenities": "text" },
+			"options": { "name": "idx_hotel_catalog_text_desc_amenities", "default_language": "english" }
+		}
+	]
+}
+

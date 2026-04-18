@@ -1,0 +1,12 @@
+.dash-shell { display: flex; min-height: 100vh; }
+.dash-body { flex: 1; margin-left: var(--sidebar-w); display: flex; flex-direction: column; min-height: 100vh; transition: margin-left .25s; }
+.dash-shell--collapsed .dash-body { margin-left: 0; }
+.dash-shell--collapsed .sidebar { transform: translateX(-100%); }
+.sidebar { transition: transform .25s; }
+.dash-main { flex: 1; padding: 28px 32px; max-width: 1300px; width: 100%; }
+@media (max-width: 900px) {
+  .dash-body { margin-left: 0; }
+  .sidebar { transform: translateX(-100%); }
+  .dash-shell--collapsed .sidebar { transform: translateX(0); }
+  .dash-main { padding: 16px; }
+}
