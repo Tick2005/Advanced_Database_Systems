@@ -1,185 +1,170 @@
-import React from 'react';
-import { Navigate } from 'react-router-dom';
-import PATHS from './pathConstants';
-import AuthGuard from './guards/AuthGuard';
-import GuestGuard from './guards/GuestGuard';
-import RoleGuard from './guards/RoleGuard';
+import { Navigate, Outlet, Route, Routes } from "react-router-dom";
+import PublicLayout from "../layouts/PublicLayout";
+import DashLayout from "../layouts/DashLayout";
+import { PATHS } from "./pathConstants";
+import Home from "../pages/Home";
+import Branches from "../pages/Branches";
+import NotFound from "../pages/NotFound";
+import Forbidden from "../pages/errors/Forbidden";
+import Signin from "../features/auth/pages/Signin";
+import Signup from "../features/auth/pages/Signup";
+import { ForgotPasswordPage, ResetPasswordPage } from "../features/auth/pages/ForgotResetPassword";
+import RoomList from "../features/rooms/pages/RoomList";
+import RoomDetail from "../features/rooms/pages/RoomDetail";
+import PreviewBooking from "../features/booking/pages/PreviewBooking";
+import VnPayPayment from "../features/booking/pages/VnPayPayment";
+import ReviewBooking from "../features/booking/pages/ReviewBooking";
+import VnPayReturn from "../features/booking/pages/VnPayReturn";
+import PaymentSuccessPage from "../features/booking/pages/PaymentSuccessPage";
+import PaymentFailedPage from "../features/booking/pages/PaymentFailedPage";
+import BookingsPage from "../features/booking/pages/BookingsPage";
+import BookingDetailPage from "../features/booking/pages/BookingDetailPage";
+import Feedbacks from "../features/feedback/pages/Feedbacks";
+import CreateFeedback from "../features/feedback/pages/CreateFeedback";
+import Profile from "../features/users/pages/Profile";
+import Settings from "../features/users/pages/Settings";
+import ProfileEdit from "../features/users/pages/ProfileEdit";
+import SecuritySettings from "../features/users/pages/SecuritySettings";
+import StaffHomePage from "../features/staff/pages/StaffHomePage";
+import StaffBookingsTodayPage from "../features/staff/pages/StaffBookingsTodayPage";
+import StaffCheckinPage from "../features/staff/pages/StaffCheckinPage";
+import StaffCheckoutPage from "../features/staff/pages/StaffCheckoutPage";
+import StaffRoomStatusPage from "../features/staff/pages/StaffRoomStatusPage";
+import StaffServiceUsagePage from "../features/staff/pages/StaffServiceUsagePage";
+import ManagerHomePage from "../features/manager/pages/ManagerHomePage";
+import ManagerRoomsPage from "../features/manager/pages/ManagerRoomsPage";
+import ManagerRoomCreatePage from "../features/manager/pages/ManagerRoomCreatePage";
+import ManagerRoomEditPage from "../features/manager/pages/ManagerRoomEditPage";
+import ManagerBookingsPage from "../features/manager/pages/ManagerBookingsPage";
+import ManagerBookingDetailPage from "../features/manager/pages/ManagerBookingDetailPage";
+import ManagerFeedbacksPage from "../features/manager/pages/ManagerFeedbacksPage";
+import ManagerServicesPage from "../features/manager/pages/ManagerServicesPage";
+import ManagerPricingRequestsPage from "../features/manager/pages/ManagerPricingRequestsPage";
+import ManagerRevenueReportPage from "../features/manager/pages/ManagerRevenueReportPage";
+import ManagerBookingReportPage from "../features/manager/pages/ManagerBookingReportPage";
+import OwnerHomePage from "../features/owner/pages/OwnerHomePage";
+import OwnerBranchesPage from "../features/owner/pages/OwnerBranchesPage";
+import OwnerPricingPage from "../features/owner/pages/OwnerPricingPage";
+import OwnerPricingRequestsPage from "../features/owner/pages/OwnerPricingRequestsPage";
+import OwnerUsersPage from "../features/owner/pages/OwnerUsersPage";
+import OwnerRevenueReportPage from "../features/owner/pages/OwnerRevenueReportPage";
+import OwnerBranchCompareReportPage from "../features/owner/pages/OwnerBranchCompareReportPage";
+import OwnerLogsPage from "../features/owner/pages/OwnerLogsPage";
+import AuthGuard from "./guards/AuthGuard";
+import RoleGuard from "./guards/RoleGuard";
+import { useAuth } from "../features/auth/useAuth";
 
-// Layouts
-import PublicLayout from '../layouts/PublicLayout';
-import CustomerLayout from '../layouts/CustomerLayout';
-import StaffLayout from '../layouts/StaffLayout';
-import ManagerLayout from '../layouts/ManagerLayout';
-import OwnerLayout from '../layouts/OwnerLayout';
+function defaultRedirectByRole(role) {
+  if (role === "CUSTOMER") return PATHS.CUSTOMER_HOME;
+  if (role === "STAFF") return PATHS.STAFF;
+  if (role === "MANAGER") return PATHS.MANAGER;
+  if (role === "OWNER") return PATHS.OWNER;
+  return PATHS.HOME;
+}
 
-// Public pages
-import Home from '../pages/public/Home';
-import Login from '../pages/public/Login';
-import Register from '../pages/public/Register';
-import About from '../pages/public/About';
-import Contact from '../pages/public/Contact';
-import RoomList from '../pages/public/RoomList';
-import RoomDetail from '../pages/public/RoomDetail';
+function GuestOnlyRoute({ children }) {
+  const { isAuthenticated, role } = useAuth();
+  if (isAuthenticated) {
+    return <Navigate to={defaultRedirectByRole(role)} replace />;
+  }
+  return children;
+}
 
-// Customer pages
-import CustomerHome from '../pages/customer/Home';
-import CustomerSearch from '../pages/customer/Search';
-import BookingCreate from '../pages/customer/Booking/BookingCreate';
-import BookingReview from '../pages/customer/Booking/BookingReview';
-import BookingSuccess from '../pages/customer/Booking/BookingSuccess';
-import BookingPayment from '../pages/customer/Booking/BookingPayment';
-import CustomerBookingList from '../pages/customer/MyBookings/BookingList';
-import CustomerBookingDetail from '../pages/customer/MyBookings/BookingDetail';
-import ProfileView from '../pages/customer/Profile/ProfileView';
-import ProfileEdit from '../pages/customer/Profile/ProfileEdit';
-import ChangePassword from '../pages/customer/Settings/ChangePassword';
-import CreateFeedback from '../pages/customer/Feedback/CreateFeedback';
-import MyFeedbacks from '../pages/customer/Feedback/MyFeedbacks';
+function CustomerGuard({ children }) {
+  return (
+    <AuthGuard>
+      <RoleGuard roles={["CUSTOMER"]}>{children}</RoleGuard>
+    </AuthGuard>
+  );
+}
 
-// Staff pages
-import StaffDashboard from '../pages/staff/Dashboard';
-import TodayBookings from '../pages/staff/TodayBookings';
-import Checkin from '../pages/staff/Checkin';
-import Checkout from '../pages/staff/Checkout';
-import RoomStatus from '../pages/staff/RoomStatus';
-import ServiceUsage from '../pages/staff/ServiceUsage';
+function RoleShell({ roles }) {
+  return (
+    <AuthGuard>
+      <RoleGuard roles={roles}>
+        <DashLayout />
+      </RoleGuard>
+    </AuthGuard>
+  );
+}
 
-// Manager pages
-import ManagerDashboard from '../pages/manager/Dashboard';
-import ManagerRoomList from '../pages/manager/Rooms/RoomList';
-import ManagerRoomCreate from '../pages/manager/Rooms/RoomCreate';
-import ManagerRoomEdit from '../pages/manager/Rooms/RoomEdit';
-import ManagerBookingList from '../pages/manager/Bookings/BookingList';
-import ManagerBookingDetail from '../pages/manager/Bookings/BookingDetail';
-import ManagerFeedbackList from '../pages/manager/Feedbacks/FeedbackList';
-import ReplyFeedback from '../pages/manager/Feedbacks/ReplyFeedback';
-import ManagerServiceList from '../pages/manager/Services/ServiceList';
-import ManagerServiceCreate from '../pages/manager/Services/ServiceCreate';
-import ManagerServiceEdit from '../pages/manager/Services/ServiceEdit';
-import ManagerPricingRequests from '../pages/manager/PricingRequests/RequestList';
-import ManagerCreatePricingRequest from '../pages/manager/PricingRequests/CreateRequest';
-import ManagerRevenueReport from '../pages/manager/Reports/RevenueReport';
-import ManagerBookingReport from '../pages/manager/Reports/BookingReport';
+function PublicShell() {
+  return (
+    <PublicLayout>
+      <Outlet />
+    </PublicLayout>
+  );
+}
 
-// Owner pages
-import OwnerDashboard from '../pages/owner/Dashboard';
-import BranchList from '../pages/owner/Branches/BranchList';
-import BranchCreate from '../pages/owner/Branches/BranchCreate';
-import BranchEdit from '../pages/owner/Branches/BranchEdit';
-import PricingList from '../pages/owner/Pricing/PricingList';
-import PricingCreate from '../pages/owner/Pricing/PricingCreate';
-import PricingEdit from '../pages/owner/Pricing/PricingEdit';
-import OwnerPricingRequests from '../pages/owner/PricingRequests/RequestList';
-import ApproveRequest from '../pages/owner/PricingRequests/ApproveRequest';
-import RejectRequest from '../pages/owner/PricingRequests/RejectRequest';
-import UserList from '../pages/owner/Users/UserList';
-import RoleManagement from '../pages/owner/Users/RoleManagement';
-import GlobalRevenue from '../pages/owner/Reports/GlobalRevenue';
-import BranchComparison from '../pages/owner/Reports/BranchComparison';
-import SystemLogs from '../pages/owner/Logs/SystemLogs';
+export function AppRoutes() {
+  return (
+    <Routes>
+      <Route element={<PublicShell />}>
+        <Route path={PATHS.HOME} element={<Home />} />
+        <Route path={PATHS.ROOMS} element={<RoomList />} />
+        <Route path={PATHS.ROOM_DETAIL} element={<RoomDetail />} />
+        <Route path={PATHS.BRANCHES} element={<Branches />} />
+        <Route path={PATHS.LOGIN} element={<GuestOnlyRoute><Signin /></GuestOnlyRoute>} />
+        <Route path={PATHS.REGISTER} element={<GuestOnlyRoute><Signup /></GuestOnlyRoute>} />
+        <Route path={PATHS.FORGOT_PASSWORD} element={<GuestOnlyRoute><ForgotPasswordPage /></GuestOnlyRoute>} />
+        <Route path={PATHS.RESET_PASSWORD} element={<GuestOnlyRoute><ResetPasswordPage /></GuestOnlyRoute>} />
 
-const NotFound = () => (
-  <div style={{textAlign:'center',padding:'80px 20px'}}>
-    <div style={{fontSize:64}}>🔍</div>
-    <h1 style={{fontFamily:'var(--font-display)',fontSize:32,marginBottom:8}}>404</h1>
-    <p style={{color:'var(--color-muted)'}}>Trang không tồn tại</p>
-    <a href="/" style={{marginTop:20,display:'inline-block',padding:'10px 24px',background:'var(--color-accent)',color:'#fff',borderRadius:'8px',fontWeight:600}}>Về trang chủ</a>
-  </div>
-);
+        <Route path={PATHS.CUSTOMER_HOME} element={<CustomerGuard><Home /></CustomerGuard>} />
+        <Route path={PATHS.CUSTOMER_ROOMS} element={<CustomerGuard><RoomList customer /></CustomerGuard>} />
+        <Route path={PATHS.CUSTOMER_ROOM_DETAIL} element={<CustomerGuard><RoomDetail customer /></CustomerGuard>} />
+        <Route path={PATHS.CUSTOMER_BOOKING_CREATE} element={<CustomerGuard><PreviewBooking /></CustomerGuard>} />
+        <Route path={PATHS.CUSTOMER_BOOKING_REVIEW} element={<CustomerGuard><ReviewBooking /></CustomerGuard>} />
+        <Route path={PATHS.CUSTOMER_BOOKING_PAYMENT} element={<CustomerGuard><VnPayPayment /></CustomerGuard>} />
+        <Route path={PATHS.CUSTOMER_BOOKING_RESULT} element={<VnPayReturn />} />
+        <Route path={PATHS.CUSTOMER_BOOKING_SUCCESS} element={<CustomerGuard><PaymentSuccessPage /></CustomerGuard>} />
+        <Route path={PATHS.CUSTOMER_BOOKING_FAILED} element={<CustomerGuard><PaymentFailedPage /></CustomerGuard>} />
+        <Route path={PATHS.CUSTOMER_BOOKINGS} element={<CustomerGuard><BookingsPage /></CustomerGuard>} />
+        <Route path={PATHS.CUSTOMER_BOOKING_DETAIL} element={<CustomerGuard><BookingDetailPage /></CustomerGuard>} />
+        <Route path={PATHS.CUSTOMER_FEEDBACKS} element={<CustomerGuard><Feedbacks /></CustomerGuard>} />
+        <Route path={PATHS.CUSTOMER_FEEDBACK_CREATE} element={<CustomerGuard><CreateFeedback /></CustomerGuard>} />
+        <Route path={PATHS.CUSTOMER_PROFILE} element={<CustomerGuard><Profile /></CustomerGuard>} />
+        <Route path={PATHS.CUSTOMER_PROFILE_EDIT} element={<CustomerGuard><ProfileEdit /></CustomerGuard>} />
+        <Route path={PATHS.CUSTOMER_SETTINGS} element={<CustomerGuard><Settings /></CustomerGuard>} />
+        <Route path={PATHS.CUSTOMER_SETTINGS_ADVANCED} element={<CustomerGuard><SecuritySettings /></CustomerGuard>} />
+      </Route>
 
-const appRoutes = [
-  // ── PUBLIC ──────────────────────────────
-  {
-    path: '/',
-    element: <PublicLayout />,
-    children: [
-      { index: true, element: <Home /> },
-      { path: 'about', element: <About /> },
-      { path: 'contact', element: <Contact /> },
-      { path: 'rooms', element: <RoomList /> },
-      { path: 'rooms/:id', element: <RoomDetail /> },
-      { path: 'login', element: <GuestGuard><Login /></GuestGuard> },
-      { path: 'register', element: <GuestGuard><Register /></GuestGuard> },
-    ],
-  },
-  // ── CUSTOMER ────────────────────────────
-  {
-    path: '/customer',
-    element: <AuthGuard><RoleGuard roles={['CUSTOMER']}><CustomerLayout /></RoleGuard></AuthGuard>,
-    children: [
-      { index: true, element: <CustomerHome /> },
-      { path: 'search', element: <CustomerSearch /> },
-      { path: 'bookings', element: <CustomerBookingList /> },
-      { path: 'bookings/:id', element: <CustomerBookingDetail /> },
-      { path: 'booking/create', element: <BookingCreate /> },
-      { path: 'booking/review', element: <BookingReview /> },
-      { path: 'booking/success', element: <BookingSuccess /> },
-      { path: 'booking/payment', element: <BookingPayment /> },
-      { path: 'profile', element: <ProfileView /> },
-      { path: 'profile/edit', element: <ProfileEdit /> },
-      { path: 'settings/password', element: <ChangePassword /> },
-      { path: 'feedbacks', element: <MyFeedbacks /> },
-      { path: 'feedbacks/create', element: <CreateFeedback /> },
-    ],
-  },
-  // ── STAFF ───────────────────────────────
-  {
-    path: '/staff',
-    element: <AuthGuard><RoleGuard roles={['STAFF']}><StaffLayout /></RoleGuard></AuthGuard>,
-    children: [
-      { index: true, element: <StaffDashboard /> },
-      { path: 'bookings/today', element: <TodayBookings /> },
-      { path: 'checkin', element: <Checkin /> },
-      { path: 'checkout', element: <Checkout /> },
-      { path: 'rooms/status', element: <RoomStatus /> },
-      { path: 'service-usage', element: <ServiceUsage /> },
-    ],
-  },
-  // ── MANAGER ─────────────────────────────
-  {
-    path: '/manager',
-    element: <AuthGuard><RoleGuard roles={['MANAGER']}><ManagerLayout /></RoleGuard></AuthGuard>,
-    children: [
-      { index: true, element: <ManagerDashboard /> },
-      { path: 'rooms', element: <ManagerRoomList /> },
-      { path: 'rooms/create', element: <ManagerRoomCreate /> },
-      { path: 'rooms/:id/edit', element: <ManagerRoomEdit /> },
-      { path: 'bookings', element: <ManagerBookingList /> },
-      { path: 'bookings/:id', element: <ManagerBookingDetail /> },
-      { path: 'feedbacks', element: <ManagerFeedbackList /> },
-      { path: 'feedbacks/reply', element: <ReplyFeedback /> },
-      { path: 'services', element: <ManagerServiceList /> },
-      { path: 'services/create', element: <ManagerServiceCreate /> },
-      { path: 'services/:id/edit', element: <ManagerServiceEdit /> },
-      { path: 'pricing-requests', element: <ManagerPricingRequests /> },
-      { path: 'pricing-requests/create', element: <ManagerCreatePricingRequest /> },
-      { path: 'reports/revenue', element: <ManagerRevenueReport /> },
-      { path: 'reports/booking', element: <ManagerBookingReport /> },
-    ],
-  },
-  // ── OWNER ───────────────────────────────
-  {
-    path: '/owner',
-    element: <AuthGuard><RoleGuard roles={['OWNER']}><OwnerLayout /></RoleGuard></AuthGuard>,
-    children: [
-      { index: true, element: <OwnerDashboard /> },
-      { path: 'branches', element: <BranchList /> },
-      { path: 'branches/create', element: <BranchCreate /> },
-      { path: 'branches/:id/edit', element: <BranchEdit /> },
-      { path: 'pricing', element: <PricingList /> },
-      { path: 'pricing/create', element: <PricingCreate /> },
-      { path: 'pricing/:id/edit', element: <PricingEdit /> },
-      { path: 'pricing-requests', element: <OwnerPricingRequests /> },
-      { path: 'pricing-requests/:id/approve', element: <ApproveRequest /> },
-      { path: 'pricing-requests/:id/reject', element: <RejectRequest /> },
-      { path: 'users', element: <UserList /> },
-      { path: 'users/roles', element: <RoleManagement /> },
-      { path: 'reports/revenue', element: <GlobalRevenue /> },
-      { path: 'reports/branches', element: <BranchComparison /> },
-      { path: 'logs', element: <SystemLogs /> },
-    ],
-  },
-  { path: '*', element: <NotFound /> },
-];
+      <Route path={PATHS.STAFF} element={<RoleShell roles={["STAFF"]} />}>
+        <Route index element={<StaffHomePage />} />
+        <Route path="bookings/today" element={<StaffBookingsTodayPage />} />
+        <Route path="checkin/:id" element={<StaffCheckinPage />} />
+        <Route path="checkout/:id" element={<StaffCheckoutPage />} />
+        <Route path="rooms/status" element={<StaffRoomStatusPage />} />
+        <Route path="service-usage" element={<StaffServiceUsagePage />} />
+      </Route>
 
-export default appRoutes;
+      <Route path={PATHS.MANAGER} element={<RoleShell roles={["MANAGER"]} />}>
+        <Route index element={<ManagerHomePage />} />
+        <Route path="rooms" element={<ManagerRoomsPage />} />
+        <Route path="rooms/create" element={<ManagerRoomCreatePage />} />
+        <Route path="rooms/:id/edit" element={<ManagerRoomEditPage />} />
+        <Route path="bookings" element={<ManagerBookingsPage />} />
+        <Route path="bookings/:id" element={<ManagerBookingDetailPage />} />
+        <Route path="feedbacks" element={<ManagerFeedbacksPage />} />
+        <Route path="services" element={<ManagerServicesPage />} />
+        <Route path="pricing-requests" element={<ManagerPricingRequestsPage />} />
+        <Route path="reports/revenue" element={<ManagerRevenueReportPage />} />
+        <Route path="reports/booking" element={<ManagerBookingReportPage />} />
+      </Route>
+
+      <Route path={PATHS.OWNER} element={<RoleShell roles={["OWNER"]} />}>
+        <Route index element={<OwnerHomePage />} />
+        <Route path="branches" element={<OwnerBranchesPage />} />
+        <Route path="pricing" element={<OwnerPricingPage />} />
+        <Route path="pricing-requests" element={<OwnerPricingRequestsPage />} />
+        <Route path="users" element={<OwnerUsersPage />} />
+        <Route path="reports/revenue" element={<OwnerRevenueReportPage />} />
+        <Route path="reports/branches" element={<OwnerBranchCompareReportPage />} />
+        <Route path="logs" element={<OwnerLogsPage />} />
+      </Route>
+
+      <Route path={PATHS.FORBIDDEN} element={<Forbidden />} />
+      <Route path="/signin" element={<Navigate to={PATHS.LOGIN} replace />} />
+      <Route path="*" element={<NotFound />} />
+    </Routes>
+  );
+}

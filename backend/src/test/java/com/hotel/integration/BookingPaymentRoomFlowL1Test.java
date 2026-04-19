@@ -1,14 +1,10 @@
 package com.hotel.integration;
 
-import com.hotel.common.enums.BookingStatus;
-import com.hotel.common.enums.RoomStatus;
-import com.hotel.modules.booking.BookingRepository;
-import com.hotel.modules.booking.BookingService;
-import com.hotel.modules.booking.dto.BookingCreateRequest;
-import com.hotel.modules.payment.PaymentRepository;
-import com.hotel.modules.payment.PaymentService;
-import com.hotel.modules.payment.dto.PaymentCreateRequest;
-import com.hotel.modules.room.RoomRepository;
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.UUID;
+
+import static org.assertj.core.api.Assertions.assertThat;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,11 +16,15 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
-import java.math.BigDecimal;
-import java.time.LocalDate;
-import java.util.UUID;
-
-import static org.assertj.core.api.Assertions.assertThat;
+import com.hotel.common.enums.BookingStatus;
+import com.hotel.common.enums.RoomStatus;
+import com.hotel.modules.booking.BookingRepository;
+import com.hotel.modules.booking.BookingService;
+import com.hotel.modules.booking.dto.BookingCreateRequest;
+import com.hotel.modules.payment.PaymentRepository;
+import com.hotel.modules.payment.PaymentService;
+import com.hotel.modules.payment.dto.PaymentCreateRequest;
+import com.hotel.modules.room.RoomRepository;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
 @ActiveProfiles("test")
@@ -111,11 +111,11 @@ class BookingPaymentRoomFlowL1Test {
         assertThat(roomRepository.findById(ROOM_ID).orElseThrow().getStatus())
             .isEqualTo(RoomStatus.OCCUPIED);
 
-        bookingService.checkIn(bookingId);
+        bookingService.checkIn(bookingId, BRANCH_ID.toString());
         assertThat(bookingRepository.findById(UUID.fromString(bookingId)).orElseThrow().getStatus())
             .isEqualTo(BookingStatus.CHECKED_IN);
 
-        bookingService.checkOut(bookingId);
+        bookingService.checkOut(bookingId, BRANCH_ID.toString());
         assertThat(bookingRepository.findById(UUID.fromString(bookingId)).orElseThrow().getStatus())
             .isEqualTo(BookingStatus.CHECKED_OUT);
         assertThat(roomRepository.findById(ROOM_ID).orElseThrow().getStatus())

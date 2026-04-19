@@ -10,6 +10,7 @@ public class RoomResponse {
 	private String roomTypeName;
 	private String branchId;
 	private String branchCity;
+	private String imageUrl;
 	private String status;
 	private BigDecimal rate;
 	private int maxOccupancy;
@@ -61,6 +62,14 @@ public class RoomResponse {
 
 	public void setBranchCity(String branchCity) {
 		this.branchCity = branchCity;
+	}
+
+	public String getImageUrl() {
+		return imageUrl;
+	}
+
+	public void setImageUrl(String imageUrl) {
+		this.imageUrl = imageUrl;
 	}
 
 	public String getStatus() {

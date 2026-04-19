@@ -1,17 +1,21 @@
 package com.hotel.modules.booking;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.UUID;
+
+import org.hibernate.annotations.JdbcType;
+import org.hibernate.dialect.PostgreSQLEnumJdbcType;
+
 import com.hotel.common.enums.BookingStatus;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
-
-import java.math.BigDecimal;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.util.UUID;
 
 @Entity
 @Table(name = "bookings")
@@ -45,6 +49,7 @@ public class BookingEntity {
 	private BigDecimal totalPrice;
 
 	@Enumerated(EnumType.STRING)
+	@JdbcType(PostgreSQLEnumJdbcType.class)
 	@Column(name = "status")
 	private BookingStatus status;
 

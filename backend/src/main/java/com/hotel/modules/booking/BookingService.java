@@ -1,5 +1,13 @@
 package com.hotel.modules.booking;
 
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.UUID;
+
+import org.springframework.data.domain.Sort;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.hotel.common.enums.BookingStatus;
 import com.hotel.common.enums.RoomStatus;
 import com.hotel.exception.BusinessException;
@@ -13,13 +21,6 @@ import com.hotel.modules.booking.dto.BookingServiceUpdateRequest;
 import com.hotel.modules.room.RoomRepository;
 import com.hotel.modules.room.RoomService;
 import com.hotel.modules.service.ServiceRepository;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.data.domain.Sort;
-
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.UUID;
 
 @Service
 public class BookingService {
@@ -186,9 +187,11 @@ public class BookingService {
 	}
 
 	@Transactional
-	public BookingActionResponse checkIn(String bookingId) {
+	public BookingActionResponse checkIn(String bookingId, String branchId) {
 		BookingEntity entity = bookingRepository.findById(UUID.fromString(bookingId))
 			.orElseThrow(() -> new NotFoundException("Booking not found: " + bookingId));
+
+		ensureBookingInBranch(entity, branchId);
 
 		if (entity.getStatus() != BookingStatus.CONFIRMED) {
 			throw new BusinessException("Only confirmed booking can be checked in");
@@ -203,9 +206,11 @@ public class BookingService {
 	}
 
 	@Transactional
-	public BookingActionResponse checkOut(String bookingId) {
+	public BookingActionResponse checkOut(String bookingId, String branchId) {
 		BookingEntity entity = bookingRepository.findById(UUID.fromString(bookingId))
 			.orElseThrow(() -> new NotFoundException("Booking not found: " + bookingId));
+
+		ensureBookingInBranch(entity, branchId);
 
 		if (entity.getStatus() != BookingStatus.CHECKED_IN) {
 			throw new BusinessException("Only checked-in booking can be checked out");
@@ -247,6 +252,13 @@ public class BookingService {
 		UUID ownerId = UUID.fromString(customerId);
 		if (!booking.getCustomerId().equals(ownerId)) {
 			throw new BusinessException("Booking does not belong to the current customer");
+		}
+	}
+
+	private void ensureBookingInBranch(BookingEntity booking, String branchId) {
+		UUID scopedBranchId = UUID.fromString(branchId);
+		if (!booking.getBranchId().equals(scopedBranchId)) {
+			throw new BusinessException("Booking is not in current staff branch scope");
 		}
 	}
 }

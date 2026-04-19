@@ -1,16 +1,22 @@
 package com.hotel.modules.payment;
 
+import java.math.BigDecimal;
+import java.sql.Types;
+import java.time.LocalDateTime;
+import java.util.UUID;
+
+import org.hibernate.annotations.JdbcType;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.dialect.PostgreSQLEnumJdbcType;
+
 import com.hotel.common.enums.PaymentStatus;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
-
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
-import java.util.UUID;
 
 @Entity
 @Table(name = "payments")
@@ -31,10 +37,12 @@ public class PaymentEntity {
 	@Column(name = "amount")
 	private BigDecimal amount;
 
-	@Column(name = "currency")
+	@JdbcTypeCode(Types.CHAR)
+	@Column(name = "currency", length = 3)
 	private String currency;
 
 	@Enumerated(EnumType.STRING)
+	@JdbcType(PostgreSQLEnumJdbcType.class)
 	@Column(name = "status")
 	private PaymentStatus status;
 

@@ -1,11 +1,14 @@
-﻿import React from 'react';
-import { Navigate, useLocation } from 'react-router-dom';
-import useAuth from '../../hooks/useAuth';
+import { Navigate, useLocation } from "react-router-dom";
+import { PATHS } from "../pathConstants";
+import { useAuthStore } from "../../store/authStore";
 
-const AuthGuard = ({ children }) => {
-  const { isAuthenticated } = useAuth();
+export default function AuthGuard({ children }) {
+  const { isAuthenticated } = useAuthStore();
   const location = useLocation();
-  if (!isAuthenticated) return <Navigate to="/login" state={{ from: location }} replace />;
+
+  if (!isAuthenticated) {
+    return <Navigate to={`${PATHS.LOGIN}?redirect=${encodeURIComponent(location.pathname)}`} replace />;
+  }
+
   return children;
-};
-export default AuthGuard;
+}

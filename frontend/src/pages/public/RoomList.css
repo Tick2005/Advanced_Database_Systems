@@ -1,7 +1,0 @@
-.room-list-page { padding: 40px 40px; }
-.room-list-inner { max-width: 1200px; margin: 0 auto; }
-.room-list-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 28px; flex-wrap: wrap; gap: 16px; }
-.room-list-header h1 { font-family: var(--font-display); font-size: 26px; }
-.room-search { padding: 10px 16px; border: 1.5px solid var(--color-border); border-radius: var(--radius-sm); font-size: 14px; width: 280px; outline: none; }
-.room-search:focus { border-color: var(--color-accent); }
-@media (max-width: 600px) { .room-list-page { padding: 20px; } .room-search { width: 100%; } }

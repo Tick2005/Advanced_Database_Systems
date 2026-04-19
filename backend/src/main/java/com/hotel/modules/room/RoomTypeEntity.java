@@ -1,12 +1,12 @@
 package com.hotel.modules.room;
 
+import java.math.BigDecimal;
+import java.util.UUID;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
-
-import java.math.BigDecimal;
-import java.util.UUID;
 
 @Entity
 @Table(name = "room_types")
@@ -34,7 +34,7 @@ public class RoomTypeEntity {
 	private boolean active;
 
 	@Column(name = "average_rating")
-	private double averageRating;
+	private BigDecimal averageRating;
 
 	public UUID getId() {
 		return id;
@@ -92,11 +92,11 @@ public class RoomTypeEntity {
 		this.active = active;
 	}
 
-	public double getAverageRating() {
+	public BigDecimal getAverageRating() {
 		return averageRating;
 	}
 
-	public void setAverageRating(double averageRating) {
+	public void setAverageRating(BigDecimal averageRating) {
 		this.averageRating = averageRating;
 	}
 }

@@ -1,35 +1,18 @@
-﻿import React, { useState } from 'react';
-import { Outlet } from 'react-router-dom';
-import Sidebar from '../components/layout/Sidebar';
-import Topbar from '../components/layout/Topbar';
-import '../layouts/DashLayout.css';
+import { Navigate, Outlet } from "react-router-dom";
+import { useAuth } from "../features/auth/useAuth";
+import { PATHS } from "../routes/pathConstants";
+import PublicLayout from "./PublicLayout";
 
-const NAV_ITEMS = [
-  { to: "/customer", label: "Trang chủ", icon: "🏠", end: true },
-  { to: "/customer/search", label: "Tìm phòng", icon: "🔍" },
-  { divider: true },
-  { section: "Đặt phòng" },
-  { to: "/customer/bookings", label: "Đặt phòng của tôi", icon: "📋" },
-  { to: "/customer/booking/create", label: "Đặt phòng mới", icon: "➕" },
-  { divider: true },
-  { section: "Tài khoản" },
-  { to: "/customer/feedbacks", label: "Đánh giá của tôi", icon: "💬" },
-  { to: "/customer/profile", label: "Hồ sơ", icon: "👤" },
-  { to: "/customer/settings/password", label: "Đổi mật khẩu", icon: "🔒" },
-];
+export default function CustomerLayout() {
+  const { role } = useAuth();
 
-const CustomerLayout = () => {
-  const [collapsed, setCollapsed] = useState(false);
+  if (role !== "CUSTOMER") {
+    return <Navigate to={PATHS.FORBIDDEN} replace />;
+  }
+
   return (
-    <div className={`dash-shell ${collapsed ? 'dash-shell--collapsed' : ''}`}>
-      <Sidebar logo="🏨 LuxStay" items={NAV_ITEMS} />
-      <div className="dash-body">
-        <Topbar title="LuxStay Customer" onMenuToggle={() => setCollapsed(!collapsed)} />
-        <main className="dash-main">
-          <Outlet />
-        </main>
-      </div>
-    </div>
+    <PublicLayout>
+      <Outlet />
+    </PublicLayout>
   );
-};
-export default CustomerLayout;
+}

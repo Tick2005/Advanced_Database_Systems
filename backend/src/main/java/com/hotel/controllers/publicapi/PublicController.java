@@ -1,5 +1,14 @@
 package com.hotel.controllers.publicapi;
 
+import java.util.List;
+
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
 import com.hotel.common.constants.ApiPath;
 import com.hotel.common.response.ApiResponse;
 import com.hotel.integrations.vnpay.VNPayService;
@@ -12,14 +21,9 @@ import com.hotel.modules.report.ReportService;
 import com.hotel.modules.report.dto.RevenueReportResponse;
 import com.hotel.modules.room.RoomService;
 import com.hotel.modules.room.dto.RoomResponse;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
-
-import java.util.List;
+import com.hotel.modules.room.dto.RoomSearchFilter;
+import com.hotel.modules.service.ServiceService;
+import com.hotel.modules.service.dto.ServiceResponse;
 
 @RestController
 @RequestMapping(ApiPath.PUBLIC)
@@ -29,6 +33,7 @@ public class PublicController {
     private final BranchService branchService;
     private final FeedbackService feedbackService;
     private final ReportService reportService;
+    private final ServiceService serviceService;
     private final VNPayService vnPayService;
 
     public PublicController(
@@ -36,18 +41,20 @@ public class PublicController {
         BranchService branchService,
         FeedbackService feedbackService,
         ReportService reportService,
+        ServiceService serviceService,
         VNPayService vnPayService
     ) {
         this.roomService = roomService;
         this.branchService = branchService;
         this.feedbackService = feedbackService;
         this.reportService = reportService;
+        this.serviceService = serviceService;
         this.vnPayService = vnPayService;
     }
 
     @GetMapping("/rooms")
-    public ApiResponse<List<RoomResponse>> getRooms() {
-        return ApiResponse.ok("Public room list", roomService.getRooms(null));
+    public ApiResponse<List<RoomResponse>> getRooms(RoomSearchFilter filter) {
+        return ApiResponse.ok("Public room list", roomService.getRooms(filter));
     }
 
     @GetMapping("/rooms/{id}")
@@ -58,6 +65,11 @@ public class PublicController {
     @GetMapping("/branches")
     public ApiResponse<List<BranchResponse>> getBranches() {
         return ApiResponse.ok("Branch list", branchService.getActiveBranches());
+    }
+
+    @GetMapping("/services")
+    public ApiResponse<List<ServiceResponse>> getServicesByBranch(@RequestParam String branchId) {
+        return ApiResponse.ok("Service list", serviceService.getByBranch(branchId));
     }
 
     @GetMapping("/feedbacks/{roomId}")

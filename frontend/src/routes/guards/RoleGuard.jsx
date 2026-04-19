@@ -1,10 +1,13 @@
-﻿import React from 'react';
-import { Navigate } from 'react-router-dom';
-import usePermission from '../../hooks/usePermission';
+import { Navigate } from "react-router-dom";
+import { PATHS } from "../pathConstants";
+import { useAuthStore } from "../../store/authStore";
 
-const RoleGuard = ({ roles, children }) => {
-  const { role } = usePermission();
-  if (!roles.includes(role)) return <Navigate to="/" replace />;
+export default function RoleGuard({ roles, children }) {
+  const { role } = useAuthStore();
+
+  if (!roles.includes(role)) {
+    return <Navigate to={PATHS.FORBIDDEN} replace />;
+  }
+
   return children;
-};
-export default RoleGuard;
+}

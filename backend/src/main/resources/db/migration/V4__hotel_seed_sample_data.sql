@@ -1,9 +1,9 @@
 INSERT INTO users (id, email, password_hash, role, is_active, email_verified)
 VALUES
-	('11111111-1111-1111-1111-111111111111', 'owner@hotel.local', '$2a$10$placeholder.owner.hash', 'OWNER', TRUE, TRUE),
-	('22222222-2222-2222-2222-222222222222', 'manager@hotel.local', '$2a$10$placeholder.manager.hash', 'MANAGER', TRUE, TRUE),
-	('33333333-3333-3333-3333-333333333333', 'staff@hotel.local', '$2a$10$placeholder.staff.hash', 'STAFF', TRUE, TRUE),
-	('44444444-4444-4444-4444-444444444444', 'customer@hotel.local', '$2a$10$placeholder.customer.hash', 'CUSTOMER', TRUE, TRUE)
+	('11111111-1111-1111-1111-111111111111', 'owner@hotel.local', '$2a$10$GxpUpyU8AGCKl67giDcxeuLt2pHv66qqWrTGMx8SvfW8fJB3Gii9i', 'OWNER', TRUE, TRUE),
+	('22222222-2222-2222-2222-222222222222', 'manager@hotel.local', '$2a$10$GxpUpyU8AGCKl67giDcxeuLt2pHv66qqWrTGMx8SvfW8fJB3Gii9i', 'MANAGER', TRUE, TRUE),
+	('33333333-3333-3333-3333-333333333333', 'staff@hotel.local', '$2a$10$GxpUpyU8AGCKl67giDcxeuLt2pHv66qqWrTGMx8SvfW8fJB3Gii9i', 'STAFF', TRUE, TRUE),
+	('44444444-4444-4444-4444-444444444444', 'customer@hotel.local', '$2a$10$GxpUpyU8AGCKl67giDcxeuLt2pHv66qqWrTGMx8SvfW8fJB3Gii9i', 'CUSTOMER', TRUE, TRUE)
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO user_profiles (user_id, full_name, phone, preferred_language)
