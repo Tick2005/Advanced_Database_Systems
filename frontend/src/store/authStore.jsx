@@ -1,10 +1,87 @@
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { clearAuth, loadAuth, saveAuth } from "../services/storage";
+import { authService } from "../features/auth/authService";
 
 const AuthContext = createContext(null);
 
+function parseTokenExpiryMs(token) {
+  if (!token || typeof token !== "string") return 0;
+  try {
+    const payloadPart = token.split(".")[1];
+    if (!payloadPart) return 0;
+    const normalized = payloadPart.replace(/-/g, "+").replace(/_/g, "/");
+    const payload = JSON.parse(window.atob(normalized));
+    return Number(payload?.exp || 0) * 1000;
+  } catch {
+    return 0;
+  }
+}
+
 export function AuthProvider({ children }) {
   const [auth, setAuth] = useState(loadAuth);
+  const refreshTimerRef = useRef(null);
+
+  const clearRefreshTimer = useCallback(() => {
+    if (refreshTimerRef.current) {
+      window.clearTimeout(refreshTimerRef.current);
+      refreshTimerRef.current = null;
+    }
+  }, []);
+
+  const applyAuth = useCallback((payload) => {
+    const source = payload?.data ?? payload ?? {};
+    const next = {
+      accessToken: source.accessToken,
+      refreshToken: source.refreshToken,
+      role: source.role,
+      email: source.email
+    };
+    saveAuth(next);
+    setAuth(next);
+  }, []);
+
+  const clearSessionArtifacts = useCallback(() => {
+    sessionStorage.removeItem("booking_vnpay_pending");
+    sessionStorage.removeItem("booking_vnpay_result");
+  }, []);
+
+  const forceLogout = useCallback(() => {
+    clearRefreshTimer();
+    clearSessionArtifacts();
+    clearAuth();
+    setAuth(null);
+  }, [clearRefreshTimer, clearSessionArtifacts]);
+
+  const refreshAccessToken = useCallback(async () => {
+    const latest = loadAuth();
+    if (!latest?.refreshToken) {
+      forceLogout();
+      return;
+    }
+
+    try {
+      const refreshed = await authService.refreshToken(latest.refreshToken);
+      applyAuth({ ...latest, ...refreshed });
+    } catch {
+      forceLogout();
+    }
+  }, [applyAuth, forceLogout]);
+
+  const scheduleRefresh = useCallback((nextAuth) => {
+    clearRefreshTimer();
+    const expiresAt = parseTokenExpiryMs(nextAuth?.accessToken);
+    if (!expiresAt || !nextAuth?.refreshToken) {
+      return;
+    }
+
+    const now = Date.now();
+    const refreshAt = expiresAt - 2 * 60 * 1000;
+    const timeout = Math.max(5000, refreshAt - now);
+
+    refreshTimerRef.current = window.setTimeout(() => {
+      refreshAccessToken();
+    }, timeout);
+  }, [clearRefreshTimer, refreshAccessToken]);
 
   useEffect(() => {
     const syncAuth = () => {
@@ -20,22 +97,22 @@ export function AuthProvider({ children }) {
     };
   }, []);
 
+  useEffect(() => {
+    if (!auth?.accessToken) {
+      clearRefreshTimer();
+      return;
+    }
+    scheduleRefresh(auth);
+    return clearRefreshTimer;
+  }, [auth, clearRefreshTimer, scheduleRefresh]);
+
   const value = useMemo(() => {
     const login = (payload) => {
-      const source = payload?.data ?? payload ?? {};
-      const next = {
-        accessToken: source.accessToken,
-        refreshToken: source.refreshToken,
-        role: source.role,
-        email: source.email
-      };
-      saveAuth(next);
-      setAuth(next);
+      applyAuth(payload);
     };
 
     const logout = () => {
-      clearAuth();
-      setAuth(null);
+      forceLogout();
     };
 
     return {
@@ -43,9 +120,10 @@ export function AuthProvider({ children }) {
       isAuthenticated: Boolean(auth?.accessToken),
       role: auth?.role || null,
       login,
+      refreshAccessToken,
       logout
     };
-  }, [auth]);
+  }, [auth, applyAuth, forceLogout, refreshAccessToken]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

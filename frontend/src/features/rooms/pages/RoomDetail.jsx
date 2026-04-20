@@ -6,10 +6,12 @@ import LoadingState from "../../../components/common/LoadingState";
 import ErrorState from "../../../components/common/ErrorState";
 import { PATHS } from "../../../routes/pathConstants";
 import { formatCurrencyVnd, formatStatus, getRoomAmenities, getRoomImage, getStatusStyle } from "../../../services/presenters";
+import { useAuth } from "../../auth/useAuth";
 
 export default function RoomDetail({ customer = false }) {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { isAuthenticated, role } = useAuth();
   const [room, setRoom] = useState(null);
   const [feedbacks, setFeedbacks] = useState([]);
   const [checkInDate, setCheckInDate] = useState("");
@@ -19,6 +21,7 @@ export default function RoomDetail({ customer = false }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [bookingError, setBookingError] = useState("");
+  const [showAllFeedbacks, setShowAllFeedbacks] = useState(false);
 
   const fetchData = async () => {
     setLoading(true);
@@ -87,6 +90,10 @@ export default function RoomDetail({ customer = false }) {
   const gallery = [heroImage, heroImage, heroImage];
   const statusStyle = getStatusStyle(room.status);
   const amenities = getRoomAmenities(room);
+  const visibleFeedbacks = [...feedbacks]
+    .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
+    .slice(0, showAllFeedbacks ? feedbacks.length : 3);
+  const canBookAsCustomer = role === "CUSTOMER" && isAuthenticated;
 
   return (
     <section className="container page-shell" style={{ display: "grid", gap: 20 }}>
@@ -111,26 +118,43 @@ export default function RoomDetail({ customer = false }) {
           <p>
             Trạng thái hiện tại: <strong>{formatStatus(room.status)}</strong>
           </p>
-          <h3>Tiện ích</h3>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
-            {amenities.map((item) => (
-              <span key={item} className="pill pill-soft">
-                {item}
-              </span>
-            ))}
-          </div>
-          <h3>Danh gia khach hang</h3>
-          {feedbacks.length === 0 ? <p>Chưa có phản hồi</p> : feedbacks.slice(0, 5).map((item) => (
-            <div key={item.id} className="list-item" style={{ marginTop: 10 }}>
-              <div>⭐ {item.rating}/5</div>
-              <div>{item.content}</div>
+          <div className="split-panel" style={{ gridTemplateColumns: "0.9fr 1.1fr", marginTop: 12 }}>
+            <div>
+              <h3>Tiện ích</h3>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
+                {amenities.map((item) => (
+                  <span key={item} className="pill pill-soft">
+                    {item}
+                  </span>
+                ))}
+              </div>
             </div>
-          ))}
+            <div>
+              <h3>Đánh giá gần nhất</h3>
+              {feedbacks.length === 0 ? <p>Chưa có phản hồi</p> : visibleFeedbacks.map((item) => (
+                <div key={item.id} className="list-item" style={{ marginTop: 10 }}>
+                  <div>⭐ {item.rating}/5</div>
+                  <div>{item.content}</div>
+                  {item.managerReply && <small style={{ color: "#64748b" }}>Phản hồi quản lý: {item.managerReply}</small>}
+                </div>
+              ))}
+              {feedbacks.length > 3 && (
+                <button
+                  type="button"
+                  className="btn"
+                  style={{ marginTop: 10, border: "1px solid #cbd5e1", background: "white" }}
+                  onClick={() => setShowAllFeedbacks((prev) => !prev)}
+                >
+                  {showAllFeedbacks ? "Thu gọn" : "View all"}
+                </button>
+              )}
+            </div>
+          </div>
         </article>
 
         <aside className="card surface-panel" style={{ padding: 18, height: "fit-content", position: "sticky", top: 90 }}>
           <div className="mono room-price" style={{ marginBottom: 12, fontSize: 18 }}>{formatCurrencyVnd(room.rate)} / đêm</div>
-          {customer ? (
+          {canBookAsCustomer ? (
             <div style={{ display: "grid", gap: 10 }}>
               <div className="field">
                 <label style={{ fontSize: 12, color: "#64748b", fontWeight: 600 }}>Ngày nhận phòng</label>
@@ -157,6 +181,13 @@ export default function RoomDetail({ customer = false }) {
               </div>
               {bookingError && <div style={{ padding: "10px 12px", background: "#fee2e2", color: "#b91c1c", borderRadius: 10, fontSize: 13 }}>{bookingError}</div>}
               <button className="btn btn-gold" onClick={goCreateBooking} disabled={room.status !== "AVAILABLE"} style={{ marginTop: 4 }}>Đặt phòng ngay</button>
+            </div>
+          ) : isAuthenticated ? (
+            <div style={{ display: "grid", gap: 10 }}>
+              <div style={{ padding: "10px 12px", background: "#fff7ed", borderRadius: 10, color: "#9a3412", fontSize: 13 }}>
+                Tài khoản hiện tại chỉ có quyền xem. Vui lòng dùng tài khoản CUSTOMER để đặt phòng.
+              </div>
+              <Link className="btn btn-primary" to={PATHS.HOME}>Quay về trang chủ</Link>
             </div>
           ) : (
             <Link className="btn btn-primary" to={`${PATHS.LOGIN}?redirect=/customer/rooms/${room.id}`}>Dang nhap de dat phong</Link>

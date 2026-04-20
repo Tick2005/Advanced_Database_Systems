@@ -1,0 +1,157 @@
+ĐIỂM YẾU CHÍNH CỦA DỰ ÁN (Advanced Database Systems - Hotel Booking)
+==============================================================
+
+1. POLYGLOT ACID - CHƯA CÓ DISTRIBUTED TRANSACTION (🔴 CRITICAL)
+   - PostgreSQL và MongoDB chạy độc lập, không có saga/outbox/XA
+   - Booking commit ở Postgres nhưng feedback lỗi ở MongoDB → inconsistent
+   - Thiếu: Saga pattern, Outbox pattern, Event sourcing, Compensation transactions
+   
+2. PESSIMISTIC LOCKING - KHÔNG TOÀN DIỆN (🔴 CRITICAL)
+   - ✓ Booking create: CÓ PESSIMISTIC_WRITE trên room
+   - ✗ Booking markPaid: KHÔNG có lock
+   - ✗ Booking checkIn/checkOut: KHÔNG có lock
+   - ✗ Payment create/update: HOÀN TOÀN KHÔNG có lock
+   → Race condition ở payment, markPaid, checkIn/Out
+
+3. IDEMPOTENCY DESIGN - YẾU (🟠 HIGH)
+   - ✓ Payment.booking_id: UNIQUE (ngăn 2 payment cho booking)
+   - ✗ Payment.transaction_ref: KHÔNG UNIQUE (callback có thể duplicate)
+   - ✗ Booking: KHÔNG có idempotency_key
+   - ✗ createPayment: Client retry → tạo 2 payment với booking_id khác
+   → Dễ tạo duplicate payment nếu network retry
+
+4. TRIGGER/FUNCTION/VIEW - CÓ NHƯNG CHƯA KHAI THÁC (🟠 HIGH)
+   - ✓ Có: fn_hold_room_booking, fn_confirm_room_booking (WITH lock + idempotency)
+   - ✗ NHƯNG: BookingService.java không gọi stored procedure
+   - ✗ Vẫn dùng JPA service code thay vì procedure tối ưu
+   - ✓ Có view cho reporting
+   - ✗ NHƯNG: KHÔNG có view để detect conflict, overlap
+
+5. CONFLICT RESOLUTION - CƠ BẢN, KHÔNG HÌNH THỨC (🟠 HIGH)
+   - DB: Partial unique index (70% chặn overlap)
+   - App: existsActiveOverlap() check (gap race condition)
+   - Lock: PESSIMISTIC_WRITE (chỉ booking)
+   - ✗ THIẾU: Exclusion constraint (chặn date overlap 100%)
+   - ✗ THIẾU: Formal conflict detection view
+
+6. TEST SUITE - CHỈ HAPPY PATH (🟠 HIGH)
+   - ✓ BookingPaymentRoomFlowL1Test: Sequential flow ✓
+   - ✓ AuthAndSecurityFlowL1Test: Auth flow ✓
+   - ✗ KHÔNG: Concurrency test (2 booking cùng room)
+   - ✗ KHÔNG: Duplicate callback test (VNPay callback 2 lần)
+   - ✗ KHÔNG: Rollback scenario
+   - ✗ KHÔNG: Cross-store consistency test (Postgres + Mongo)
+
+7. ERROR HANDLING - THIẾU RETRY LOGIC (🟡 MEDIUM)
+   - ✗ KHÔNG có @Retry cho OptimisticLockingFailureException
+   - ✗ KHÔNG có retry cho DeadlockLoserDataAccessException
+   - ✗ KHÔNG có idempotent handling cho DataIntegrityViolationException
+   - ✗ KHÔNG có circuit breaker cho VNPay integration
+
+8. DATABASE DESIGN - CHƯA DÙNG ADVANCED FEATURES (🟡 MEDIUM)
+   - ✗ KHÔNG có: Exclusion constraint (DATE range overlap prevention)
+   - ✗ KHÔNG có: Deferrable foreign key
+   - ✗ KHÔNG có: Generated columns (tính duration)
+   - ✓ Có: Partial indexes (tốt)
+   - ✓ Có: Constraints & FK (tốt)
+
+9. API DESIGN - THIẾU VERSIONING (⚪ LOW)
+   - ✗ KHÔNG có: API versioning (/v1, /v2)
+   - ✗ Nếu thêm conflict resolution → API contract thay đổi
+   - ✗ Breaking change cho client
+
+10. MONITORING - KHÔNG CÓ LOCK METRICS (⚪ LOW)
+    - ✗ KHÔNG track: Lock wait time, deadlock count, abort rate
+    - ✗ KHÔNG track: Booking overlap detection rate
+    - ✗ KHÔNG có: Observable metrics cho ACID/concurrency
+
+11. FRONTEND - CÓ UI NHƯNG CHƯA THẬT SỰ MẠNH (🟠 HIGH)
+   - ✗ Dùng rất nhiều inline style trong layout/page/component → khó maintain, khó scale design system
+   - ✗ UI chủ yếu dựa vào class chung + style rải rác, chưa có kiến trúc theme/token rõ ràng
+   - ✗ `PublicLayout`, `DataTable`, `RoomList`, `PreviewBooking` vẫn còn nhiều logic trình bày trong component
+   - ✗ Phần lớn filter/sort/pagination xử lý ở client → dễ lệch với dữ liệu thật khi backend đổi state
+   - ✗ `RoomList` fetch toàn bộ rooms rồi mới filter/sort/paginate, chưa có server-side pagination/search cho dữ liệu lớn
+   - ✗ Booking flow phụ thuộc nhiều vào `location.state` và client state, nếu refresh hoặc đi trực tiếp URL thì dễ mất ngữ cảnh
+   - ✗ `authStore` dựa nhiều vào localStorage/sessionStorage + timer refresh token → còn yếu về độ bền session và bảo mật thực tế
+   - ✗ Không thấy chiến lược optimistic UI / rollback UI rõ cho booking/payment retry, nên trải nghiệm khi lỗi mạng chưa tốt
+   - ✗ Error/empty/loading states có nhưng còn cơ bản, chưa có skeleton/placeholder phong phú cho mọi màn hình quan trọng
+   - ✗ Routing chia theo role khá nhiều nhưng nhiều trang vẫn là form/list đơn giản, chưa tạo cảm giác demo "nâng cao" về UX
+   - ✗ Component common có tái sử dụng nhưng chưa đủ chuẩn design system nghiêm túc: typography, spacing, motion, responsive behavior còn rời rạc
+   - ✗ Frontend chưa thể hiện rõ câu chuyện "polyglot ACID" hay conflict handling bằng UI feedback mạnh (conflict banner, retry, merge hint, lock notice)
+
+12. FRONTEND - BỐ CỤC, CTA VÀ WORDING CÒN RỜI RẠC (🟠 HIGH)
+   - ✗ Nhiều màn hình vẫn là layout 2 cột/các card mặc định, ít tạo được điểm nhấn thị giác cho demo môn học
+   - ✗ Header/menu/account dropdown có nút ẩn/hiện nhưng hành vi còn đơn giản, chưa có cảm giác điều hướng thật sự mượt; nhiều nút và menu chưa được tối ưu theo nhu cầu thật của người dùng, nên cân nhắc đổi sang icon, dropdown hoặc rút gọn hành động nhưng hiện vẫn để nguyên nên nhìn khá thô
+   - ✗ Một số nút và trạng thái chỉ đổi text như "Đang tải...", "Thử lại", "Tiếp theo" → hơi cơ học, thiếu ngữ cảnh theo từng màn hình
+   - ✗ Copy trên UI chưa đồng bộ: chỗ thì rất Việt hoá, chỗ lại dùng tiếng Anh như `Welcome back`, `Secure`, `Fast`, `Hotel OS`
+   - ✗ Một số label còn chung chung như "Xem chi tiết", "Tất cả phòng", "Khu điều khiển", chưa cho người dùng biết rõ giá trị hành động
+   - ✗ Có chỗ hiển thị trạng thái theo kiểu placeholder kỹ thuật hơn là ngôn ngữ sản phẩm, ví dụ message lỗi/empty/loading khá thẳng và khô
+   - ✗ Các nút chính chưa phân cấp rõ giữa primary/secondary/destructive ở mọi màn hình, nên người dùng khó đọc nhanh luồng thao tác
+   - ✗ Hành vi show/hide của menu và một số panel chưa có animation/transition rõ ràng, nên nhìn hơi "bật tắt" cứng
+   - ✗ Nhiều khối nội dung bị đẩy vào card/grid sẵn có, nhưng chưa có nhịp spacing, hierarchy và hero section đủ mạnh để làm demo ấn tượng
+   - ✗ Các màn booking/payment chưa có CTA theo trạng thái thật (ví dụ: giữ phòng, cảnh báo sắp hết chỗ, lock timeout, retry payment), nên UX còn phẳng
+   - ✗ Không thấy microcopy dẫn dắt người dùng khi thao tác nhạy cảm như thanh toán, đổi phòng, hủy booking, nên cảm giác sản phẩm còn thô
+   - ✗ Nếu nhìn như một demo môn học, frontend hiện thiên về "chạy được" hơn là "trình diễn được".
+
+=================================================================================
+TÓNG KẾT THEO MỤC TIÊU MÔN HỌC
+=================================================================================
+
+Yêu cầu môn "Hệ Cơ Sở Dữ Liệu Nâng Cao":
+  ✓ Polyglot ACID (PostgreSQL + MongoDB) → CÓ setup, NHƯNG CHƯA dùng distributed transaction
+  ✓ Pessimistic Locking cho booking/payment → CÓ ở booking, NHƯNG CHƯA ở payment
+  ✓ Trigger/Function/View giải quyết conflict → CÓ nhưng CHƯA được khai thác
+  ✓ Chuẩn dự án sinh viên → ✓ Đạt (code structure, modularity, security)
+
+⚠️ KẾT LUẬN:
+Dự án phù hợp cho "Hệ Cơ Sở Dữ Liệu CĂNG BẢN" nhưng chưa đủ cho "NÂNG CAO"
+Cần 1-2 tuần làm việc để bổ sung:
+  - Distributed transaction (Saga/Outbox)
+  - Toàn diện Pessimistic Locking (payment, transitions)
+  - Exclusion constraints + conflict detection view
+  - Comprehensive concurrency testing
+  - Formal idempotency & compensation pattern
+   - Frontend state flow, UX và error feedback mạnh hơn để demo đúng chất "nâng cao"
+
+=================================================================================
+TODO LIST FIX DẦN - ƯU TIÊN THỰC THI
+=================================================================================
+
+[P0 - Bắt buộc làm trước]
+- [ ] Thêm pessimistic lock cho `markPaid`, `checkIn`, `checkOut` và luồng payment callback
+- [ ] Bổ sung unique constraint / idempotency key cho `transaction_ref`
+- [ ] Chuẩn hóa xử lý duplicate callback và retry payment ở service layer
+- [ ] Viết test concurrent booking cùng room để xác minh race condition đã được chặn
+
+[P1 - Nên làm ngay sau P0]
+- [ ] Thiết kế Saga / Outbox cho luồng PostgreSQL + MongoDB
+- [ ] Làm rõ compensation transaction khi một store fail sau khi store kia đã commit
+- [ ] Dùng stored procedure / function `fn_hold_room_booking` và `fn_confirm_room_booking` trong luồng nghiệp vụ thật
+- [ ] Bổ sung test rollback và cross-store consistency
+
+[P2 - Củng cố database]
+- [ ] Thêm exclusion constraint cho overlap theo ngày đặt phòng
+- [ ] Tạo view chuyên cho conflict detection / booking overlap
+- [ ] Thêm retry policy cho deadlock, serialization failure, optimistic lock
+- [ ] Chuẩn hóa các index còn thiếu cho booking/payment/search lớn
+
+[P3 - Nâng frontend cho demo]
+- [ ] Tách theme/token cho typography, spacing, color, radius, shadow
+- [ ] Giảm inline style, đẩy các phần dùng chung sang component system rõ ràng hơn
+- [ ] Làm lại wording trên UI theo một giọng nhất quán, bỏ các label quá khô hoặc quá chung chung
+- [ ] Tối ưu show/hide của menu, dropdown, panel bằng transition rõ ràng hơn
+- [ ] Cải thiện CTA theo trạng thái thật: lock room, retry payment, warning hết chỗ, cancel booking
+- [ ] Bổ sung empty/loading/error state có ngữ cảnh tốt hơn cho từng màn hình
+- [ ] Đổi các flow booking quan trọng sang server-driven state rõ hơn, giảm phụ thuộc vào `location.state`
+
+[P4 - Hoàn thiện trình bày]
+- [ ] Làm dashboard và hero section có bản sắc rõ hơn cho demo môn học
+- [ ] Thêm microcopy cho thanh toán, đổi phòng, hủy booking
+- [ ] Bổ sung feedback UI cho conflict, pending, timeout, success và fail
+- [ ] Rà lại tất cả nút primary/secondary/destructive để phân cấp nhất quán
+
+Nguyên tắc làm dần:
+- Fix theo thứ tự P0 → P1 → P2 → P3 → P4
+- Mỗi bước xong phải có test hoặc validation đi kèm
+- Không làm dàn trải UI khi các lỗi ACID/locking vẫn chưa xong
+

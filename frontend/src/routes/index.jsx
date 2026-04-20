@@ -1,58 +1,57 @@
+import { Suspense, lazy } from "react";
 import { Navigate, Outlet, Route, Routes } from "react-router-dom";
 import PublicLayout from "../layouts/PublicLayout";
 import DashLayout from "../layouts/DashLayout";
 import { PATHS } from "./pathConstants";
-import Home from "../pages/Home";
-import Branches from "../pages/Branches";
-import NotFound from "../pages/NotFound";
-import Forbidden from "../pages/errors/Forbidden";
-import Signin from "../features/auth/pages/Signin";
-import Signup from "../features/auth/pages/Signup";
-import { ForgotPasswordPage, ResetPasswordPage } from "../features/auth/pages/ForgotResetPassword";
-import RoomList from "../features/rooms/pages/RoomList";
-import RoomDetail from "../features/rooms/pages/RoomDetail";
-import PreviewBooking from "../features/booking/pages/PreviewBooking";
-import VnPayPayment from "../features/booking/pages/VnPayPayment";
-import ReviewBooking from "../features/booking/pages/ReviewBooking";
-import VnPayReturn from "../features/booking/pages/VnPayReturn";
-import PaymentSuccessPage from "../features/booking/pages/PaymentSuccessPage";
-import PaymentFailedPage from "../features/booking/pages/PaymentFailedPage";
-import BookingsPage from "../features/booking/pages/BookingsPage";
-import BookingDetailPage from "../features/booking/pages/BookingDetailPage";
-import Feedbacks from "../features/feedback/pages/Feedbacks";
-import CreateFeedback from "../features/feedback/pages/CreateFeedback";
-import Profile from "../features/users/pages/Profile";
-import Settings from "../features/users/pages/Settings";
-import ProfileEdit from "../features/users/pages/ProfileEdit";
-import SecuritySettings from "../features/users/pages/SecuritySettings";
-import StaffHomePage from "../features/staff/pages/StaffHomePage";
-import StaffBookingsTodayPage from "../features/staff/pages/StaffBookingsTodayPage";
-import StaffCheckinPage from "../features/staff/pages/StaffCheckinPage";
-import StaffCheckoutPage from "../features/staff/pages/StaffCheckoutPage";
-import StaffRoomStatusPage from "../features/staff/pages/StaffRoomStatusPage";
-import StaffServiceUsagePage from "../features/staff/pages/StaffServiceUsagePage";
-import ManagerHomePage from "../features/manager/pages/ManagerHomePage";
-import ManagerRoomsPage from "../features/manager/pages/ManagerRoomsPage";
-import ManagerRoomCreatePage from "../features/manager/pages/ManagerRoomCreatePage";
-import ManagerRoomEditPage from "../features/manager/pages/ManagerRoomEditPage";
-import ManagerBookingsPage from "../features/manager/pages/ManagerBookingsPage";
-import ManagerBookingDetailPage from "../features/manager/pages/ManagerBookingDetailPage";
-import ManagerFeedbacksPage from "../features/manager/pages/ManagerFeedbacksPage";
-import ManagerServicesPage from "../features/manager/pages/ManagerServicesPage";
-import ManagerPricingRequestsPage from "../features/manager/pages/ManagerPricingRequestsPage";
-import ManagerRevenueReportPage from "../features/manager/pages/ManagerRevenueReportPage";
-import ManagerBookingReportPage from "../features/manager/pages/ManagerBookingReportPage";
-import OwnerHomePage from "../features/owner/pages/OwnerHomePage";
-import OwnerBranchesPage from "../features/owner/pages/OwnerBranchesPage";
-import OwnerPricingPage from "../features/owner/pages/OwnerPricingPage";
-import OwnerPricingRequestsPage from "../features/owner/pages/OwnerPricingRequestsPage";
-import OwnerUsersPage from "../features/owner/pages/OwnerUsersPage";
-import OwnerRevenueReportPage from "../features/owner/pages/OwnerRevenueReportPage";
-import OwnerBranchCompareReportPage from "../features/owner/pages/OwnerBranchCompareReportPage";
-import OwnerLogsPage from "../features/owner/pages/OwnerLogsPage";
 import AuthGuard from "./guards/AuthGuard";
 import RoleGuard from "./guards/RoleGuard";
 import { useAuth } from "../features/auth/useAuth";
+
+const Home = lazy(() => import("../pages/Home"));
+const Branches = lazy(() => import("../pages/Branches"));
+const NotFound = lazy(() => import("../pages/NotFound"));
+const Forbidden = lazy(() => import("../pages/errors/Forbidden"));
+const Signin = lazy(() => import("../features/auth/pages/Signin"));
+const Signup = lazy(() => import("../features/auth/pages/Signup"));
+const ForgotPasswordPage = lazy(() => import("../features/auth/pages/ForgotResetPassword").then((module) => ({ default: module.ForgotPasswordPage })));
+const ResetPasswordPage = lazy(() => import("../features/auth/pages/ForgotResetPassword").then((module) => ({ default: module.ResetPasswordPage })));
+const RoomList = lazy(() => import("../features/rooms/pages/RoomList"));
+const RoomDetail = lazy(() => import("../features/rooms/pages/RoomDetail"));
+const PreviewBooking = lazy(() => import("../features/booking/pages/PreviewBooking"));
+const VnPayPayment = lazy(() => import("../features/booking/pages/VnPayPayment"));
+const ReviewBooking = lazy(() => import("../features/booking/pages/ReviewBooking"));
+const VnPayReturn = lazy(() => import("../features/booking/pages/VnPayReturn"));
+const PaymentSuccessPage = lazy(() => import("../features/booking/pages/PaymentSuccessPage"));
+const PaymentFailedPage = lazy(() => import("../features/booking/pages/PaymentFailedPage"));
+const BookingsPage = lazy(() => import("../features/booking/pages/BookingsPage"));
+const BookingDetailPage = lazy(() => import("../features/booking/pages/BookingDetailPage"));
+const Feedbacks = lazy(() => import("../features/feedback/pages/Feedbacks"));
+const CreateFeedback = lazy(() => import("../features/feedback/pages/CreateFeedback"));
+const Profile = lazy(() => import("../features/users/pages/Profile"));
+const Settings = lazy(() => import("../features/users/pages/Settings"));
+const ProfileEdit = lazy(() => import("../features/users/pages/ProfileEdit"));
+const SecuritySettings = lazy(() => import("../features/users/pages/SecuritySettings"));
+const StaffHomePage = lazy(() => import("../features/staff/pages/StaffHomePage"));
+const StaffBookingsTodayPage = lazy(() => import("../features/staff/pages/StaffBookingsTodayPage"));
+const StaffCheckinPage = lazy(() => import("../features/staff/pages/StaffCheckinPage"));
+const StaffCheckoutPage = lazy(() => import("../features/staff/pages/StaffCheckoutPage"));
+const StaffRoomStatusPage = lazy(() => import("../features/staff/pages/StaffRoomStatusPage"));
+const StaffServiceUsagePage = lazy(() => import("../features/staff/pages/StaffServiceUsagePage"));
+const ManagerHomePage = lazy(() => import("../features/manager/pages/ManagerHomePage"));
+const ManagerRoomsPage = lazy(() => import("../features/manager/pages/ManagerRoomsPage"));
+const ManagerRoomCreatePage = lazy(() => import("../features/manager/pages/ManagerRoomCreatePage"));
+const ManagerRoomEditPage = lazy(() => import("../features/manager/pages/ManagerRoomEditPage"));
+const ManagerBookingsPage = lazy(() => import("../features/manager/pages/ManagerBookingsPage"));
+const ManagerBookingDetailPage = lazy(() => import("../features/manager/pages/ManagerBookingDetailPage"));
+const ManagerFeedbacksPage = lazy(() => import("../features/manager/pages/ManagerFeedbacksPage"));
+const ManagerServicesPage = lazy(() => import("../features/manager/pages/ManagerServicesPage"));
+const ManagerPricingRequestsPage = lazy(() => import("../features/manager/pages/ManagerPricingRequestsPage"));
+const OwnerHomePage = lazy(() => import("../features/owner/pages/OwnerHomePage"));
+const OwnerBranchesPage = lazy(() => import("../features/owner/pages/OwnerBranchesPage"));
+const OwnerPricingPage = lazy(() => import("../features/owner/pages/OwnerPricingPage"));
+const OwnerPricingRequestsPage = lazy(() => import("../features/owner/pages/OwnerPricingRequestsPage"));
+const OwnerUsersPage = lazy(() => import("../features/owner/pages/OwnerUsersPage"));
+const OwnerLogsPage = lazy(() => import("../features/owner/pages/OwnerLogsPage"));
 
 function defaultRedirectByRole(role) {
   if (role === "CUSTOMER") return PATHS.CUSTOMER_HOME;
@@ -98,8 +97,9 @@ function PublicShell() {
 
 export function AppRoutes() {
   return (
-    <Routes>
-      <Route element={<PublicShell />}>
+    <Suspense fallback={<section className="container" style={{ padding: "28px 24px" }}>Dang tai trang...</section>}>
+      <Routes>
+        <Route element={<PublicShell />}>
         <Route path={PATHS.HOME} element={<Home />} />
         <Route path={PATHS.ROOMS} element={<RoomList />} />
         <Route path={PATHS.ROOM_DETAIL} element={<RoomDetail />} />
@@ -128,7 +128,7 @@ export function AppRoutes() {
         <Route path={PATHS.CUSTOMER_SETTINGS_ADVANCED} element={<CustomerGuard><SecuritySettings /></CustomerGuard>} />
       </Route>
 
-      <Route path={PATHS.STAFF} element={<RoleShell roles={["STAFF"]} />}>
+        <Route path={PATHS.STAFF} element={<RoleShell roles={["STAFF"]} />}>
         <Route index element={<StaffHomePage />} />
         <Route path="bookings/today" element={<StaffBookingsTodayPage />} />
         <Route path="checkin/:id" element={<StaffCheckinPage />} />
@@ -137,7 +137,7 @@ export function AppRoutes() {
         <Route path="service-usage" element={<StaffServiceUsagePage />} />
       </Route>
 
-      <Route path={PATHS.MANAGER} element={<RoleShell roles={["MANAGER"]} />}>
+        <Route path={PATHS.MANAGER} element={<RoleShell roles={["MANAGER"]} />}>
         <Route index element={<ManagerHomePage />} />
         <Route path="rooms" element={<ManagerRoomsPage />} />
         <Route path="rooms/create" element={<ManagerRoomCreatePage />} />
@@ -147,24 +147,21 @@ export function AppRoutes() {
         <Route path="feedbacks" element={<ManagerFeedbacksPage />} />
         <Route path="services" element={<ManagerServicesPage />} />
         <Route path="pricing-requests" element={<ManagerPricingRequestsPage />} />
-        <Route path="reports/revenue" element={<ManagerRevenueReportPage />} />
-        <Route path="reports/booking" element={<ManagerBookingReportPage />} />
       </Route>
 
-      <Route path={PATHS.OWNER} element={<RoleShell roles={["OWNER"]} />}>
+        <Route path={PATHS.OWNER} element={<RoleShell roles={["OWNER"]} />}>
         <Route index element={<OwnerHomePage />} />
         <Route path="branches" element={<OwnerBranchesPage />} />
         <Route path="pricing" element={<OwnerPricingPage />} />
         <Route path="pricing-requests" element={<OwnerPricingRequestsPage />} />
         <Route path="users" element={<OwnerUsersPage />} />
-        <Route path="reports/revenue" element={<OwnerRevenueReportPage />} />
-        <Route path="reports/branches" element={<OwnerBranchCompareReportPage />} />
         <Route path="logs" element={<OwnerLogsPage />} />
       </Route>
 
-      <Route path={PATHS.FORBIDDEN} element={<Forbidden />} />
-      <Route path="/signin" element={<Navigate to={PATHS.LOGIN} replace />} />
-      <Route path="*" element={<NotFound />} />
-    </Routes>
+        <Route path={PATHS.FORBIDDEN} element={<Forbidden />} />
+        <Route path="/signin" element={<Navigate to={PATHS.LOGIN} replace />} />
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </Suspense>
   );
 }

@@ -1,7 +1,8 @@
 package com.hotel.modules.pricing.request;
 
-import com.hotel.exception.NotFoundException;
+import com.hotel.common.util.ValidationUtils;
 import com.hotel.exception.BusinessException;
+import com.hotel.exception.NotFoundException;
 import com.hotel.modules.pricing.pricing.PricingEntity;
 import com.hotel.modules.pricing.pricing.PricingRepository;
 import com.hotel.modules.pricing.request.dto.PricingRequestApproveRequest;
@@ -28,9 +29,11 @@ public class PricingRequestService {
 
     @Transactional
     public PricingRequestResponse create(PricingRequestCreateRequest request) {
+        validateDateRange(request.getStartsOn(), request.getEndsOn());
+        validateDiscountPercent(request.getDiscountPercent());
         PricingRequestEntity entity = new PricingRequestEntity();
         entity.setId(UUID.randomUUID());
-        entity.setBranchId(UUID.fromString(request.getBranchId()));
+        entity.setBranchId(ValidationUtils.requireUuid(request.getBranchId(), "branchId"));
         entity.setName(request.getName());
         entity.setStartsOn(request.getStartsOn());
         entity.setEndsOn(request.getEndsOn());
@@ -52,15 +55,17 @@ public class PricingRequestService {
     }
 
     @Transactional(readOnly = true)
+    @SuppressWarnings("null")
     public PricingRequestResponse getById(String id) {
-        PricingRequestEntity entity = pricingRequestRepository.findById(UUID.fromString(id))
+        PricingRequestEntity entity = pricingRequestRepository.findById(ValidationUtils.requireUuid(id, "id"))
             .orElseThrow(() -> new NotFoundException("Pricing request not found: " + id));
         return toResponse(entity);
     }
 
     @Transactional
+    @SuppressWarnings("null")
     public PricingRequestResponse approve(String id, PricingRequestApproveRequest request) {
-        PricingRequestEntity entity = pricingRequestRepository.findById(UUID.fromString(id))
+        PricingRequestEntity entity = pricingRequestRepository.findById(ValidationUtils.requireUuid(id, "id"))
             .orElseThrow(() -> new NotFoundException("Pricing request not found: " + id));
 
         if (!"PENDING".equalsIgnoreCase(entity.getStatus())) {
@@ -78,7 +83,7 @@ public class PricingRequestService {
 
         entity.setStatus("APPROVED");
         if (request != null && request.getReviewerId() != null && !request.getReviewerId().isBlank()) {
-            entity.setReviewedBy(UUID.fromString(request.getReviewerId()));
+            entity.setReviewedBy(ValidationUtils.requireUuid(request.getReviewerId(), "reviewerId"));
         }
         if (request != null) {
             entity.setReviewNote(request.getReviewNote());
@@ -103,8 +108,9 @@ public class PricingRequestService {
     }
 
     @Transactional
+    @SuppressWarnings("null")
     public PricingRequestResponse reject(String id, PricingRequestRejectRequest request) {
-        PricingRequestEntity entity = pricingRequestRepository.findById(UUID.fromString(id))
+        PricingRequestEntity entity = pricingRequestRepository.findById(ValidationUtils.requireUuid(id, "id"))
             .orElseThrow(() -> new NotFoundException("Pricing request not found: " + id));
 
         if (!"PENDING".equalsIgnoreCase(entity.getStatus())) {
@@ -113,7 +119,7 @@ public class PricingRequestService {
 
         entity.setStatus("REJECTED");
         if (request != null && request.getReviewerId() != null && !request.getReviewerId().isBlank()) {
-            entity.setReviewedBy(UUID.fromString(request.getReviewerId()));
+            entity.setReviewedBy(ValidationUtils.requireUuid(request.getReviewerId(), "reviewerId"));
         }
         if (request != null) {
             entity.setReviewNote(request.getReviewNote());
@@ -136,5 +142,23 @@ public class PricingRequestService {
         response.setReviewedBy(entity.getReviewedBy() == null ? null : entity.getReviewedBy().toString());
         response.setReviewNote(entity.getReviewNote());
         return response;
+    }
+
+    private void validateDateRange(java.time.LocalDate startsOn, java.time.LocalDate endsOn) {
+        if (startsOn == null || endsOn == null) {
+            throw new BusinessException("startsOn and endsOn are required");
+        }
+        if (endsOn.isBefore(startsOn)) {
+            throw new BusinessException("endsOn must be on or after startsOn");
+        }
+    }
+
+    private void validateDiscountPercent(java.math.BigDecimal discountPercent) {
+        if (discountPercent == null) {
+            throw new BusinessException("discountPercent is required");
+        }
+        if (discountPercent.compareTo(java.math.BigDecimal.valueOf(-100)) < 0 || discountPercent.compareTo(java.math.BigDecimal.valueOf(100)) > 0) {
+            throw new BusinessException("discountPercent must be between -100 and 100");
+        }
     }
 }

@@ -72,7 +72,7 @@ public class OwnerController {
 	}
 
 	@PutMapping("/pricing/{id}")
-	public ApiResponse<PricingResponse> updatePricing(@PathVariable String id, @RequestBody PricingUpdateRequest payload) {
+	public ApiResponse<PricingResponse> updatePricing(@PathVariable String id, @Valid @RequestBody PricingUpdateRequest payload) {
 		return ApiResponse.ok("Pricing updated", pricingService.update(id, payload));
 	}
 
@@ -87,12 +87,12 @@ public class OwnerController {
 	}
 
 	@PutMapping("/pricing-requests/{id}/approve")
-	public ApiResponse<PricingRequestResponse> approvePricingRequest(@PathVariable String id, @RequestBody(required = false) PricingRequestApproveRequest request) {
+	public ApiResponse<PricingRequestResponse> approvePricingRequest(@PathVariable String id, @Valid @RequestBody(required = false) PricingRequestApproveRequest request) {
 		return ApiResponse.ok("Pricing request approved", pricingRequestService.approve(id, request));
 	}
 
 	@PutMapping("/pricing-requests/{id}/reject")
-	public ApiResponse<PricingRequestResponse> rejectPricingRequest(@PathVariable String id, @RequestBody(required = false) PricingRequestRejectRequest payload) {
+	public ApiResponse<PricingRequestResponse> rejectPricingRequest(@PathVariable String id, @Valid @RequestBody(required = false) PricingRequestRejectRequest payload) {
 		return ApiResponse.ok("Pricing request rejected", pricingRequestService.reject(id, payload));
 	}
 
@@ -107,7 +107,7 @@ public class OwnerController {
 	}
 
 	@PutMapping("/users/{id}/role")
-	public ApiResponse<UserResponse> updateRole(@PathVariable String id, @RequestBody RoleUpdateRequest payload) {
+	public ApiResponse<UserResponse> updateRole(@PathVariable String id, @Valid @RequestBody RoleUpdateRequest payload) {
 		return ApiResponse.ok("Role updated", userService.updateRole(id, payload.getRole()));
 	}
 

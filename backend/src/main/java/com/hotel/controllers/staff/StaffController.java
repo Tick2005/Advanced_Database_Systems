@@ -29,6 +29,8 @@ import com.hotel.modules.room.dto.RoomStatusUpdateRequest;
 import com.hotel.security.CurrentUser;
 import com.hotel.security.SecurityUtils;
 
+import jakarta.validation.Valid;
+
 @RestController
 @RequestMapping(ApiPath.STAFF)
 public class StaffController {
@@ -64,7 +66,7 @@ public class StaffController {
 	}
 
 	@PostMapping("/bookings/walk-in")
-	public ApiResponse<BookingResponse> walkIn(@RequestBody StaffWalkInBookingCreateRequest payload) {
+	public ApiResponse<BookingResponse> walkIn(@Valid @RequestBody StaffWalkInBookingCreateRequest payload) {
 		return ApiResponse.ok("Walk-in booking created", bookingService.createBooking(toBookingCreateRequest(payload)));
 	}
 
@@ -76,12 +78,12 @@ public class StaffController {
 	}
 
 	@PutMapping("/rooms/{id}/update-status")
-	public ApiResponse<RoomResponse> updateRoomStatus(@PathVariable String id, @RequestBody RoomStatusUpdateRequest payload) {
+	public ApiResponse<RoomResponse> updateRoomStatus(@PathVariable String id, @Valid @RequestBody RoomStatusUpdateRequest payload) {
 		return ApiResponse.ok("Room status updated", roomService.updateRoomStatus(id, payload.getStatus()));
 	}
 
 	@PutMapping("/bookings/{id}/services")
-	public ApiResponse<BookingServiceResponse> updateBookingServices(@PathVariable String id, @RequestBody BookingServiceUpdateRequest payload) {
+	public ApiResponse<BookingServiceResponse> updateBookingServices(@PathVariable String id, @Valid @RequestBody BookingServiceUpdateRequest payload) {
 		return ApiResponse.ok("Booking services updated", bookingService.addService(id, payload));
 	}
 

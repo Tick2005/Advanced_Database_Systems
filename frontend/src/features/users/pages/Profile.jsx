@@ -1,33 +1,24 @@
-import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { userService } from "../userService";
 import LoadingState from "../../../components/common/LoadingState";
 import ErrorState from "../../../components/common/ErrorState";
 import { PATHS } from "../../../routes/pathConstants";
+import { useApiQuery } from "../../../hooks/useApiQuery";
+import { queryKeys } from "../../../services/queryKeys";
 
 export default function Profile() {
-  const [profile, setProfile] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const profileQuery = useApiQuery({
+    queryKey: queryKeys.profile,
+    queryFn: () => userService.getProfile(),
+    staleTime: 60 * 1000
+  });
 
-  const fetchData = async () => {
-    setLoading(true);
-    setError("");
-    try {
-      setProfile(await userService.getProfile());
-    } catch (err) {
-      setError(err.message || "Không thể tải profile");
-    } finally {
-      setLoading(false);
-    }
-  };
+  const profile = profileQuery.data;
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  if (loading) return <LoadingState text="Đang tải profile..." />;
-  if (error) return <ErrorState message={error} onRetry={fetchData} />;
+  if (profileQuery.isLoading) return <LoadingState text="Đang tải profile..." />;
+  if (profileQuery.error) {
+    return <ErrorState message={profileQuery.error.message || "Không thể tải profile"} onRetry={profileQuery.refetch} />;
+  }
 
   return (
     <section className="container" style={{ padding: "28px 24px", maxWidth: 600 }}>
@@ -70,7 +61,7 @@ export default function Profile() {
         {/* Actions */}
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 8 }}>
           <Link className="btn btn-gold" to={PATHS.CUSTOMER_PROFILE_EDIT}>Chỉnh sửa hồ sơ</Link>
-          <Link className="btn pill pill-soft" to={PATHS.CUSTOMER_SETTINGS}>Cài đặt tài khoản</Link>
+          <Link className="btn pill pill-soft" to={PATHS.CUSTOMER_SETTINGS}>Theme, cỡ chữ, ngôn ngữ</Link>
         </div>
       </div>
 

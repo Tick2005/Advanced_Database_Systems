@@ -1,12 +1,15 @@
 package com.hotel.modules.service;
 
+import java.util.List;
+
+import org.springframework.stereotype.Service;
+
+import com.hotel.common.enums.ServiceMode;
+import com.hotel.exception.BusinessException;
 import com.hotel.exception.NotFoundException;
 import com.hotel.modules.service.dto.ServiceCreateRequest;
 import com.hotel.modules.service.dto.ServiceResponse;
 import com.hotel.modules.service.dto.ServiceUpdateRequest;
-import org.springframework.stereotype.Service;
-
-import java.util.List;
 
 @Service
 public class ServiceService {
@@ -32,6 +35,7 @@ public class ServiceService {
     }
 
     public ServiceResponse create(ServiceCreateRequest request) {
+        validateServiceMode(request.getServiceMode());
         return serviceMapper.toResponse(serviceRepository.create(request));
     }
 
@@ -39,6 +43,17 @@ public class ServiceService {
         if (serviceRepository.findById(id).isEmpty()) {
             throw new NotFoundException("Service not found: " + id);
         }
+        if (request.getServiceMode() != null) {
+            validateServiceMode(request.getServiceMode());
+        }
         return serviceMapper.toResponse(serviceRepository.update(id, request));
     }
+
+	private void validateServiceMode(String serviceMode) {
+		try {
+			ServiceMode.valueOf(serviceMode.trim().toUpperCase());
+		} catch (RuntimeException ex) {
+			throw new BusinessException("Unsupported service mode: " + serviceMode);
+		}
+	}
 }

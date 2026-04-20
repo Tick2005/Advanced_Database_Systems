@@ -2,6 +2,8 @@ import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { PATHS } from "../../../routes/pathConstants";
 import ServiceSelector from "../ServiceSelector";
+import { useBookingFunnelStep } from "../../../hooks/useBookingFunnelStep";
+import { BOOKING_STEPS, trackBookingStep } from "../../../services/bookingFunnel";
 
 export default function ReviewBooking() {
   const location = useLocation();
@@ -11,6 +13,7 @@ export default function ReviewBooking() {
   const room = location.state?.room;
   const [agreed, setAgreed] = useState(false);
   const [selectedServices, setSelectedServices] = useState([]);
+  useBookingFunnelStep(BOOKING_STEPS.REVIEW, { bookingId: booking?.id || null });
   const bookingBranchId = booking?.branchId || payload?.branchId || room?.branchId;
 
   const servicesTotal = selectedServices.reduce((sum, s) => sum + s.price, 0);
@@ -94,12 +97,19 @@ export default function ReviewBooking() {
         </label>
 
         <div style={{ display: "flex", gap: 10 }}>
-          <button className="btn pill pill-soft" onClick={() => navigate(PATHS.CUSTOMER_BOOKING_CREATE, { state: payload })}>Quay lại</button>
+          <button className="btn pill pill-soft" onClick={() => {
+            trackBookingStep("step_back", { step: BOOKING_STEPS.REVIEW, bookingId: booking?.id || null });
+            navigate(PATHS.CUSTOMER_BOOKING_CREATE, { state: payload });
+          }} aria-label="Quay lai buoc tao booking">Quay lại</button>
           <button
             className="btn btn-gold"
             disabled={!agreed}
-            onClick={() => navigate(PATHS.CUSTOMER_BOOKING_PAYMENT, { state: { booking, services: selectedServices, totalPrice: finalTotal } })}
+            onClick={() => {
+              trackBookingStep("step_submit", { step: BOOKING_STEPS.REVIEW, bookingId: booking?.id || null, servicesCount: selectedServices.length, finalTotal });
+              navigate(PATHS.CUSTOMER_BOOKING_PAYMENT, { state: { booking, services: selectedServices, totalPrice: finalTotal } });
+            }}
             style={{ opacity: agreed ? 1 : 0.5 }}
+            aria-label="Tiep tuc sang buoc thanh toan"
           >
             Thanh toán VNPay ({(finalTotal / 1000000).toFixed(1)}M ₫)
           </button>

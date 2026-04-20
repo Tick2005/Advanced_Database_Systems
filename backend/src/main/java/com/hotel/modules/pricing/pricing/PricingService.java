@@ -1,16 +1,19 @@
 package com.hotel.modules.pricing.pricing;
 
-import com.hotel.exception.NotFoundException;
-import com.hotel.modules.pricing.pricing.dto.PricingCreateRequest;
-import com.hotel.modules.pricing.pricing.dto.PricingResponse;
-import com.hotel.modules.pricing.pricing.dto.PricingUpdateRequest;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
+
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.hotel.common.util.ValidationUtils;
+import com.hotel.exception.BusinessException;
+import com.hotel.exception.NotFoundException;
+import com.hotel.modules.pricing.pricing.dto.PricingCreateRequest;
+import com.hotel.modules.pricing.pricing.dto.PricingResponse;
+import com.hotel.modules.pricing.pricing.dto.PricingUpdateRequest;
 
 @Service
 public class PricingService {
@@ -23,9 +26,11 @@ public class PricingService {
 
     @Transactional
     public PricingResponse create(PricingCreateRequest request) {
+        validateDateRange(request.getStartsOn(), request.getEndsOn());
+        validateDiscountPercent(request.getDiscountPercent());
         PricingEntity entity = new PricingEntity();
         entity.setId(UUID.randomUUID());
-        entity.setBranchId(UUID.fromString(request.getBranchId()));
+        entity.setBranchId(ValidationUtils.requireUuid(request.getBranchId(), "branchId"));
         entity.setName(request.getName());
         entity.setStartsOn(request.getStartsOn());
         entity.setEndsOn(request.getEndsOn());
@@ -39,8 +44,9 @@ public class PricingService {
     }
 
     @Transactional
+    @SuppressWarnings("null")
     public PricingResponse update(String id, PricingUpdateRequest request) {
-        PricingEntity entity = pricingRepository.findById(UUID.fromString(id))
+        PricingEntity entity = pricingRepository.findById(ValidationUtils.requireUuid(id, "id"))
             .orElseThrow(() -> new NotFoundException("Pricing not found: " + id));
 
         if (request.getName() != null) {
@@ -53,6 +59,7 @@ public class PricingService {
             entity.setEndsOn(request.getEndsOn());
         }
         if (request.getDiscountPercent() != null) {
+            validateDiscountPercent(request.getDiscountPercent());
             entity.setDiscountPercent(request.getDiscountPercent());
         }
         if (request.getNotes() != null) {
@@ -97,5 +104,23 @@ public class PricingService {
         response.setNotes(entity.getNotes());
         response.setActive(entity.isActive());
         return response;
+    }
+
+    private void validateDateRange(LocalDate startsOn, LocalDate endsOn) {
+        if (startsOn == null || endsOn == null) {
+            throw new BusinessException("startsOn and endsOn are required");
+        }
+        if (endsOn.isBefore(startsOn)) {
+            throw new BusinessException("endsOn must be on or after startsOn");
+        }
+    }
+
+    private void validateDiscountPercent(java.math.BigDecimal discountPercent) {
+        if (discountPercent == null) {
+            throw new BusinessException("discountPercent is required");
+        }
+        if (discountPercent.compareTo(java.math.BigDecimal.valueOf(-100)) < 0 || discountPercent.compareTo(java.math.BigDecimal.valueOf(100)) > 0) {
+            throw new BusinessException("discountPercent must be between -100 and 100");
+        }
     }
 }

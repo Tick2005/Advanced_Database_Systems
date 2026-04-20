@@ -84,7 +84,7 @@ public class ManagerController {
 	}
 
 	@PutMapping("/rooms/{id}")
-	public ApiResponse<RoomResponse> updateRoom(@PathVariable String id, @RequestBody RoomUpdateRequest payload) {
+	public ApiResponse<RoomResponse> updateRoom(@PathVariable String id, @Valid @RequestBody RoomUpdateRequest payload) {
 		return ApiResponse.ok("Room updated", roomService.updateRoom(id, payload));
 	}
 
@@ -106,7 +106,7 @@ public class ManagerController {
 	}
 
 	@PostMapping("/feedbacks/reply")
-	public ApiResponse<FeedbackResponse> replyFeedback(@RequestBody FeedbackReplyRequest payload) {
+	public ApiResponse<FeedbackResponse> replyFeedback(@Valid @RequestBody FeedbackReplyRequest payload) {
 		return ApiResponse.ok("Feedback replied", feedbackService.reply(payload));
 	}
 
@@ -121,7 +121,7 @@ public class ManagerController {
 	}
 
 	@PutMapping("/services/{id}")
-	public ApiResponse<ServiceResponse> updateService(@PathVariable String id, @RequestBody ServiceUpdateRequest payload) {
+	public ApiResponse<ServiceResponse> updateService(@PathVariable String id, @Valid @RequestBody ServiceUpdateRequest payload) {
 		return ApiResponse.ok("Service updated", serviceService.update(id, payload));
 	}
 

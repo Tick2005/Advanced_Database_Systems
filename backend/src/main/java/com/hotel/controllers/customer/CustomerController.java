@@ -1,13 +1,23 @@
 package com.hotel.controllers.customer;
 
+import java.util.List;
+
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
 import com.hotel.common.constants.ApiPath;
 import com.hotel.common.response.ApiResponse;
 import com.hotel.integrations.vnpay.VNPayService;
 import com.hotel.modules.booking.BookingService;
 import com.hotel.modules.booking.dto.BookingCancelRequest;
 import com.hotel.modules.booking.dto.BookingCreateRequest;
-import com.hotel.modules.booking.dto.CustomerBookingCreateRequest;
 import com.hotel.modules.booking.dto.BookingResponse;
+import com.hotel.modules.booking.dto.CustomerBookingCreateRequest;
 import com.hotel.modules.feedback.FeedbackService;
 import com.hotel.modules.feedback.dto.FeedbackCreateRequest;
 import com.hotel.modules.feedback.dto.FeedbackResponse;
@@ -21,18 +31,9 @@ import com.hotel.modules.user.dto.ProfileResponse;
 import com.hotel.modules.user.dto.UpdateProfileRequest;
 import com.hotel.security.CurrentUser;
 import com.hotel.security.SecurityUtils;
-import jakarta.validation.Valid;
-import jakarta.servlet.http.HttpServletRequest;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
 
-import java.util.List;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping(ApiPath.CUSTOMER)
@@ -77,7 +78,7 @@ public class CustomerController {
 	}
 
 	@PutMapping("/bookings/{id}/cancel")
-	public ApiResponse<BookingResponse> cancelBooking(@PathVariable String id, @RequestBody(required = false) BookingCancelRequest request) {
+	public ApiResponse<BookingResponse> cancelBooking(@PathVariable String id, @Valid @RequestBody(required = false) BookingCancelRequest request) {
 		String reason = request == null ? null : request.getReason();
 		return ApiResponse.ok("Booking cancelled", bookingService.cancelBookingForCustomer(id, reason, requireCurrentUserId()));
 	}
@@ -124,7 +125,7 @@ public class CustomerController {
 
 	@PutMapping("/profile")
 	public ApiResponse<ProfileResponse> updateProfile(
-		@RequestBody UpdateProfileRequest payload
+		@Valid @RequestBody UpdateProfileRequest payload
 	) {
 		return ApiResponse.ok("Profile updated", userService.updateProfile(requireCurrentUserId(), payload));
 	}

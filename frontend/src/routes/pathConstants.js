@@ -42,16 +42,12 @@ export const PATHS = {
   MANAGER_FEEDBACKS: "/manager/feedbacks",
   MANAGER_SERVICES: "/manager/services",
   MANAGER_PRICING_REQUESTS: "/manager/pricing-requests",
-  MANAGER_REPORT_REVENUE: "/manager/reports/revenue",
-  MANAGER_REPORT_BOOKING: "/manager/reports/booking",
 
   OWNER: "/owner",
   OWNER_BRANCHES: "/owner/branches",
   OWNER_PRICING: "/owner/pricing",
   OWNER_PRICING_REQUESTS: "/owner/pricing-requests",
   OWNER_USERS: "/owner/users",
-  OWNER_REPORT_REVENUE: "/owner/reports/revenue",
-  OWNER_REPORT_BRANCHES: "/owner/reports/branches",
   OWNER_LOGS: "/owner/logs",
 
   FORBIDDEN: "/forbidden"

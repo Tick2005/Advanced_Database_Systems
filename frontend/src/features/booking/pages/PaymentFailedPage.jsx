@@ -1,9 +1,26 @@
 import { Link, useLocation } from "react-router-dom";
+import { useEffect } from "react";
 import { PATHS } from "../../../routes/pathConstants";
+import { clearPaymentResult, loadPaymentResult } from "../paymentResultStore";
+import { useBookingFunnelStep } from "../../../hooks/useBookingFunnelStep";
+import { BOOKING_STEPS, trackBookingStep } from "../../../services/bookingFunnel";
 
 export default function PaymentFailedPage() {
   const location = useLocation();
-  const result = location.state?.result || {};
+  const result = location.state?.result || loadPaymentResult() || {};
+  useBookingFunnelStep(BOOKING_STEPS.FAILED, { responseCode: result.responseCode || "UNKNOWN" });
+
+  useEffect(() => {
+    trackBookingStep("funnel_completed", {
+      status: "failed",
+      responseCode: result.responseCode || "UNKNOWN",
+      message: result.message || null
+    });
+
+    return () => {
+      clearPaymentResult();
+    };
+  }, [result.responseCode, result.message]);
 
   return (
     <section className="container" style={{ padding: "28px 24px" }}>

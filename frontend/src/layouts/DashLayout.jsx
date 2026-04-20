@@ -22,9 +22,7 @@ export default function DashLayout({ children }) {
       { group: "Vận hành", to: PATHS.MANAGER_BOOKINGS, label: "Booking chi nhánh", icon: "📋" },
       { group: "Vận hành", to: PATHS.MANAGER_FEEDBACKS, label: "Feedback", icon: "💬" },
       { group: "Vận hành", to: PATHS.MANAGER_SERVICES, label: "Dịch vụ", icon: "🍽️" },
-      { group: "Giá và báo cáo", to: PATHS.MANAGER_PRICING_REQUESTS, label: "Pricing requests", icon: "💰" },
-      { group: "Giá và báo cáo", to: PATHS.MANAGER_REPORT_REVENUE, label: "Report doanh thu", icon: "📈" },
-      { group: "Giá và báo cáo", to: PATHS.MANAGER_REPORT_BOOKING, label: "Report booking", icon: "🧾" }
+      { group: "Giá", to: PATHS.MANAGER_PRICING_REQUESTS, label: "Pricing requests", icon: "💰" }
     ],
     OWNER: [
       { group: "Điều hành", to: PATHS.OWNER, label: "Dashboard", icon: "📊" },
@@ -32,8 +30,6 @@ export default function DashLayout({ children }) {
       { group: "Điều hành", to: PATHS.OWNER_USERS, label: "Người dùng", icon: "👥" },
       { group: "Giá và tài chính", to: PATHS.OWNER_PRICING, label: "Pricing", icon: "💵" },
       { group: "Giá và tài chính", to: PATHS.OWNER_PRICING_REQUESTS, label: "Duyệt request", icon: "✅" },
-      { group: "Báo cáo hệ thống", to: PATHS.OWNER_REPORT_REVENUE, label: "Report doanh thu", icon: "📈" },
-      { group: "Báo cáo hệ thống", to: PATHS.OWNER_REPORT_BRANCHES, label: "So sánh branch", icon: "📊" },
       { group: "Báo cáo hệ thống", to: PATHS.OWNER_LOGS, label: "Logs", icon: "🧾" }
     ]
   };
@@ -58,45 +54,16 @@ export default function DashLayout({ children }) {
       { prefix: PATHS.MANAGER_FEEDBACKS.replace(":id", ""), title: "Feedback khách hàng" },
       { prefix: PATHS.MANAGER_SERVICES.replace(":id", ""), title: "Dịch vụ chi nhánh" },
       { prefix: PATHS.MANAGER_PRICING_REQUESTS.replace(":id", ""), title: "Pricing requests" },
-      { prefix: PATHS.MANAGER_REPORT_REVENUE.replace(":id", ""), title: "Báo cáo doanh thu" },
-      { prefix: PATHS.MANAGER_REPORT_BOOKING.replace(":id", ""), title: "Báo cáo booking" },
       { prefix: PATHS.OWNER_BRANCHES.replace(":id", ""), title: "Quản lý chi nhánh" },
       { prefix: PATHS.OWNER_PRICING.replace(":id", ""), title: "Quản lý pricing" },
       { prefix: PATHS.OWNER_PRICING_REQUESTS.replace(":id", ""), title: "Duyệt pricing requests" },
       { prefix: PATHS.OWNER_USERS.replace(":id", ""), title: "Quản lý người dùng" },
-      { prefix: PATHS.OWNER_REPORT_REVENUE.replace(":id", ""), title: "Báo cáo doanh thu" },
-      { prefix: PATHS.OWNER_REPORT_BRANCHES.replace(":id", ""), title: "So sánh chi nhánh" },
       { prefix: PATHS.OWNER_LOGS.replace(":id", ""), title: "System logs" }
     ];
 
     const matched = titleMappings.find((item) => location.pathname.startsWith(item.prefix));
     if (matched) return matched.title;
     return `${role} Dashboard`;
-  }, [location.pathname, role]);
-
-  const quickAction = useMemo(() => {
-    if (role === "STAFF") {
-      if (!location.pathname.startsWith(PATHS.STAFF_BOOKINGS_TODAY)) {
-        return { to: PATHS.STAFF_BOOKINGS_TODAY, label: "Xử lý booking hôm nay" };
-      }
-      return { to: PATHS.STAFF_ROOMS_STATUS, label: "Cập nhật trạng thái phòng" };
-    }
-
-    if (role === "MANAGER") {
-      if (location.pathname.startsWith(PATHS.MANAGER_ROOMS)) {
-        return { to: PATHS.MANAGER_ROOMS_CREATE, label: "Thêm phòng" };
-      }
-      return { to: PATHS.MANAGER_BOOKINGS, label: "Xem booking chi nhánh" };
-    }
-
-    if (role === "OWNER") {
-      if (!location.pathname.startsWith(PATHS.OWNER_PRICING_REQUESTS)) {
-        return { to: PATHS.OWNER_PRICING_REQUESTS, label: "Duyệt pricing requests" };
-      }
-      return { to: PATHS.OWNER_BRANCHES, label: "Đi tới quản lý chi nhánh" };
-    }
-
-    return null;
   }, [location.pathname, role]);
 
   return (
@@ -132,7 +99,7 @@ export default function DashLayout({ children }) {
             </div>
           ))}
         </div>
-        <button className="btn btn-gold" style={{ marginTop: 18, width: "100%" }} onClick={logout}>Đăng xuất</button>
+        <button className="btn btn-gold" style={{ marginTop: 18, width: "100%" }} onClick={logout} aria-label="Dang xuat khoi workspace">Đăng xuất</button>
       </aside>
       <main className="dashboard-main">
         <header className="surface-panel dashboard-topbar" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
@@ -141,10 +108,9 @@ export default function DashLayout({ children }) {
             <span style={{ color: "#64748b", fontSize: 13 }}>Điều hướng theo vai trò, tập trung vào tác vụ đang xử lý</span>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 10, color: "#64748b", flexWrap: "wrap", justifyContent: "flex-end" }}>
-            {quickAction && <Link className="btn btn-gold" to={quickAction.to}>{quickAction.label}</Link>}
             <span className="pill pill-soft">{role}</span>
             <span className="pill pill-soft">{displayName}</span>
-            <span style={{ fontSize: 18 }}>🔔</span>
+            <span style={{ fontSize: 18 }} role="img" aria-label="Thong bao">🔔</span>
           </div>
         </header>
         {children || <Outlet />}

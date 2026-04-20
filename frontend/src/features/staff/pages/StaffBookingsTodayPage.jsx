@@ -8,6 +8,19 @@ import { PATHS } from "../../../routes/pathConstants";
 
 export default function StaffBookingsTodayPage() {
   const [rows, setRows] = useState([]);
+  const [openWalkInModal, setOpenWalkInModal] = useState(false);
+  const [openServiceModal, setOpenServiceModal] = useState(false);
+  const [walkIn, setWalkIn] = useState({
+    customerId: "44444444-4444-4444-4444-444444444444",
+    roomId: "",
+    branchId: "",
+    checkInDate: "",
+    checkOutDate: "",
+    adults: 2,
+    children: 0,
+    totalPrice: 0
+  });
+  const [service, setService] = useState({ bookingId: "", serviceCode: "BF-SET", quantity: 1, actualPrice: 120000 });
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
@@ -35,13 +48,20 @@ export default function StaffBookingsTodayPage() {
 
   return (
     <section style={{ display: "grid", gap: 12 }}>
-      <h1 style={{ margin: 0 }}>Booking hom nay</h1>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+        <h1 style={{ margin: 0 }}>Booking hom nay</h1>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <button className="btn" style={{ border: "1px solid #cbd5e1", background: "white" }} onClick={() => setOpenWalkInModal(true)}>+ Tạo walk-in</button>
+          <button className="btn btn-gold" onClick={() => setOpenServiceModal(true)}>+ Thêm dịch vụ vào booking</button>
+        </div>
+      </div>
       <ToastMessage type="success" message={message} onClose={() => setMessage("")} />
       <ToastMessage type="error" message={error} onClose={() => setError("")} />
       <DataTable
         rows={rows}
         columns={[
           { key: "id", label: "Booking" },
+          { key: "branchId", label: "Chi nhánh" },
           { key: "roomId", label: "Room" },
           { key: "period", label: "Luu tru", render: (row) => `${row.checkInDate} -> ${row.checkOutDate}` },
           { key: "status", label: "Trang thai", render: (row) => <StatusBadge value={row.status} /> },
@@ -56,6 +76,61 @@ export default function StaffBookingsTodayPage() {
           </div>
         )}
       />
+
+      {openWalkInModal && (
+        <div className="modal-overlay">
+          <div className="card modal-card" style={{ maxWidth: 980 }}>
+            <h3 style={{ margin: 0 }}>Tạo walk-in booking</h3>
+            <div className="form-grid" style={{ gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))" }}>
+              <input placeholder="Customer ID" value={walkIn.customerId} onChange={(event) => setWalkIn((prev) => ({ ...prev, customerId: event.target.value }))} />
+              <input placeholder="Room ID" value={walkIn.roomId} onChange={(event) => setWalkIn((prev) => ({ ...prev, roomId: event.target.value }))} />
+              <input placeholder="Branch ID" value={walkIn.branchId} onChange={(event) => setWalkIn((prev) => ({ ...prev, branchId: event.target.value }))} />
+              <input type="date" value={walkIn.checkInDate} onChange={(event) => setWalkIn((prev) => ({ ...prev, checkInDate: event.target.value }))} />
+              <input type="date" value={walkIn.checkOutDate} onChange={(event) => setWalkIn((prev) => ({ ...prev, checkOutDate: event.target.value }))} />
+              <input type="number" min={1} value={walkIn.adults} onChange={(event) => setWalkIn((prev) => ({ ...prev, adults: Number(event.target.value || 1) }))} />
+              <input type="number" min={0} value={walkIn.children} onChange={(event) => setWalkIn((prev) => ({ ...prev, children: Number(event.target.value || 0) }))} />
+              <input type="number" min={0} value={walkIn.totalPrice} onChange={(event) => setWalkIn((prev) => ({ ...prev, totalPrice: Number(event.target.value || 0) }))} />
+            </div>
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+              <button className="btn" style={{ border: "1px solid #cbd5e1", background: "white" }} onClick={() => setOpenWalkInModal(false)}>Đóng</button>
+              <button
+                className="btn btn-primary"
+                onClick={() => runAction(() => dashboardService.createWalkInBooking(walkIn), "Tao walk-in thanh cong")}
+              >
+                Tạo booking
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {openServiceModal && (
+        <div className="modal-overlay">
+          <div className="card modal-card" style={{ maxWidth: 760 }}>
+            <h3 style={{ margin: 0 }}>Thêm / cập nhật dịch vụ booking</h3>
+            <div className="form-grid" style={{ gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))" }}>
+              <input placeholder="Booking ID" value={service.bookingId} onChange={(event) => setService((prev) => ({ ...prev, bookingId: event.target.value }))} />
+              <input placeholder="Service code" value={service.serviceCode} onChange={(event) => setService((prev) => ({ ...prev, serviceCode: event.target.value }))} />
+              <input type="number" min={1} value={service.quantity} onChange={(event) => setService((prev) => ({ ...prev, quantity: Number(event.target.value || 1) }))} />
+              <input type="number" min={0} value={service.actualPrice} onChange={(event) => setService((prev) => ({ ...prev, actualPrice: Number(event.target.value || 0) }))} />
+            </div>
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+              <button className="btn" style={{ border: "1px solid #cbd5e1", background: "white" }} onClick={() => setOpenServiceModal(false)}>Đóng</button>
+              <button
+                className="btn btn-gold"
+                disabled={!service.bookingId}
+                onClick={() => runAction(() => dashboardService.updateBookingServices(service.bookingId, {
+                  serviceCode: service.serviceCode,
+                  quantity: service.quantity,
+                  actualPrice: service.actualPrice
+                }), "Cap nhat dich vu thanh cong")}
+              >
+                Cập nhật dịch vụ
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }

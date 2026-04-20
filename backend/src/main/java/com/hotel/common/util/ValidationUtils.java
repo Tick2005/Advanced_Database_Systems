@@ -1,5 +1,7 @@
 package com.hotel.common.util;
 
+import java.util.UUID;
+
 import com.hotel.exception.BusinessException;
 
 public final class ValidationUtils {
@@ -19,5 +21,14 @@ public final class ValidationUtils {
             throw new BusinessException(fieldName + " is required");
         }
         return value;
+    }
+
+    public static UUID requireUuid(String value, String fieldName) {
+        requireNotBlank(value, fieldName);
+        try {
+            return UUID.fromString(value.trim());
+        } catch (IllegalArgumentException ex) {
+            throw new BusinessException(fieldName + " must be a valid UUID");
+        }
     }
 }

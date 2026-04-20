@@ -5,9 +5,12 @@ import LoadingState from "../../../components/common/LoadingState";
 import ErrorState from "../../../components/common/ErrorState";
 import { PATHS } from "../../../routes/pathConstants";
 import { formatStatus } from "../../../services/presenters";
+import { useApiQuery } from "../../../hooks/useApiQuery";
+import { queryKeys } from "../../../services/queryKeys";
+import { useDebouncedValue } from "../../../hooks/useDebouncedValue";
+import { applyRoomFilters, sortRooms } from "../roomFilters";
 
 export default function RoomList({ customer = false }) {
-  const [rooms, setRooms] = useState([]);
   const [filters, setFilters] = useState({
     keyword: "",
     city: "",
@@ -18,57 +21,20 @@ export default function RoomList({ customer = false }) {
   });
   const [sortBy, setSortBy] = useState("featured");
   const [page, setPage] = useState(1);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
   const pageSize = 6;
 
-  const fetchData = async () => {
-    setLoading(true);
-    setError("");
-    try {
-      setRooms((await roomService.getRooms()) || []);
-    } catch (err) {
-      setError(err.message || "Khong the tai danh sach phong");
-    } finally {
-      setLoading(false);
-    }
-  };
+  const roomsQuery = useApiQuery({
+    queryKey: queryKeys.rooms(),
+    queryFn: () => roomService.getRooms(),
+    staleTime: 60 * 1000
+  });
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+  const rooms = roomsQuery.data || [];
+  const debouncedFilters = useDebouncedValue(filters, 250);
 
   const filtered = useMemo(() => {
-    const q = filters.keyword.trim().toLowerCase();
-    const min = Number(filters.minPrice || 0);
-    const max = Number(filters.maxPrice || 0);
-    const occupancy = Number(filters.occupancy || 0);
-
-    const filteredData = rooms.filter((r) => {
-      const rate = Number(r.rate || 0);
-      const keywordMatch = !q
-        || (r.roomTypeName || "").toLowerCase().includes(q)
-        || (r.roomNumber || "").toLowerCase().includes(q)
-        || (r.branchCity || "").toLowerCase().includes(q);
-      const cityMatch = !filters.city || r.branchCity === filters.city;
-      const statusMatch = !filters.status || r.status === filters.status;
-      const minMatch = !min || rate >= min;
-      const maxMatch = !max || rate <= max;
-      const occupancyMatch = !occupancy || Number(r.maxOccupancy || 0) >= occupancy;
-
-      return keywordMatch && cityMatch && statusMatch && minMatch && maxMatch && occupancyMatch;
-    });
-
-    if (sortBy === "price-asc") {
-      filteredData.sort((a, b) => Number(a.rate || 0) - Number(b.rate || 0));
-    } else if (sortBy === "price-desc") {
-      filteredData.sort((a, b) => Number(b.rate || 0) - Number(a.rate || 0));
-    } else if (sortBy === "rating") {
-      filteredData.sort((a, b) => Number(b.averageRating || 0) - Number(a.averageRating || 0));
-    }
-
-    return filteredData;
-  }, [rooms, filters, sortBy]);
+    return sortRooms(applyRoomFilters(rooms, debouncedFilters), sortBy);
+  }, [rooms, debouncedFilters, sortBy]);
 
   const paginated = useMemo(() => {
     const start = (page - 1) * pageSize;
@@ -79,7 +45,7 @@ export default function RoomList({ customer = false }) {
 
   useEffect(() => {
     setPage(1);
-  }, [filters, sortBy]);
+  }, [debouncedFilters, sortBy]);
 
   useEffect(() => {
     if (page > totalPages) {
@@ -94,8 +60,10 @@ export default function RoomList({ customer = false }) {
     setFilters((prev) => ({ ...prev, [field]: value }));
   };
 
-  if (loading) return <LoadingState text="Dang tai danh sach phong..." />;
-  if (error) return <ErrorState message={error} onRetry={fetchData} />;
+  if (roomsQuery.isLoading) return <LoadingState text="Dang tai danh sach phong..." />;
+  if (roomsQuery.error) {
+    return <ErrorState message={roomsQuery.error.message || "Khong the tai danh sach phong"} onRetry={roomsQuery.refetch} />;
+  }
 
   return (
     <section className="container page-shell">

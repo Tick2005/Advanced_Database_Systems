@@ -4,8 +4,14 @@ import { branchService } from "../../branches/branchService";
 import DataTable from "../../../components/common/DataTable";
 import StatusBadge from "../../../components/common/StatusBadge";
 import ToastMessage from "../../../components/common/ToastMessage";
+import { usePermissions } from "../../../hooks/usePermissions";
+import { ACTIONS } from "../../../services/permissions";
+import { validateRoomForm } from "../../dashboard/domainValidators";
+import { useTracking } from "../../../hooks/useTracking";
 
 export default function ManagerRoomsPage() {
+  const { can } = usePermissions();
+  const track = useTracking("manager-rooms");
   const [branchId, setBranchId] = useState("");
   const [branches, setBranches] = useState([]);
   const [rooms, setRooms] = useState([]);
@@ -14,6 +20,8 @@ export default function ManagerRoomsPage() {
   const [openModal, setOpenModal] = useState(false);
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState({ roomTypeId: "", roomNumber: "", floor: 1, maxOccupancy: 2, rate: 0, status: "AVAILABLE", notes: "" });
+  const [fieldErrors, setFieldErrors] = useState({});
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
 
@@ -46,8 +54,13 @@ export default function ManagerRoomsPage() {
   });
 
   const openCreate = () => {
+    if (!can(ACTIONS.ROOM_CREATE)) {
+      setError("Ban khong co quyen tao phong");
+      return;
+    }
     setEditing(null);
     setForm({ roomTypeId: "", roomNumber: "", floor: 1, maxOccupancy: 2, rate: 0, status: "AVAILABLE", notes: "" });
+    setFieldErrors({});
     setOpenModal(true);
   };
 
@@ -62,10 +75,24 @@ export default function ManagerRoomsPage() {
       status: row.status || "AVAILABLE",
       notes: row.notes || ""
     });
+    setFieldErrors({});
     setOpenModal(true);
   };
 
   const save = async () => {
+    const action = editing ? ACTIONS.ROOM_EDIT : ACTIONS.ROOM_CREATE;
+    if (!can(action)) {
+      setError("Ban khong co quyen thuc hien thao tac nay");
+      return;
+    }
+
+    const nextErrors = validateRoomForm(form, { isCreate: !editing });
+    setFieldErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) {
+      return;
+    }
+
+    setSaving(true);
     try {
       if (editing) {
         await dashboardService.updateManagerRoom(editing.id, {
@@ -75,6 +102,7 @@ export default function ManagerRoomsPage() {
           status: form.status
         });
         setMessage("Da cap nhat phong");
+        track("room_updated", { roomId: editing.id, branchId, status: form.status });
       } else {
         await dashboardService.createManagerRoom({
           roomTypeId: form.roomTypeId,
@@ -87,11 +115,16 @@ export default function ManagerRoomsPage() {
           notes: form.notes
         });
         setMessage("Da tao phong moi");
+        track("room_created", { roomNumber: form.roomNumber, branchId });
       }
       setOpenModal(false);
+      setFieldErrors({});
       loadRooms(branchId);
     } catch (err) {
       setError(err.message || "Khong the luu phong");
+      track("room_save_failed", { branchId, reason: err.message || "unknown" });
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -110,7 +143,7 @@ export default function ManagerRoomsPage() {
           <option value="OCCUPIED">OCCUPIED</option>
           <option value="MAINTENANCE">MAINTENANCE</option>
         </select>
-        <button className="btn btn-primary" onClick={openCreate}>+ Tao phong</button>
+        <button className="btn btn-primary" onClick={openCreate} disabled={!can(ACTIONS.ROOM_CREATE)}>+ Tao phong</button>
       </div>
 
       <div className="toolbar">
@@ -132,7 +165,7 @@ export default function ManagerRoomsPage() {
           { key: "status", label: "Trang thai", render: (row) => <StatusBadge value={row.status} /> }
         ]}
         renderActions={(row) => (
-          <button className="btn" style={{ border: "1px solid #cbd5e1", background: "white", padding: "6px 10px" }} onClick={() => openEdit(row)}>Sua</button>
+          <button className="btn" style={{ border: "1px solid #cbd5e1", background: "white", padding: "6px 10px" }} onClick={() => openEdit(row)} disabled={!can(ACTIONS.ROOM_EDIT)}>Sua</button>
         )}
       />
 
@@ -142,21 +175,28 @@ export default function ManagerRoomsPage() {
             <h3 style={{ margin: 0 }}>{editing ? "Cap nhat phong" : "Tao phong moi"}</h3>
             <div className="form-grid">
               {!editing && <input placeholder="Room type ID" value={form.roomTypeId} onChange={(event) => setForm((prev) => ({ ...prev, roomTypeId: event.target.value }))} />}
+              {!editing && fieldErrors.roomTypeId && <small style={{ color: "#b91c1c", gridColumn: "1 / -1" }}>{fieldErrors.roomTypeId}</small>}
               {!editing && <input placeholder="So phong" value={form.roomNumber} onChange={(event) => setForm((prev) => ({ ...prev, roomNumber: event.target.value }))} />}
+              {!editing && fieldErrors.roomNumber && <small style={{ color: "#b91c1c", gridColumn: "1 / -1" }}>{fieldErrors.roomNumber}</small>}
               {!editing && <input type="number" min={1} placeholder="Tang" value={form.floor} onChange={(event) => setForm((prev) => ({ ...prev, floor: Number(event.target.value || 1) }))} />}
+              {!editing && fieldErrors.floor && <small style={{ color: "#b91c1c", gridColumn: "1 / -1" }}>{fieldErrors.floor}</small>}
               <input type="number" min={1} placeholder="Suc chua" value={form.maxOccupancy} onChange={(event) => setForm((prev) => ({ ...prev, maxOccupancy: Number(event.target.value || 1) }))} />
+              {fieldErrors.maxOccupancy && <small style={{ color: "#b91c1c", gridColumn: "1 / -1" }}>{fieldErrors.maxOccupancy}</small>}
               <input type="number" min={0} placeholder="Gia" value={form.rate} onChange={(event) => setForm((prev) => ({ ...prev, rate: Number(event.target.value || 0) }))} />
+              {fieldErrors.rate && <small style={{ color: "#b91c1c", gridColumn: "1 / -1" }}>{fieldErrors.rate}</small>}
               <select value={form.status} onChange={(event) => setForm((prev) => ({ ...prev, status: event.target.value }))}>
                 <option value="AVAILABLE">AVAILABLE</option>
                 <option value="HELD">HELD</option>
                 <option value="OCCUPIED">OCCUPIED</option>
                 <option value="MAINTENANCE">MAINTENANCE</option>
               </select>
+              {fieldErrors.status && <small style={{ color: "#b91c1c", gridColumn: "1 / -1" }}>{fieldErrors.status}</small>}
               <textarea placeholder="Ghi chu" rows={3} value={form.notes} onChange={(event) => setForm((prev) => ({ ...prev, notes: event.target.value }))} style={{ gridColumn: "1 / -1" }} />
+              {fieldErrors.notes && <small style={{ color: "#b91c1c", gridColumn: "1 / -1" }}>{fieldErrors.notes}</small>}
             </div>
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
               <button className="btn" style={{ border: "1px solid #cbd5e1", background: "white" }} onClick={() => setOpenModal(false)}>Huy</button>
-              <button className="btn btn-primary" onClick={save}>{editing ? "Luu cap nhat" : "Tao phong"}</button>
+              <button className="btn btn-primary" onClick={save} disabled={saving}>{editing ? "Luu cap nhat" : "Tao phong"}</button>
             </div>
           </div>
         </div>

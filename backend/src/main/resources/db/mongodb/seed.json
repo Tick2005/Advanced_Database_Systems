@@ -45,6 +45,60 @@
 				},
 				"created_at": { "$date": "2026-04-21T09:00:00.000Z" },
 				"updated_at": { "$date": "2026-04-21T10:00:00.000Z" }
+			},
+			{
+				"_id": "feedback_demo_002",
+				"booking_id": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa2",
+				"user_id": "44444444-4444-4444-4444-444444444445",
+				"room_id": "77777777-7777-7777-7777-777777777772",
+				"rating": 4,
+				"content": "View đẹp, nhân viên hỗ trợ nhanh, buffet sáng ổn.",
+				"images": [
+					"https://cdn.local/feedback/room-802-1.jpg"
+				],
+				"metadata": {
+					"sentiment": "positive",
+					"source": "web"
+				},
+				"created_at": { "$date": "2026-04-22T08:30:00.000Z" },
+				"updated_at": { "$date": "2026-04-22T08:30:00.000Z" }
+			},
+			{
+				"_id": "feedback_demo_003",
+				"booking_id": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa3",
+				"user_id": "44444444-4444-4444-4444-444444444446",
+				"room_id": "77777777-7777-7777-7777-777777777773",
+				"rating": 5,
+				"content": "Phòng rộng cho gia đình, check-in nhanh, sẽ quay lại.",
+				"images": [
+					"https://cdn.local/feedback/room-1201-1.jpg"
+				],
+				"manager_reply": {
+					"manager_id": "22222222-2222-2222-2222-222222222222",
+					"content": "Cảm ơn gia đình đã chọn LuxStay.",
+					"replied_at": { "$date": "2026-04-23T07:40:00.000Z" }
+				},
+				"metadata": {
+					"sentiment": "positive",
+					"source": "mobile"
+				},
+				"created_at": { "$date": "2026-04-23T07:00:00.000Z" },
+				"updated_at": { "$date": "2026-04-23T07:40:00.000Z" }
+			},
+			{
+				"_id": "feedback_demo_004",
+				"booking_id": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa4",
+				"user_id": "44444444-4444-4444-4444-444444444445",
+				"room_id": "77777777-7777-7777-7777-777777777778",
+				"rating": 3,
+				"content": "Dịch vụ ổn nhưng cần cải thiện tốc độ dọn phòng.",
+				"images": [],
+				"metadata": {
+					"sentiment": "neutral",
+					"source": "web"
+				},
+				"created_at": { "$date": "2026-04-24T04:15:00.000Z" },
+				"updated_at": { "$date": "2026-04-24T04:15:00.000Z" }
 			}
 		],
 		"activity_logs": [

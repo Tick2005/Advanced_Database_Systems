@@ -22,39 +22,34 @@ export default function PublicLayout() {
   const roleLabel = role === "CUSTOMER" ? "Khách hàng" : role === "STAFF" ? "Staff" : role === "MANAGER" ? "Manager" : role === "OWNER" ? "Owner" : "Khách";
 
   const publicNavLinks = useMemo(() => {
-    if (!isAuthenticated) {
+    if (isAuthenticated && role === "CUSTOMER") {
       return [
-        { to: PATHS.ROOMS, label: "Phòng" },
-        { to: PATHS.BRANCHES, label: "Chi nhánh" },
-        { href: "#reviews", label: "Đánh giá" }
+        { to: PATHS.CUSTOMER_ROOMS, label: "List room", icon: "🛏️" },
+        { to: PATHS.BRANCHES, label: "Chi nhánh", icon: "🏢" },
+        { to: PATHS.CUSTOMER_BOOKINGS, label: "Lịch sử", icon: "🧾" }
       ];
     }
 
-    if (role === "CUSTOMER") {
-      return [
-        { to: PATHS.CUSTOMER_HOME, label: "Trang chủ" },
-        { to: PATHS.CUSTOMER_ROOMS, label: "Tìm phòng" },
-        { to: PATHS.BRANCHES, label: "Chi nhánh" },
-        { to: PATHS.CUSTOMER_FEEDBACKS, label: "Đánh giá" }
-      ];
-    }
-
-    return [];
+    return [
+      { to: PATHS.ROOMS, label: "List room", icon: "🛏️" },
+      { to: PATHS.BRANCHES, label: "Chi nhánh", icon: "🏢" }
+    ];
   }, [isAuthenticated, role]);
 
   const accountLinks = useMemo(() => {
     if (!isAuthenticated) return [];
     if (role === "CUSTOMER") {
       return [
-        { to: PATHS.CUSTOMER_BOOKINGS, label: "Lịch sử đặt phòng" },
-        { to: PATHS.CUSTOMER_PROFILE, label: "Hồ sơ" },
-        { to: PATHS.CUSTOMER_FEEDBACKS, label: "Đánh giá của tôi" },
-        { to: PATHS.CUSTOMER_SETTINGS, label: "Cài đặt" }
+        { to: PATHS.CUSTOMER_PROFILE, label: "Hồ sơ", icon: "👤" },
+        { to: PATHS.CUSTOMER_SETTINGS, label: "Settings", icon: "🎛️" },
+        { to: PATHS.CUSTOMER_BOOKINGS, label: "History", icon: "🧾" },
+        { to: PATHS.CUSTOMER_ROOMS, label: "List room", icon: "🛏️" },
+        { to: PATHS.BRANCHES, label: "Danh sách chi nhánh", icon: "🏢" }
       ];
     }
 
     return [
-      { to: roleHome, label: "Đi tới workspace" }
+      { to: roleHome, label: "Đi tới workspace", icon: "🧭" }
     ];
   }, [isAuthenticated, role, roleHome]);
 
@@ -71,6 +66,25 @@ export default function PublicLayout() {
 
   return (
     <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
+      <a href="#main-content" style={{ position: "absolute", left: -10000, top: "auto", width: 1, height: 1, overflow: "hidden" }} onFocus={(e) => {
+        e.currentTarget.style.left = "16px";
+        e.currentTarget.style.top = "12px";
+        e.currentTarget.style.width = "auto";
+        e.currentTarget.style.height = "auto";
+        e.currentTarget.style.padding = "8px 12px";
+        e.currentTarget.style.background = "#0d2238";
+        e.currentTarget.style.color = "#fff";
+        e.currentTarget.style.borderRadius = "10px";
+        e.currentTarget.style.zIndex = 999;
+      }} onBlur={(e) => {
+        e.currentTarget.style.left = "-10000px";
+        e.currentTarget.style.top = "auto";
+        e.currentTarget.style.width = "1px";
+        e.currentTarget.style.height = "1px";
+        e.currentTarget.style.overflow = "hidden";
+      }}>
+        Bỏ qua menu, đến nội dung chính
+      </a>
       <header style={{ position: "sticky", top: 0, zIndex: 20 }}>
         <div className="surface-panel" style={{ margin: 12, borderRadius: 999, backdropFilter: "blur(16px)", position: "relative" }}>
           <div className="container" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, minHeight: 76 }}>
@@ -81,40 +95,32 @@ export default function PublicLayout() {
 
             <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", justifyContent: "flex-end", position: "relative" }}>
               {publicNavLinks.length > 0 && (
-                <nav style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", justifyContent: "flex-end" }}>
+                <nav aria-label="Dieu huong chinh" style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", justifyContent: "flex-end" }}>
                   {publicNavLinks.map((item) => (
-                    item.to ? (
-                      <Link key={item.to} className="pill pill-soft" to={item.to}>{item.label}</Link>
-                    ) : (
-                      <a
-                        key={item.href}
-                        className="pill pill-soft"
-                        href={item.href}
-                        onClick={(e) => {
-                          e.preventDefault();
-                          document.querySelector('[data-section="reviews"]')?.scrollIntoView({ behavior: "smooth" });
-                        }}
-                      >
-                        {item.label}
-                      </a>
-                    )
+                    <Link
+                      key={item.to}
+                      className="pill pill-soft"
+                      to={item.to}
+                      aria-label={`Di den ${item.label}`}
+                      title={item.label}
+                      style={{ display: "inline-flex", alignItems: "center", gap: 6, minWidth: 112, justifyContent: "center" }}
+                    >
+                      <span aria-hidden="true">{item.icon}</span>
+                      <span>{item.label}</span>
+                    </Link>
                   ))}
                 </nav>
               )}
 
               {!isAuthenticated && (
                 <>
-                  <Link className="btn pill pill-soft" to={PATHS.LOGIN}>Đăng nhập</Link>
-                  <Link className="btn btn-gold" to={PATHS.REGISTER}>Đăng ký</Link>
+                  <Link className="btn pill pill-soft" to={PATHS.LOGIN} aria-label="Dang nhap" style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><span aria-hidden="true">🔐</span><span>Đăng nhập</span></Link>
+                  <Link className="btn btn-gold" to={PATHS.REGISTER} aria-label="Dang ky" style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><span aria-hidden="true">✨</span><span>Đăng ký</span></Link>
                 </>
               )}
 
-              {isAuthenticated && role === "CUSTOMER" && (
-                <Link className="btn btn-gold" to={PATHS.CUSTOMER_BOOKING_CREATE}>Đặt phòng mới</Link>
-              )}
-
               {isAuthenticated && role !== "CUSTOMER" && (
-                <Link className="btn btn-gold" to={roleHome}>Vào workspace</Link>
+                <Link className="btn btn-gold" to={roleHome} aria-label="Vao khu dieu khien">Vào workspace</Link>
               )}
 
               {isAuthenticated && (
@@ -123,6 +129,9 @@ export default function PublicLayout() {
                     type="button"
                     className="btn"
                     onClick={() => setMenuOpen((prev) => !prev)}
+                    aria-expanded={menuOpen}
+                    aria-haspopup="menu"
+                    aria-label="Mo menu tai khoan"
                     style={{
                       background: "rgba(23,49,77,0.08)",
                       border: "1px solid #dbe4ee",
@@ -132,6 +141,7 @@ export default function PublicLayout() {
                       padding: "8px 12px"
                     }}
                   >
+                    <span aria-hidden="true" style={{ fontSize: 15 }}>👤</span>
                     <span style={{ width: 28, height: 28, borderRadius: 999, background: "#17314d", color: "#fff", display: "grid", placeItems: "center", fontSize: 12, fontWeight: 700 }}>
                       {displayName.slice(0, 1).toUpperCase()}
                     </span>
@@ -148,17 +158,19 @@ export default function PublicLayout() {
                           key={item.to}
                           to={item.to}
                           onClick={() => setMenuOpen(false)}
-                          style={{ padding: "9px 10px", borderRadius: 10, fontSize: 13, fontWeight: 600, color: "#17314d" }}
+                          style={{ padding: "9px 10px", borderRadius: 10, fontSize: 13, fontWeight: 600, color: "#17314d", display: "inline-flex", alignItems: "center", gap: 8 }}
                         >
+                          <span aria-hidden="true">{item.icon}</span>
                           {item.label}
                         </Link>
                       ))}
                       <button
                         type="button"
                         onClick={logout}
-                        style={{ padding: "9px 10px", borderRadius: 10, border: "1px solid #fee2e2", background: "#fff5f5", color: "#b91c1c", textAlign: "left", fontSize: 13, fontWeight: 700, cursor: "pointer" }}
+                        style={{ padding: "9px 10px", borderRadius: 10, border: "1px solid #fee2e2", background: "#fff5f5", color: "#b91c1c", textAlign: "left", fontSize: 13, fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 8 }}
                       >
-                        Đăng xuất
+                        <span aria-hidden="true">🚪</span>
+                        <span>Đăng xuất</span>
                       </button>
                     </div>
                   )}
@@ -168,7 +180,7 @@ export default function PublicLayout() {
           </div>
         </div>
       </header>
-      <main style={{ flex: 1 }}>
+      <main id="main-content" style={{ flex: 1 }}>
         <Outlet />
       </main>
       <footer style={{ background: "#0d2238", color: "#f8fafc", marginTop: 40, padding: "42px 0 28px" }}>

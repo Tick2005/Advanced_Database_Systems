@@ -1,34 +1,31 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { bookingService } from "../bookingService";
 import LoadingState from "../../../components/common/LoadingState";
 import ErrorState from "../../../components/common/ErrorState";
 import { PATHS } from "../../../routes/pathConstants";
+import { useApiQuery } from "../../../hooks/useApiQuery";
+import { useApiMutation } from "../../../hooks/useApiMutation";
+import { queryKeys } from "../../../services/queryKeys";
 
 const STATUS_OPTIONS = ["ALL", "HOLD", "PENDING_PAYMENT", "CONFIRMED", "CHECKED_IN", "CHECKED_OUT", "CANCELLED", "EXPIRED"];
 
 export default function BookingsPage() {
-  const [bookings, setBookings] = useState([]);
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [cancellingId, setCancellingId] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
 
-  const fetchData = async () => {
-    setLoading(true);
-    setError("");
-    try {
-      setBookings((await bookingService.getBookings()) || []);
-    } catch (err) {
-      setError(err.message || "Khong the tai danh sach booking");
-    } finally {
-      setLoading(false);
-    }
-  };
+  const bookingsQuery = useApiQuery({
+    queryKey: queryKeys.bookings,
+    queryFn: () => bookingService.getBookings(),
+    staleTime: 30 * 1000
+  });
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+  const cancelBookingMutation = useApiMutation({
+    mutationFn: ({ bookingId }) => bookingService.cancelBooking(bookingId, "Customer cancelled from UI"),
+    invalidateKeys: [queryKeys.bookings]
+  });
+
+  const bookings = bookingsQuery.data || [];
 
   const filtered = statusFilter === "ALL"
     ? bookings
@@ -36,19 +33,17 @@ export default function BookingsPage() {
 
   const cancelBooking = async (bookingId) => {
     setCancellingId(bookingId);
-    setError("");
     try {
-      await bookingService.cancelBooking(bookingId, "Customer cancelled from UI");
-      await fetchData();
-    } catch (err) {
-      setError(err.message || "Khong the huy booking");
+      await cancelBookingMutation.mutateAsync({ bookingId });
     } finally {
       setCancellingId("");
     }
   };
 
-  if (loading) return <LoadingState text="Dang tai bookings..." />;
-  if (error) return <ErrorState message={error} onRetry={fetchData} />;
+  if (bookingsQuery.isLoading) return <LoadingState text="Dang tai bookings..." />;
+  if (bookingsQuery.error) {
+    return <ErrorState message={bookingsQuery.error.message || "Khong the tai danh sach booking"} onRetry={bookingsQuery.refetch} />;
+  }
 
   return (
     <section className="container" style={{ padding: "28px 24px" }}>
@@ -68,6 +63,10 @@ export default function BookingsPage() {
           </button>
         ))}
       </div>
+
+      {cancelBookingMutation.error && (
+        <ErrorState message={cancelBookingMutation.error.message || "Khong the huy booking"} onRetry={() => cancelBookingMutation.reset()} />
+      )}
 
       {filtered.length === 0 && (
         <div className="card" style={{ padding: 18 }}>

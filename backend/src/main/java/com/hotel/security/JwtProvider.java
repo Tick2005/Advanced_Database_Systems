@@ -1,17 +1,23 @@
 package com.hotel.security;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.Date;
+
+import javax.crypto.SecretKey;
+
+import org.springframework.stereotype.Component;
+
 import com.hotel.config.JwtConfig;
+
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
-import org.springframework.stereotype.Component;
-
-import javax.crypto.SecretKey;
-import java.time.Instant;
-import java.time.temporal.ChronoUnit;
-import java.util.Date;
 
 @Component
 public class JwtProvider {
@@ -118,10 +124,19 @@ public class JwtProvider {
 
     private SecretKey getSigningKey() {
         byte[] keyBytes;
+        String secret = jwtConfig.getSecret();
         try {
-            keyBytes = Decoders.BASE64.decode(jwtConfig.getSecret());
-        } catch (IllegalArgumentException ex) {
-            keyBytes = jwtConfig.getSecret().getBytes();
+            keyBytes = Decoders.BASE64.decode(secret);
+        } catch (RuntimeException ex) {
+            keyBytes = secret.getBytes(StandardCharsets.UTF_8);
+        }
+
+        if (keyBytes.length < 32) {
+            try {
+                keyBytes = MessageDigest.getInstance("SHA-256").digest(secret.getBytes(StandardCharsets.UTF_8));
+            } catch (NoSuchAlgorithmException ex) {
+                throw new IllegalStateException("Unable to initialize JWT signing key", ex);
+            }
         }
         return Keys.hmacShaKeyFor(keyBytes);
     }

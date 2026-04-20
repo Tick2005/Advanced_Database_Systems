@@ -31,7 +31,7 @@ public class PaymentEntity {
 	@Column(name = "provider")
 	private String provider;
 
-	@Column(name = "transaction_ref")
+	@Column(name = "transaction_ref", unique = true)
 	private String transactionRef;
 
 	@Column(name = "amount")

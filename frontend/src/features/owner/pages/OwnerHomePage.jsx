@@ -4,18 +4,25 @@ import { dashboardService } from "../../dashboard/dashboardService";
 import SkeletonBlock from "../../../components/common/SkeletonBlock";
 import { PATHS } from "../../../routes/pathConstants";
 import { ProfitByBranchChart, OccupancyRateChart } from "../../../components/common/ChartWidgets";
+import ErrorState from "../../../components/common/ErrorState";
 
 export default function OwnerHomePage() {
   const [loading, setLoading] = useState(true);
   const [summary, setSummary] = useState(null);
+  const [error, setError] = useState("");
 
   useEffect(() => {
+    setLoading(true);
+    setError("");
     dashboardService.getOwnerDashboard().then((data) => {
       setSummary(data || null);
+    }).catch((err) => {
+      setError(err.message || "Khong the tai owner dashboard");
     }).finally(() => setLoading(false));
   }, []);
 
   if (loading) return <SkeletonBlock rows={6} />;
+  if (error) return <ErrorState message={error} onRetry={() => window.location.reload()} />;
 
   const branchBars = [
     { label: "Da Nang Center", value: Number(summary?.conversion?.confirmRate || 0) },
@@ -50,7 +57,7 @@ export default function OwnerHomePage() {
       <div className="card" style={{ padding: 16, display: "flex", gap: 8, flexWrap: "wrap" }}>
         <Link className="btn btn-primary" to={PATHS.OWNER_BRANCHES}>Quan ly chi nhanh</Link>
         <Link className="btn" style={{ border: "1px solid #cbd5e1", background: "white" }} to={PATHS.OWNER_PRICING_REQUESTS}>Duyet pricing requests</Link>
-        <Link className="btn btn-gold" to={PATHS.OWNER_REPORT_REVENUE}>Xem bao cao</Link>
+        <Link className="btn btn-gold" to={PATHS.OWNER_LOGS}>Xem logs he thong</Link>
       </div>
     </section>
   );

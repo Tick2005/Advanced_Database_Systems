@@ -1,14 +1,21 @@
 package com.hotel.modules.booking;
 
+import org.springframework.stereotype.Component;
+
 import com.hotel.common.enums.BookingStatus;
 import com.hotel.exception.BusinessException;
 import com.hotel.modules.booking.dto.BookingCreateRequest;
-import org.springframework.stereotype.Component;
 
 @Component
 public class BookingValidator {
 
 	public void validateCreateRequest(BookingCreateRequest request) {
+		if (request.getCheckInDate() == null || request.getCheckOutDate() == null) {
+			throw new BusinessException("checkInDate and checkOutDate are required");
+		}
+		if (request.getTotalPrice() == null) {
+			throw new BusinessException("totalPrice is required");
+		}
 		if (request.getCheckOutDate().isBefore(request.getCheckInDate()) || request.getCheckOutDate().isEqual(request.getCheckInDate())) {
 			throw new BusinessException("checkOutDate must be after checkInDate");
 		}

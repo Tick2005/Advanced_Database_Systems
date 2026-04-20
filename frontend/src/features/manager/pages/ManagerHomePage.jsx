@@ -5,9 +5,12 @@ import { branchService } from "../../branches/branchService";
 import { PATHS } from "../../../routes/pathConstants";
 import SkeletonBlock from "../../../components/common/SkeletonBlock";
 import { RevenueChart, BookingStatusChart } from "../../../components/common/ChartWidgets";
+import EmptyState from "../../../components/common/EmptyState";
+import ErrorState from "../../../components/common/ErrorState";
 
 export default function ManagerHomePage() {
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const [branchId, setBranchId] = useState("");
   const [branches, setBranches] = useState([]);
   const [rooms, setRooms] = useState([]);
@@ -16,22 +19,28 @@ export default function ManagerHomePage() {
 
   useEffect(() => {
     const run = async () => {
-      const branchData = await branchService.getBranches();
-      const activeBranch = branchData?.[0]?.id || "";
-      setBranches(branchData || []);
-      setBranchId(activeBranch);
-      const [roomData, bookingData, requestData] = await Promise.all([
-        activeBranch ? dashboardService.getManagerRoomsByBranch(activeBranch) : [],
-        dashboardService.getManagerBookings(),
-        dashboardService.getManagerPricingRequests()
-      ]);
-      setRooms(roomData || []);
-      setBookings(bookingData || []);
-      setRequests(requestData || []);
-      setLoading(false);
+      try {
+        setError("");
+        const branchData = await branchService.getBranches();
+        const activeBranch = branchData?.[0]?.id || "";
+        setBranches(branchData || []);
+        setBranchId(activeBranch);
+        const [roomData, bookingData, requestData] = await Promise.all([
+          activeBranch ? dashboardService.getManagerRoomsByBranch(activeBranch) : [],
+          dashboardService.getManagerBookings(),
+          dashboardService.getManagerPricingRequests()
+        ]);
+        setRooms(roomData || []);
+        setBookings(bookingData || []);
+        setRequests(requestData || []);
+      } catch (err) {
+        setError(err.message || "Khong the tai manager dashboard");
+      } finally {
+        setLoading(false);
+      }
     };
 
-    run().catch(() => setLoading(false));
+    run();
   }, []);
 
   const summary = useMemo(() => ({
@@ -62,6 +71,7 @@ export default function ManagerHomePage() {
   const maxRoomStatus = Math.max(1, ...roomByStatus.map((item) => item.value));
 
   if (loading) return <SkeletonBlock rows={6} />;
+  if (error) return <ErrorState message={error} onRetry={() => window.location.reload()} />;
 
   return (
     <section style={{ display: "grid", gap: 14 }}>
@@ -96,7 +106,7 @@ export default function ManagerHomePage() {
 
       <article className="card" style={{ padding: 14, display: "grid", gap: 8 }}>
         <h3 style={{ margin: 0 }}>Booking gan day</h3>
-        {recentBookings.length === 0 && <span style={{ color: "#64748b" }}>Chua co booking.</span>}
+        {recentBookings.length === 0 && <EmptyState title="Chua co booking" description="Booking se hien thi tai day khi co khach dat phong." />}
         {recentBookings.map((item) => (
           <div key={item.id} style={{ borderTop: "1px solid #e2e8f0", paddingTop: 8, display: "flex", justifyContent: "space-between", gap: 8 }}>
             <span>{item.id.slice(0, 8)}... · {item.status}</span>

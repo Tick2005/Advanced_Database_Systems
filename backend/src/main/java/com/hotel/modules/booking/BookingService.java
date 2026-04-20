@@ -5,6 +5,12 @@ import java.util.List;
 import java.util.UUID;
 
 import org.springframework.data.domain.Sort;
+import org.springframework.dao.CannotAcquireLockException;
+import org.springframework.dao.ConcurrencyFailureException;
+import org.springframework.dao.PessimisticLockingFailureException;
+import org.springframework.dao.TransientDataAccessException;
+import org.springframework.retry.annotation.Backoff;
+import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -52,6 +58,16 @@ public class BookingService {
 	}
 
 	@Transactional
+	@Retryable(
+		retryFor = {
+			CannotAcquireLockException.class,
+			PessimisticLockingFailureException.class,
+			ConcurrencyFailureException.class,
+			TransientDataAccessException.class
+		},
+		maxAttempts = 3,
+		backoff = @Backoff(delay = 120, multiplier = 2.0)
+	)
 	public BookingResponse createBooking(BookingCreateRequest request) {
 		bookingValidator.validateCreateRequest(request);
 
@@ -90,6 +106,7 @@ public class BookingService {
 	}
 
 	@Transactional(readOnly = true)
+	@SuppressWarnings("null")
 	public BookingResponse getBooking(String id) {
 		BookingEntity entity = bookingRepository.findById(UUID.fromString(id))
 			.orElseThrow(() -> new NotFoundException("Booking not found: " + id));
@@ -149,9 +166,26 @@ public class BookingService {
 	}
 
 	@Transactional
+	@Retryable(
+		retryFor = {
+			CannotAcquireLockException.class,
+			PessimisticLockingFailureException.class,
+			ConcurrencyFailureException.class,
+			TransientDataAccessException.class
+		},
+		maxAttempts = 3,
+		backoff = @Backoff(delay = 120, multiplier = 2.0)
+	)
 	public void markPaid(String bookingId) {
-		BookingEntity entity = bookingRepository.findById(UUID.fromString(bookingId))
+		BookingEntity entity = bookingRepository.findByIdForUpdate(UUID.fromString(bookingId))
 			.orElseThrow(() -> new NotFoundException("Booking not found: " + bookingId));
+
+		if (entity.getStatus() == BookingStatus.CONFIRMED) {
+			return;
+		}
+		if (entity.getStatus() != BookingStatus.HOLD && entity.getStatus() != BookingStatus.PENDING_PAYMENT) {
+			throw new BusinessException("Only held booking can be marked as paid");
+		}
 
 		entity.setStatus(BookingStatus.CONFIRMED);
 		entity.setHoldExpiresAt(null);
@@ -163,6 +197,7 @@ public class BookingService {
 	}
 
 	@Transactional
+	@SuppressWarnings("null")
 	public BookingServiceResponse addService(String bookingId, BookingServiceUpdateRequest request) {
 		BookingEntity entity = bookingRepository.findById(UUID.fromString(bookingId))
 			.orElseThrow(() -> new NotFoundException("Booking not found: " + bookingId));
@@ -187,11 +222,24 @@ public class BookingService {
 	}
 
 	@Transactional
+	@Retryable(
+		retryFor = {
+			CannotAcquireLockException.class,
+			PessimisticLockingFailureException.class,
+			ConcurrencyFailureException.class,
+			TransientDataAccessException.class
+		},
+		maxAttempts = 3,
+		backoff = @Backoff(delay = 120, multiplier = 2.0)
+	)
 	public BookingActionResponse checkIn(String bookingId, String branchId) {
-		BookingEntity entity = bookingRepository.findById(UUID.fromString(bookingId))
+		BookingEntity entity = bookingRepository.findByIdForUpdate(UUID.fromString(bookingId))
 			.orElseThrow(() -> new NotFoundException("Booking not found: " + bookingId));
 
 		ensureBookingInBranch(entity, branchId);
+		if (entity.getStatus() == BookingStatus.CHECKED_IN) {
+			return buildActionResponse(entity.getId().toString(), "checkin", entity.getStatus().name());
+		}
 
 		if (entity.getStatus() != BookingStatus.CONFIRMED) {
 			throw new BusinessException("Only confirmed booking can be checked in");
@@ -206,11 +254,24 @@ public class BookingService {
 	}
 
 	@Transactional
+	@Retryable(
+		retryFor = {
+			CannotAcquireLockException.class,
+			PessimisticLockingFailureException.class,
+			ConcurrencyFailureException.class,
+			TransientDataAccessException.class
+		},
+		maxAttempts = 3,
+		backoff = @Backoff(delay = 120, multiplier = 2.0)
+	)
 	public BookingActionResponse checkOut(String bookingId, String branchId) {
-		BookingEntity entity = bookingRepository.findById(UUID.fromString(bookingId))
+		BookingEntity entity = bookingRepository.findByIdForUpdate(UUID.fromString(bookingId))
 			.orElseThrow(() -> new NotFoundException("Booking not found: " + bookingId));
 
 		ensureBookingInBranch(entity, branchId);
+		if (entity.getStatus() == BookingStatus.CHECKED_OUT) {
+			return buildActionResponse(entity.getId().toString(), "checkout", entity.getStatus().name());
+		}
 
 		if (entity.getStatus() != BookingStatus.CHECKED_IN) {
 			throw new BusinessException("Only checked-in booking can be checked out");
@@ -243,6 +304,7 @@ public class BookingService {
 		return response;
 	}
 
+	@SuppressWarnings("null")
 	private BookingEntity findByIdOrThrow(String bookingId) {
 		return bookingRepository.findById(UUID.fromString(bookingId))
 			.orElseThrow(() -> new NotFoundException("Booking not found: " + bookingId));

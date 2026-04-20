@@ -1,16 +1,19 @@
 package com.hotel.modules.user;
 
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.UUID;
+
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.hotel.common.enums.Role;
+import com.hotel.common.util.ValidationUtils;
+import com.hotel.exception.BusinessException;
 import com.hotel.exception.NotFoundException;
 import com.hotel.modules.user.dto.ProfileResponse;
 import com.hotel.modules.user.dto.UpdateProfileRequest;
 import com.hotel.modules.user.dto.UserResponse;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.UUID;
 
 @Service
 public class UserService {
@@ -31,17 +34,24 @@ public class UserService {
     }
 
     @Transactional
+    @SuppressWarnings("null")
     public UserResponse updateRole(String userId, String role) {
-        UserEntity user = userRepository.findById(UUID.fromString(userId))
+        UUID id = ValidationUtils.requireUuid(userId, "userId");
+        UserEntity user = userRepository.findById(id)
             .orElseThrow(() -> new NotFoundException("User not found: " + userId));
-        user.setRole(Role.valueOf(role.toUpperCase()));
+        try {
+            user.setRole(Role.valueOf(role.trim().toUpperCase()));
+        } catch (IllegalArgumentException ex) {
+            throw new BusinessException("Unsupported role: " + role);
+        }
         user.setUpdatedAt(LocalDateTime.now());
         return userMapper.toUserResponse(userRepository.save(user));
     }
 
     @Transactional(readOnly = true)
+    @SuppressWarnings("null")
     public ProfileResponse getProfile(String userId) {
-        UUID id = UUID.fromString(userId);
+        UUID id = ValidationUtils.requireUuid(userId, "userId");
         UserEntity user = userRepository.findById(id).orElseThrow(() -> new NotFoundException("User not found: " + userId));
         ProfileEntity profile = profileRepository.findByUserId(id)
             .orElseThrow(() -> new NotFoundException("Profile not found for user: " + userId));
@@ -49,8 +59,9 @@ public class UserService {
     }
 
     @Transactional
+    @SuppressWarnings("null")
     public ProfileResponse updateProfile(String userId, UpdateProfileRequest request) {
-        UUID id = UUID.fromString(userId);
+        UUID id = ValidationUtils.requireUuid(userId, "userId");
         UserEntity user = userRepository.findById(id).orElseThrow(() -> new NotFoundException("User not found: " + userId));
         ProfileEntity profile = profileRepository.findByUserId(id).orElseGet(() -> {
             ProfileEntity entity = new ProfileEntity();
