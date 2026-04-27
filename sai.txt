@@ -21,14 +21,14 @@ Giao diện :
 + không để id booking lên giao diện có thể để thêm dữ lieu của phòng và dịch vụ đã lựa chọn trong booking nhưng cũng không để id mà là để tên của nó.
 -trang profile edit 
 + có thể xóa trang profile edit thành 1 pop-up edit tại trang profile
-1. edit ban chua co chinhdung yeu cau khi ma 3 modal riêng biệt:
-   * Hồ sơ cá nhân (fullName, phone, address, avatar).
-   * Email.
+1. edit ban chua co chinhdung yeu cau khi ma 2 modal riêng biệt:
+   * Hồ sơ cá nhân (fullName, phone, address, avatar), Email.
    * Password.  va cac chuc nang edit hien chua co edit duoc a ban edit roi no khong luu du leiu moi nen khi f5 lai no bi quay lai ban dau.
 2. chua xu ly duoc van de gui mail thiet voi app password : "email : [huynopro1801@gmail.com](mailto:huynopro1801@gmail.com)
-Mật khẩu App password :  usvp rosy kbig xwjk"
+Mật khẩu App password :  usvp rosy kbig xwjk" gom cac chuc nang gui mail xac nhan email khi dang ky va gui mail reset password khi nguoi dung yeu cau reset password, gui mail xac nhan dat phong khi nguoi dung dat phong thanh cong.
 3. cho room detail ban nen dua code cua thong tin phong va thong tin gia ca va form dat tren 1 hang ngang con cua cai danh gia la 1 hang chu ban nhu vay bo cuc se dep hon.
 4. top phong dat biet o home no moi load 1 phong vay co the trigger no dang load 1 a ban va tui muon load dua tren gps vi tri hien tai nguoi dung va danh gia chu khogn phai profit nua .
-5. co nhieu du lieu dang dung du lieu cung kia xoa bo no thay no vo database trogn backend resource di ban.
+5. co nhieu du lieu dang dung du lieu cung trong frontend kia xoa bo va chuyen hoa no thay no vo database trogn backend resource di ban.
 6. diem noi bat khong phai thuoc cai danh gia nhen no la 1 phan rieng biet va 4 cainoi bat do de tren 1 hang ngang fdi ban 
 7.  xem chi tiet lich su booking gi ma kho khan dung id nhieu vay thay the het di hinh phong , dich vu , so phong dau , trang thai hay tat ca du lieu ra ban khogn xu ly no cho chuan ui nguoi dung gi het tho qua.
+8. top phong khong can dua len giao dien ma ban se doi nothanh load du tren dia chi gps hien tai cua vi tri nguoi dung dang mo web de chon duoc chi nhanh gan va danh gia cua phong do thay vi dua tren profit nua cho ca trang home va trang all rooms phai dua tren nay uu tien neu nguoi dung chon  chi nhanh khac thi moi dua tren chi nhanh sort do nhen ban. 
