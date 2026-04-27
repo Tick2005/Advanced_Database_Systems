@@ -85,8 +85,9 @@ export default function Home() {
   const [selectedService, setSelectedService] = useState(null);
   const [selectedBranchId, setSelectedBranchId] = useState("");
   const [userCity, setUserCity] = useState("");
-  const [reviewIdx, setReviewIdx] = useState(0);
+  const [reviewIdx, setReviewIdx] = useState(true);
   const roomSliderRef = useRef(null);
+  const [reviewFade, setReviewFade] = useState(true);
 
   // Get user location based on browser
   useEffect(() => {
@@ -136,8 +137,8 @@ export default function Home() {
     const base = topRoomsRaw.length > 0
       ? topRoomsRaw.map((r, i) => ({ ...r, img: ROOM_IMAGES[i % ROOM_IMAGES.length] }))
       : STATIC_ROOMS;
-    
-    // Sort by location proximity to user
+
+    // Sort by location proximity to user, then by rating
     if (userCity) {
       const priorityCities = {
         "TP. Hồ Chí Minh": ["Hồ Chí Minh", "Sài Gòn", "Vũng Tàu", "Cần Thơ"],
@@ -145,25 +146,26 @@ export default function Home() {
         "Đà Nẵng": ["Đà Nẵng", "Huế", "Hội An"],
         "Nha Trang": ["Nha Trang", "Phú Quốc", "Mũi Né"]
       };
-      
+
       const userPriorityCities = priorityCities[userCity] || [];
-      
+
       return [...base].sort((a, b) => {
         const aCity = a.branchName || a.branchCity || "";
         const bCity = b.branchName || b.branchCity || "";
         const aIdx = userPriorityCities.findIndex(city => aCity.toLowerCase().includes(city.toLowerCase()));
         const bIdx = userPriorityCities.findIndex(city => bCity.toLowerCase().includes(city.toLowerCase()));
-        
+
         // Rooms in user's city first
         if (aIdx !== bIdx) {
           return aIdx === -1 ? 1 : (bIdx === -1 ? -1 : aIdx - bIdx);
         }
         // Then by rating
         return (b.rating || 0) - (a.rating || 0);
-      });
+      }).slice(0, 4);
     }
-    
-    return base;
+
+    // If no user city, sort by rating and take top 4
+    return [...base].sort((a, b) => (b.rating || 0) - (a.rating || 0)).slice(0, 4);
   }, [topRoomsRaw, userCity]);
 
   const reviews = useMemo(() => {
@@ -186,7 +188,13 @@ export default function Home() {
   /* ── Reviews auto-roll 3s (one review at a time) ── */
   useEffect(() => {
     if (reviews.length === 0) return;
-    const t = setInterval(() => setReviewIdx((i) => (i + 1) % reviews.length), 3000);
+    const t = setInterval(() => {
+      setReviewFade(false);
+      setTimeout(() => {
+        setReviewIdx((i) => (i + 1) % reviews.length);
+        setReviewFade(true);
+      }, 300);
+    }, 3000);
     return () => clearInterval(t);
   }, [reviews.length]);
 
@@ -323,20 +331,26 @@ export default function Home() {
                 </div>
                 <div style={{ padding: "14px 16px" }}>
                   <div style={{ fontWeight: 800, fontSize: 14, color: "#0d2238", marginBottom: 4 }}>{room.roomTypeName}</div>
-                  <div style={{ fontSize: 12, color: "#64748b", marginBottom: 10 }}>📍 {room.branchName}</div>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <div>
-                      <div style={{ fontSize: 11, color: "#94a3b8" }}>Doanh thu</div>
-                      <div style={{ fontWeight: 800, fontSize: 13, color: "#9a7d24" }}>{formatCurrencyVnd(room.totalRevenue || 0)}</div>
-                    </div>
-                    {room.bookingCount && (
-                      <div style={{ fontSize: 11, color: "#64748b", textAlign: "right" }}>
-                        <div style={{ fontWeight: 700, fontSize: 14, color: "#0d2238" }}>{room.bookingCount}</div>
-                        <div>lượt đặt</div>
-                      </div>
-                    )}
+                  <div style={{ fontSize: 12, color: "#64748b", marginBottom: 6 }}>📍 {room.branchName}</div>
+
+                  {/* Star rating */}
+                  <div style={{ display: "flex", gap: 2, marginBottom: 8, alignItems: "center" }}>
+                    {[1,2,3,4,5].map((s) => (
+                      <span key={s} style={{ fontSize: 14, color: s <= Math.round(room.rating || 0) ? "#fbbf24" : "#e2e8f0" }}>★</span>
+                    ))}
+                    <span style={{ fontSize: 12, color: "#64748b", marginLeft: 4 }}>
+                      {room.rating ? room.rating.toFixed(1) : "Chưa có"}
+                    </span>
                   </div>
-                  <Link to={PATHS.ROOMS} style={{ display: "block", marginTop: 12, padding: "9px 0", textAlign: "center", borderRadius: 10, background: "#f8fafc", border: "1px solid #e2e8f0", color: "#0d2238", fontWeight: 700, fontSize: 13, textDecoration: "none" }}>
+
+                  {/* Location badge nếu cùng thành phố */}
+                  {userCity && (room.branchName || "").toLowerCase().includes(userCity.split(" ").pop().toLowerCase()) && (
+                    <div style={{ fontSize: 11, color: "#16a34a", fontWeight: 700, marginBottom: 6 }}>
+                      📍 Gần bạn
+                    </div>
+                  )}
+
+                  <Link to={PATHS.ROOMS} style={{ display: "block", marginTop: 8, padding: "9px 0", textAlign: "center", borderRadius: 10, background: "#f8fafc", border: "1px solid #e2e8f0", color: "#0d2238", fontWeight: 700, fontSize: 13, textDecoration: "none" }}>
                     Xem phòng →
                   </Link>
                 </div>
@@ -432,7 +446,9 @@ export default function Home() {
               flexDirection: "column",
               justifyContent: "center",
               alignItems: "center",
-              textAlign: "center"
+              textAlign: "center",
+              opacity: reviewFade ? 1 : 0,
+              transition: "opacity 0.3s ease",
             }}>
               {/* Quote icon */}
               <div style={{ fontSize: 48, color: "#c9a84c", marginBottom: 16, opacity: 0.3 }}>"</div>
@@ -508,7 +524,40 @@ export default function Home() {
           </div>
         </div>
       </section>
-
+      {/* Advantages boxes */}
+      {selectedBranch && (() => {
+        const ADVANTAGES = {
+          "default": [
+            { icon: "🏊", title: "Hồ bơi sang trọng", desc: "View thành phố tuyệt đẹp" },
+            { icon: "🍳", title: "Buffet cao cấp", desc: "40+ món mỗi sáng" },
+            { icon: "🧖", title: "Spa & Massage", desc: "Chuyên nghiệp, thư giãn" },
+            { icon: "🏋️", title: "Gym 24/7", desc: "Trang thiết bị hiện đại" },
+          ],
+          "beach": [
+            { icon: "🏖️", title: "Bãi biển riêng", desc: "Khu vực dành cho khách" },
+            { icon: "🚤", title: "Water Sports", desc: "Kayak, lướt ván miễn phí" },
+            { icon: "🌅", title: "Sunset Bar", desc: "Đón hoàng hôn tuyệt đẹp" },
+            { icon: "🐠", title: "Hải sản tươi sống", desc: "Nhà hàng seafood chuẩn vị" },
+          ],
+        };
+        const city = (selectedBranch.city || "").toLowerCase();
+        const type = (city.includes("đà nẵng") || city.includes("nha trang") || city.includes("phú quốc")) ? "beach" : "default";
+        const advs = ADVANTAGES[type];
+        return (
+          <div style={{ marginTop: 16, paddingTop: 16, borderTop: "1px solid #e2e8f0" }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: "#64748b", marginBottom: 12, textTransform: "uppercase", letterSpacing: "0.08em" }}>✨ Ưu điểm nổi bật</div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12 }}>
+              {advs.map((adv, i) => (
+                <div key={i} style={{ padding: "16px 12px", borderRadius: 12, background: "#f8fafc", border: "1px solid #e2e8f0", textAlign: "center" }}>
+                  <div style={{ fontSize: 28, marginBottom: 8 }}>{adv.icon}</div>
+                  <div style={{ fontWeight: 700, fontSize: 13, color: "#0d2238", marginBottom: 4 }}>{adv.title}</div>
+                  <div style={{ fontSize: 12, color: "#64748b" }}>{adv.desc}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
       {/* Service Detail Modal */}
       {selectedService && (
         <div

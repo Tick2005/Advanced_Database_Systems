@@ -119,6 +119,7 @@ export default function RoomList({ customer = false }) {
             <label>Sức chứa tối thiểu</label>
             <input type="number" min={0} value={filters.occupancy} onChange={(event) => onFilterChange("occupancy", event.target.value)} />
           </div>
+          
           <div className="field">
             <label>Sắp xếp</label>
             <select value={sortBy} onChange={(event) => setSortBy(event.target.value)}>

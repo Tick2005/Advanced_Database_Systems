@@ -90,6 +90,7 @@ export default function RoomDetail({ customer = false }) {
   const gallery = [heroImage, heroImage, heroImage];
   const statusStyle = getStatusStyle(room.status);
   const amenities = getRoomAmenities(room);
+  const highlights = amenities.slice(0, 4); // Top 4 amenities as highlights
   const visibleFeedbacks = [...feedbacks]
     .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
     .slice(0, showAllFeedbacks ? feedbacks.length : 3);
@@ -99,101 +100,170 @@ export default function RoomDetail({ customer = false }) {
     <section className="container page-shell" style={{ display: "grid", gap: 20 }}>
       <Link className="pill pill-soft" to={customer ? PATHS.CUSTOMER_ROOMS : PATHS.ROOMS}>← Quay lai danh sach phong</Link>
 
-      <div style={{ display: "grid", gap: 18, gridTemplateColumns: "minmax(0,1.35fr) minmax(300px,0.95fr)" }}>
+      {/* ═══ TOP ROW: Images + Info + Pricing + Booking Form ═══ */}
+      <div style={{ display: "grid", gap: 18, gridTemplateColumns: "1.2fr 1fr 1fr" }}>
+        {/* Images */}
         <article className="card card-elevated" style={{ padding: 18 }}>
           <div className="split-panel" style={{ gridTemplateColumns: "1.6fr 1fr", marginBottom: 14 }}>
-            <img src={gallery[0]} alt={room.roomTypeName} style={{ width: "100%", height: 320, objectFit: "cover", borderRadius: 18 }} />
+            <img src={gallery[0]} alt={room.roomTypeName} style={{ width: "100%", height: 280, objectFit: "cover", borderRadius: 18 }} />
             <div style={{ display: "grid", gap: 10 }}>
-              <img src={gallery[1]} alt={`${room.roomTypeName}-1`} style={{ width: "100%", height: 154, objectFit: "cover", borderRadius: 18 }} />
-              <img src={gallery[2]} alt={`${room.roomTypeName}-2`} style={{ width: "100%", height: 154, objectFit: "cover", borderRadius: 18 }} />
-            </div>
-          </div>
-          <div className="room-badges" style={{ marginBottom: 10 }}>
-            <span className="pill pill-soft">{room.branchCity}</span>
-            <span className="pill" style={{ background: statusStyle.bg, color: statusStyle.color }}>{formatStatus(room.status)}</span>
-          </div>
-          <h1 style={{ marginTop: 0 }}>{room.roomTypeName} · {room.roomNumber}</h1>
-          <p>{room.branchCity} · sức chứa tối đa {room.maxOccupancy} người</p>
-          <p>Đánh giá trung bình: {room.averageRating?.toFixed?.(1) || room.averageRating || 0} / 5</p>
-          <p>
-            Trạng thái hiện tại: <strong>{formatStatus(room.status)}</strong>
-          </p>
-          <div className="split-panel" style={{ gridTemplateColumns: "0.9fr 1.1fr", marginTop: 12 }}>
-            <div>
-              <h3>Tiện ích</h3>
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
-                {amenities.map((item) => (
-                  <span key={item} className="pill pill-soft">
-                    {item}
-                  </span>
-                ))}
-              </div>
-            </div>
-            <div>
-              <h3>Đánh giá gần nhất</h3>
-              {feedbacks.length === 0 ? <p>Chưa có phản hồi</p> : visibleFeedbacks.map((item) => (
-                <div key={item.id} className="list-item" style={{ marginTop: 10 }}>
-                  <div>⭐ {item.rating}/5</div>
-                  <div>{item.content}</div>
-                  {item.managerReply && <small style={{ color: "#64748b" }}>Phản hồi quản lý: {item.managerReply}</small>}
-                </div>
-              ))}
-              {feedbacks.length > 3 && (
-                <button
-                  type="button"
-                  className="btn"
-                  style={{ marginTop: 10, border: "1px solid #cbd5e1", background: "white" }}
-                  onClick={() => setShowAllFeedbacks((prev) => !prev)}
-                >
-                  {showAllFeedbacks ? "Thu gọn" : "View all"}
-                </button>
-              )}
+              <img src={gallery[1]} alt={`${room.roomTypeName}-1`} style={{ width: "100%", height: 134, objectFit: "cover", borderRadius: 18 }} />
+              <img src={gallery[2]} alt={`${room.roomTypeName}-2`} style={{ width: "100%", height: 134, objectFit: "cover", borderRadius: 18 }} />
             </div>
           </div>
         </article>
 
-        <aside className="card surface-panel" style={{ padding: 18, height: "fit-content", position: "sticky", top: 90 }}>
+        {/* Room Info */}
+        <article className="card card-elevated" style={{ padding: 18 }}>
+          <div className="room-badges" style={{ marginBottom: 10 }}>
+            <span className="pill pill-soft">{room.branchCity}</span>
+            <span className="pill" style={{ background: statusStyle.bg, color: statusStyle.color }}>{formatStatus(room.status)}</span>
+          </div>
+          <h3 style={{ margin: "0 0 8px 0", fontSize: 16, fontWeight: 800 }}>{room.roomTypeName}</h3>
+          <p style={{ margin: 0, fontSize: 12, color: "#64748b" }}>Phòng số: {room.roomNumber}</p>
+          <p style={{ margin: "8px 0", fontSize: 13, color: "#0d2238" }}>📍 {room.branchCity}</p>
+          <p style={{ margin: "8px 0", fontSize: 13 }}>👥 Tối đa {room.maxOccupancy} người</p>
+          <p style={{ margin: "8px 0", fontSize: 13, color: "#9a7d24", fontWeight: 700 }}>⭐ {room.averageRating?.toFixed?.(1) || room.averageRating || 0} / 5</p>
+          <p style={{ margin: "8px 0", fontSize: 13 }}>Trạng thái: <strong>{formatStatus(room.status)}</strong></p>
+          <div style={{ marginTop: 12 }}>
+            <div style={{ fontSize: 11, color: "#94a3b8", fontWeight: 600, textTransform: "uppercase", marginBottom: 8 }}>Tiện ích</div>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              {amenities.slice(0, 5).map((item) => (
+                <span key={item} className="pill pill-soft" style={{ fontSize: 11 }}>{item}</span>
+              ))}
+            </div>
+          </div>
+        </article>
+
+        {/* Pricing & Booking Form */}
+        <aside className="card card-elevated" style={{ padding: 18, height: "fit-content" }}>
           <div className="mono room-price" style={{ marginBottom: 12, fontSize: 18 }}>{formatCurrencyVnd(room.rate)} / đêm</div>
           {canBookAsCustomer ? (
             <div style={{ display: "grid", gap: 10 }}>
               <div className="field">
-                <label style={{ fontSize: 12, color: "#64748b", fontWeight: 600 }}>Ngày nhận phòng</label>
-                <input type="date" value={checkInDate} onChange={(event) => setCheckInDate(event.target.value)} style={{ padding: "10px 12px" }} />
+                <label style={{ fontSize: 11, color: "#64748b", fontWeight: 600 }}>Nhận phòng</label>
+                <input type="date" value={checkInDate} onChange={(event) => setCheckInDate(event.target.value)} style={{ padding: "8px 10px", fontSize: 12 }} />
               </div>
               <div className="field">
-                <label style={{ fontSize: 12, color: "#64748b", fontWeight: 600 }}>Ngày trả phòng</label>
-                <input type="date" value={checkOutDate} onChange={(event) => setCheckOutDate(event.target.value)} style={{ padding: "10px 12px" }} />
+                <label style={{ fontSize: 11, color: "#64748b", fontWeight: 600 }}>Trả phòng</label>
+                <input type="date" value={checkOutDate} onChange={(event) => setCheckOutDate(event.target.value)} style={{ padding: "8px 10px", fontSize: 12 }} />
               </div>
               <div className="field">
-                <label style={{ fontSize: 12, color: "#64748b", fontWeight: 600 }}>Người lớn</label>
-                <input type="number" min={1} value={adults} onChange={(event) => setAdults(Number(event.target.value || 1))} style={{ padding: "10px 12px" }} />
+                <label style={{ fontSize: 11, color: "#64748b", fontWeight: 600 }}>Người lớn</label>
+                <input type="number" min={1} value={adults} onChange={(event) => setAdults(Number(event.target.value || 1))} style={{ padding: "8px 10px", fontSize: 12 }} />
               </div>
               <div className="field">
-                <label style={{ fontSize: 12, color: "#64748b", fontWeight: 600 }}>Trẻ em</label>
-                <input type="number" min={0} value={children} onChange={(event) => setChildren(Number(event.target.value || 0))} style={{ padding: "10px 12px" }} />
+                <label style={{ fontSize: 11, color: "#64748b", fontWeight: 600 }}>Trẻ em</label>
+                <input type="number" min={0} value={children} onChange={(event) => setChildren(Number(event.target.value || 0))} style={{ padding: "8px 10px", fontSize: 12 }} />
               </div>
-              <div style={{ padding: "10px 12px", background: "#f8fafc", borderRadius: 10, fontSize: 13 }}>
-                <span style={{ color: "#64748b" }}>Sức chứa tối đa:</span> <strong>{room.maxOccupancy} người</strong>
+              <div style={{ padding: "8px 10px", background: "#f8fafc", borderRadius: 8, fontSize: 12 }}>
+                <span style={{ color: "#64748b" }}>Sức chứa:</span> <strong>{room.maxOccupancy}</strong>
               </div>
-              <div style={{ display: "grid", gap: 6, paddingTop: 6 }}>
-                <span style={{ fontSize: 12, color: "#64748b" }}>Tổng dự kiến:</span>
-                <div style={{ fontSize: 20, fontWeight: 700, color: "#9a7d24" }}>{formatCurrencyVnd(totalPrice)}</div>
+              <div style={{ display: "grid", gap: 4, paddingTop: 4, borderTop: "1px solid #e2e8f0" }}>
+                <span style={{ fontSize: 11, color: "#64748b" }}>Tổng dự kiến:</span>
+                <div style={{ fontSize: 16, fontWeight: 800, color: "#9a7d24" }}>{formatCurrencyVnd(totalPrice)}</div>
               </div>
-              {bookingError && <div style={{ padding: "10px 12px", background: "#fee2e2", color: "#b91c1c", borderRadius: 10, fontSize: 13 }}>{bookingError}</div>}
-              <button className="btn btn-gold" onClick={goCreateBooking} disabled={room.status !== "AVAILABLE"} style={{ marginTop: 4 }}>Đặt phòng ngay</button>
+              {bookingError && <div style={{ padding: "8px 10px", background: "#fee2e2", color: "#b91c1c", borderRadius: 8, fontSize: 12 }}>{bookingError}</div>}
+              <button className="btn btn-gold" onClick={goCreateBooking} disabled={room.status !== "AVAILABLE"} style={{ marginTop: 4, fontSize: 13 }}>Đặt phòng ngay</button>
             </div>
           ) : isAuthenticated ? (
             <div style={{ display: "grid", gap: 10 }}>
-              <div style={{ padding: "10px 12px", background: "#fff7ed", borderRadius: 10, color: "#9a3412", fontSize: 13 }}>
-                Tài khoản hiện tại chỉ có quyền xem. Vui lòng dùng tài khoản CUSTOMER để đặt phòng.
+              <div style={{ padding: "8px 10px", background: "#fff7ed", borderRadius: 8, color: "#9a3412", fontSize: 12 }}>
+                Tài khoản hiện tại chỉ có quyền xem.
               </div>
-              <Link className="btn btn-primary" to={PATHS.HOME}>Quay về trang chủ</Link>
+              <Link className="btn btn-primary" to={PATHS.HOME}>Quay về</Link>
             </div>
           ) : (
-            <Link className="btn btn-primary" to={`${PATHS.LOGIN}?redirect=/customer/rooms/${room.id}`}>Dang nhap de dat phong</Link>
+            <Link className="btn btn-primary" to={`${PATHS.LOGIN}?redirect=/customer/rooms/${room.id}`}>Đăng nhập</Link>
           )}
         </aside>
       </div>
+
+      {/* ═══ HIGHLIGHTS SECTION: 4 Featured Points ═══ */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 16 }}>
+        {highlights.map((highlight, i) => {
+          const icons = ["🛏️", "📡", "🍽️", "🛁"];
+          return (
+            <div key={i} className="card card-elevated" style={{ padding: 20, textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", borderRadius: 16 }}>
+              <div style={{ fontSize: 32, marginBottom: 12 }}>{icons[i] || "✨"}</div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "#0d2238", textAlign: "center" }}>{highlight}</div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* ═══ BOTTOM ROW: Reviews ═══ */}
+      <article className="card card-elevated" style={{ padding: 18 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+          <h3 style={{ margin: 0 }}>💬 Đánh giá gần nhất</h3>
+          <span style={{ fontSize: 12, color: "#64748b" }}>{feedbacks.length} đánh giá</span>
+        </div>
+
+        {feedbacks.length === 0 ? (
+          <p style={{ color: "#94a3b8", fontSize: 14 }}>Chưa có đánh giá nào cho phòng này.</p>
+        ) : (
+          <div style={{ display: "grid", gap: 12 }}>
+            {/* Chỉ lấy 3 đánh giá gần nhất */}
+            {[...feedbacks]
+              .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
+              .slice(0, 3)
+              .map((item) => (
+                <div key={item.id} style={{
+                  padding: "14px 16px", borderRadius: 12,
+                  background: "#f8fafc", border: "1px solid #e2e8f0"
+                }}>
+                  <div style={{ display: "flex", gap: 4, marginBottom: 6 }}>
+                    {[1,2,3,4,5].map((s) => (
+                      <span key={s} style={{ fontSize: 14, color: s <= (item.rating || 0) ? "#fbbf24" : "#e2e8f0" }}>★</span>
+                    ))}
+                    <span style={{ fontSize: 12, color: "#64748b", marginLeft: 4 }}>
+                      {item.createdAt ? new Date(item.createdAt).toLocaleDateString("vi-VN") : ""}
+                    </span>
+                  </div>
+                  <p style={{ margin: 0, fontSize: 14, color: "#334155", lineHeight: 1.6 }}>{item.content}</p>
+                  {item.managerReply && (
+                    <div style={{ marginTop: 8, padding: "8px 12px", background: "#fffbeb", borderRadius: 8, fontSize: 13, color: "#92400e" }}>
+                      💼 Phản hồi: {item.managerReply}
+                    </div>
+                  )}
+                </div>
+              ))
+            }
+          </div>
+        )}
+
+        {feedbacks.length > 3 && (
+          <div style={{ textAlign: "center", marginTop: 16 }}>
+            <button
+              type="button"
+              className="btn"
+              style={{ border: "1px solid #c9a84c", color: "#9a7d24", background: "white", padding: "10px 24px", borderRadius: 99 }}
+              onClick={() => setShowAllFeedbacks((prev) => !prev)}
+            >
+              {showAllFeedbacks ? "Thu gọn" : `Xem tất cả ${feedbacks.length} đánh giá →`}
+            </button>
+            {/* Khi mở full — show hết */}
+            {showAllFeedbacks && (
+              <div style={{ display: "grid", gap: 12, marginTop: 16, textAlign: "left" }}>
+                {[...feedbacks]
+                  .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
+                  .slice(3) // chỉ show phần còn lại
+                  .map((item) => (
+                    <div key={item.id} style={{ padding: "14px 16px", borderRadius: 12, background: "#f8fafc", border: "1px solid #e2e8f0" }}>
+                      <div style={{ display: "flex", gap: 4, marginBottom: 6 }}>
+                        {[1,2,3,4,5].map((s) => (
+                          <span key={s} style={{ fontSize: 14, color: s <= (item.rating || 0) ? "#fbbf24" : "#e2e8f0" }}>★</span>
+                        ))}
+                      </div>
+                      <p style={{ margin: 0, fontSize: 14, color: "#334155" }}>{item.content}</p>
+                    </div>
+                  ))
+                }
+              </div>
+            )}
+          </div>
+        )}
+      </article>
     </section>
   );
 }

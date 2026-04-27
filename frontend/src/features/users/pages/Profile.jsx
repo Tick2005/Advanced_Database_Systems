@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { userService } from "../userService";
 import LoadingState from "../../../components/common/LoadingState";
@@ -23,14 +23,114 @@ export default function Profile() {
   const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editForm, setEditForm] = useState({ fullName: "", phone: "", address: "" });
+  const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState("");
 
+  // State cho modals
+  const [showEmailEdit, setShowEmailEdit] = useState(false);
+  const [showPasswordEdit, setShowPasswordEdit] = useState(false);
+  const [emailForm, setEmailForm] = useState("");
+  const [emailSaving, setEmailSaving] = useState(false);
+  const [emailError, setEmailError] = useState("");
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: ""
+  });
+  const [passwordSaving, setPasswordSaving] = useState(false);
+  const [passwordError, setPasswordError] = useState("");
+
+  // Query
   const profileQuery = useApiQuery({
     queryKey: queryKeys.profile,
     queryFn: () => userService.getProfile(),
     staleTime: 60 * 1000,
   });
-
   const profile = profileQuery.data;
+
+  // Cập nhật email khi profile load
+  useEffect(() => {
+    if (profile?.email) {
+      setEmailForm(profile.email);
+    }
+  }, [profile?.email]);
+
+  const openEdit = () => {
+    setEditForm({
+      fullName: profile?.fullName || "",
+      phone: profile?.phone || "",
+      address: profile?.address || "",
+      avatarUrl: profile?.avatarUrl || ""
+    });
+    setEditError("");
+    setShowEditModal(true);
+  };
+
+  const saveEdit = async () => {
+    setEditSaving(true);
+    setEditError("");
+    try {
+      await userService.updateProfile(editForm);
+      setMessage("Cập nhật hồ sơ thành công");
+      await profileQuery.refetch();
+      setShowEditModal(false);
+    } catch (err) {
+      setEditError(err.message || "Không thể cập nhật");
+    } finally {
+      setEditSaving(false);
+    }
+  };
+
+  const saveEmail = async () => {
+    if (!emailForm || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailForm)) {
+      setEmailError("Email không hợp lệ");
+      return;
+    }
+    setEmailSaving(true);
+    setEmailError("");
+    try {
+      await userService.updateEmail(emailForm);
+      setMessage("Cập nhật email thành công");
+      await profileQuery.refetch();
+      setShowEmailEdit(false);
+    } catch (err) {
+      setEmailError(err.message || "Không thể cập nhật email");
+    } finally {
+      setEmailSaving(false);
+    }
+  };
+
+  const savePassword = async () => {
+    if (!passwordForm.currentPassword || !passwordForm.newPassword || !passwordForm.confirmPassword) {
+      setPasswordError("Vui lòng nhập đầy đủ thông tin");
+      return;
+    }
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      setPasswordError("Mật khẩu mới không trùng khớp");
+      return;
+    }
+    if (passwordForm.newPassword.length < 6) {
+      setPasswordError("Mật khẩu mới phải tối thiểu 6 ký tự");
+      return;
+    }
+    setPasswordSaving(true);
+    setPasswordError("");
+    try {
+      await userService.updatePassword({
+        currentPassword: passwordForm.currentPassword,
+        newPassword: passwordForm.newPassword
+      });
+      setMessage("Cập nhật mật khẩu thành công");
+      setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
+      setShowPasswordEdit(false);
+    } catch (err) {
+      setPasswordError(err.message || "Không thể cập nhật mật khẩu");
+    } finally {
+      setPasswordSaving(false);
+    }
+  };
 
   const handleFileChange = async (e) => {
     const file = e.target.files?.[0];
@@ -105,10 +205,28 @@ export default function Profile() {
               <input ref={fileRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handleFileChange} />
             </div>
 
-            <div style={{ display: "flex", gap: 8, paddingBottom: 4 }}>
-              <Link to={PATHS.CUSTOMER_PROFILE_EDIT} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 18px", borderRadius: 99, background: "linear-gradient(135deg,#c9a84c,#9a7d24)", color: "white", fontWeight: 700, fontSize: 13, textDecoration: "none" }}>
-                ✏️ Chỉnh sửa
-              </Link>
+            <div style={{ display: "flex", gap: 8, paddingBottom: 4, flexWrap: "wrap" }}>
+              <button
+                type="button"
+                onClick={openEdit}
+                style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 18px", borderRadius: 99, background: "linear-gradient(135deg,#c9a84c,#9a7d24)", color: "white", fontWeight: 700, fontSize: 13, border: "none", cursor: "pointer" }}
+              >
+                ✏️ Hồ sơ
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowEmailEdit(true)}
+                style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 18px", borderRadius: 99, background: "#e2e8f0", color: "#0d2238", fontWeight: 700, fontSize: 13, border: "none", cursor: "pointer" }}
+              >
+                📧 Email
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowPasswordEdit(true)}
+                style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 18px", borderRadius: 99, background: "#e2e8f0", color: "#0d2238", fontWeight: 700, fontSize: 13, border: "none", cursor: "pointer" }}
+              >
+                🔐 Mật khẩu
+              </button>
             </div>
           </div>
 
@@ -170,6 +288,163 @@ export default function Profile() {
           ))}
         </div>
       </div>
+       {/* ═══ EDIT PROFILE MODAL ═══ */}
+    {showEditModal && (
+      <div
+        style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 300, display: "grid", placeItems: "center", padding: 20 }}
+        onClick={() => setShowEditModal(false)}
+      >
+        <div
+          style={{ background: "white", borderRadius: 20, padding: 28, maxWidth: 480, width: "100%", boxShadow: "0 24px 60px rgba(0,0,0,0.2)" }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+            <h3 style={{ margin: 0, fontWeight: 800, color: "#0d2238" }}>✏️ Chỉnh sửa hồ sơ</h3>
+            <button type="button" onClick={() => setShowEditModal(false)} style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", color: "#64748b" }}>✕</button>
+          </div>
+
+          <div style={{ display: "grid", gap: 14 }}>
+            <div className="field">
+              <label style={{ fontSize: 12, fontWeight: 600, color: "#64748b" }}>Họ và tên</label>
+              <input
+                value={editForm.fullName}
+                onChange={(e) => setEditForm((f) => ({ ...f, fullName: e.target.value }))}
+                style={{ padding: "10px 12px" }}
+              />
+            </div>
+            <div className="field">
+              <label style={{ fontSize: 12, fontWeight: 600, color: "#64748b" }}>Số điện thoại</label>
+              <input
+                value={editForm.phone}
+                onChange={(e) => setEditForm((f) => ({ ...f, phone: e.target.value }))}
+                style={{ padding: "10px 12px" }}
+              />
+            </div>
+            <div className="field">
+              <label style={{ fontSize: 12, fontWeight: 600, color: "#64748b" }}>Địa chỉ</label>
+              <input
+                value={editForm.address}
+                onChange={(e) => setEditForm((f) => ({ ...f, address: e.target.value }))}
+                style={{ padding: "10px 12px" }}
+              />
+            </div>
+            {editError && (
+              <div style={{ padding: "10px 12px", background: "#fee2e2", color: "#b91c1c", borderRadius: 10, fontSize: 13 }}>
+                {editError}
+              </div>
+            )}
+            <div style={{ display: "flex", gap: 10 }}>
+              <button type="button" onClick={() => setShowEditModal(false)} style={{ flex: 1, padding: "11px", borderRadius: 99, border: "1px solid #e2e8f0", background: "white", fontWeight: 600, cursor: "pointer" }}>Hủy</button>
+              <button type="button" onClick={saveEdit} disabled={editSaving} style={{ flex: 1.5, padding: "11px", borderRadius: 99, background: "linear-gradient(135deg,#c9a84c,#9a7d24)", color: "white", fontWeight: 700, border: "none", cursor: "pointer" }}>
+                {editSaving ? "Đang lưu..." : "Lưu thay đổi"}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )}
+
+    {/* ═══ EDIT EMAIL MODAL ═══ */}
+    {showEmailEdit && (
+      <div
+        style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 300, display: "grid", placeItems: "center", padding: 20 }}
+        onClick={() => setShowEmailEdit(false)}
+      >
+        <div
+          style={{ background: "white", borderRadius: 20, padding: 28, maxWidth: 480, width: "100%", boxShadow: "0 24px 60px rgba(0,0,0,0.2)" }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+            <h3 style={{ margin: 0, fontWeight: 800, color: "#0d2238" }}>📧 Thay đổi Email</h3>
+            <button type="button" onClick={() => setShowEmailEdit(false)} style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", color: "#64748b" }}>✕</button>
+          </div>
+
+          <div style={{ display: "grid", gap: 14 }}>
+            <div className="field">
+              <label style={{ fontSize: 12, fontWeight: 600, color: "#64748b" }}>Email mới</label>
+              <input
+                type="email"
+                value={emailForm}
+                onChange={(e) => setEmailForm(e.target.value)}
+                placeholder="email@example.com"
+                style={{ padding: "10px 12px" }}
+              />
+            </div>
+            {emailError && (
+              <div style={{ padding: "10px 12px", background: "#fee2e2", color: "#b91c1c", borderRadius: 10, fontSize: 13 }}>
+                {emailError}
+              </div>
+            )}
+            <div style={{ display: "flex", gap: 10 }}>
+              <button type="button" onClick={() => setShowEmailEdit(false)} style={{ flex: 1, padding: "11px", borderRadius: 99, border: "1px solid #e2e8f0", background: "white", fontWeight: 600, cursor: "pointer" }}>Hủy</button>
+              <button type="button" onClick={saveEmail} disabled={emailSaving} style={{ flex: 1.5, padding: "11px", borderRadius: 99, background: "linear-gradient(135deg,#c9a84c,#9a7d24)", color: "white", fontWeight: 700, border: "none", cursor: "pointer" }}>
+                {emailSaving ? "Đang lưu..." : "Lưu thay đổi"}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )}
+
+    {/* ═══ EDIT PASSWORD MODAL ═══ */}
+    {showPasswordEdit && (
+      <div
+        style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 300, display: "grid", placeItems: "center", padding: 20 }}
+        onClick={() => setShowPasswordEdit(false)}
+      >
+        <div
+          style={{ background: "white", borderRadius: 20, padding: 28, maxWidth: 480, width: "100%", boxShadow: "0 24px 60px rgba(0,0,0,0.2)" }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+            <h3 style={{ margin: 0, fontWeight: 800, color: "#0d2238" }}>🔐 Thay đổi Mật khẩu</h3>
+            <button type="button" onClick={() => setShowPasswordEdit(false)} style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", color: "#64748b" }}>✕</button>
+          </div>
+
+          <div style={{ display: "grid", gap: 14 }}>
+            <div className="field">
+              <label style={{ fontSize: 12, fontWeight: 600, color: "#64748b" }}>Mật khẩu hiện tại</label>
+              <input
+                type="password"
+                value={passwordForm.currentPassword}
+                onChange={(e) => setPasswordForm((f) => ({ ...f, currentPassword: e.target.value }))}
+                style={{ padding: "10px 12px" }}
+              />
+            </div>
+            <div className="field">
+              <label style={{ fontSize: 12, fontWeight: 600, color: "#64748b" }}>Mật khẩu mới</label>
+              <input
+                type="password"
+                value={passwordForm.newPassword}
+                onChange={(e) => setPasswordForm((f) => ({ ...f, newPassword: e.target.value }))}
+                style={{ padding: "10px 12px" }}
+              />
+            </div>
+            <div className="field">
+              <label style={{ fontSize: 12, fontWeight: 600, color: "#64748b" }}>Xác nhận mật khẩu mới</label>
+              <input
+                type="password"
+                value={passwordForm.confirmPassword}
+                onChange={(e) => setPasswordForm((f) => ({ ...f, confirmPassword: e.target.value }))}
+                style={{ padding: "10px 12px" }}
+              />
+            </div>
+            {passwordError && (
+              <div style={{ padding: "10px 12px", background: "#fee2e2", color: "#b91c1c", borderRadius: 10, fontSize: 13 }}>
+                {passwordError}
+              </div>
+            )}
+            <div style={{ display: "flex", gap: 10 }}>
+              <button type="button" onClick={() => setShowPasswordEdit(false)} style={{ flex: 1, padding: "11px", borderRadius: 99, border: "1px solid #e2e8f0", background: "white", fontWeight: 600, cursor: "pointer" }}>Hủy</button>
+              <button type="button" onClick={savePassword} disabled={passwordSaving} style={{ flex: 1.5, padding: "11px", borderRadius: 99, background: "linear-gradient(135deg,#c9a84c,#9a7d24)", color: "white", fontWeight: 700, border: "none", cursor: "pointer" }}>
+                {passwordSaving ? "Đang lưu..." : "Lưu thay đổi"}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )}
     </section>
+   
   );
 }

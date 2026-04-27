@@ -1,0 +1,34 @@
+Giao diện : 
+- trang home 
++ banner auto roll 3s 
++ Top phòng đặc sắc lấy 4 phòng và them nút view all, chỉnh cấu trúc trong dữ lieu từ việc gợi ý profit sang gợi ý bang việc lấy vị trí hiện tại của người dung, với star đánh giá của phòng 
++ giao diện top 10 đánh giá cao nhất : tạo tương tự banner auto roll 3s nhưng không phải làm tất cả đánh giá 1 lượt mà mỗi lần roll là 1 đánh giá khác nhau 
++ trên giao diện chi nhánh nổi bật them các hộp nêu ưu điểm của khách sạn 
+- trang rooms 
++ thiếu select dịch vụ
+- trang room detail 
++ tách biệt đánh giá gần nhất thành ô riêng biệt so với sản phẩm và chỉ chỉ sort ra 3 đánh giá gần nhất của phòng đó và 1 nút view all để xem tổng hợp đánh giá 
+- trang booking review 
++ không ểể id chi nhánh lên trang và booking ID lên trang có thể đổi thành tên chi nhánh 
++ thể hiện giao diện số tiền rõ rang không ghi tắt bang các chữ cái và phí VAT chỉ để với mức 8% 
+- trang booking payment 
++ bước 3 thanh toán : tại trang này có thể xóa trang này thay logic của nó bang việc nhấn nút xác nhận thanh toán tại trang booking review sau khi nhấp nút ấy sẽ chuyển trực tiếp sang ví vnpay sanbox
++ việc chọn tài khoản ngân hang xác nhận thanh toán sẽ do chúng tôi nhập từ các mẫu dữ lieu test mặc định của nó . Bạn không phải dữ lieu thanh toán nào mà chỉ cần kết nối được tới giao diện nhập dữ lieu tài khoản thanh toán. 
+- trang lịch sử đặt phòng 
++ chỉ hiện các booking thành công
++ thêm sort các booking 
++ tạo trigger dữ lieu cho trang với mặc định là sắp xếp đưa booking gần nhất lên đầu
++ không để id booking lên giao diện có thể để thêm dữ lieu của phòng và dịch vụ đã lựa chọn trong booking nhưng cũng không để id mà là để tên của nó.
+-trang profile edit 
++ có thể xóa trang profile edit thành 1 pop-up edit tại trang profile
+1. edit ban chua co chinhdung yeu cau khi ma 3 modal riêng biệt:
+   * Hồ sơ cá nhân (fullName, phone, address, avatar).
+   * Email.
+   * Password.  va cac chuc nang edit hien chua co edit duoc a ban edit roi no khong luu du leiu moi nen khi f5 lai no bi quay lai ban dau.
+2. chua xu ly duoc van de gui mail thiet voi app password : "email : [huynopro1801@gmail.com](mailto:huynopro1801@gmail.com)
+Mật khẩu App password :  usvp rosy kbig xwjk"
+3. cho room detail ban nen dua code cua thong tin phong va thong tin gia ca va form dat tren 1 hang ngang con cua cai danh gia la 1 hang chu ban nhu vay bo cuc se dep hon.
+4. top phong dat biet o home no moi load 1 phong vay co the trigger no dang load 1 a ban va tui muon load dua tren gps vi tri hien tai nguoi dung va danh gia chu khogn phai profit nua .
+5. co nhieu du lieu dang dung du lieu cung kia xoa bo no thay no vo database trogn backend resource di ban.
+6. diem noi bat khong phai thuoc cai danh gia nhen no la 1 phan rieng biet va 4 cainoi bat do de tren 1 hang ngang fdi ban 
+7.  xem chi tiet lich su booking gi ma kho khan dung id nhieu vay thay the het di hinh phong , dich vu , so phong dau , trang thai hay tat ca du lieu ra ban khogn xu ly no cho chuan ui nguoi dung gi het tho qua.

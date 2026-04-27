@@ -29,7 +29,6 @@ const Feedbacks = lazy(() => import("../features/feedback/pages/Feedbacks"));
 const CreateFeedback = lazy(() => import("../features/feedback/pages/CreateFeedback"));
 const Profile = lazy(() => import("../features/users/pages/Profile"));
 const Settings = lazy(() => import("../features/users/pages/Settings"));
-const ProfileEdit = lazy(() => import("../features/users/pages/ProfileEdit"));
 const SecuritySettings = lazy(() => import("../features/users/pages/SecuritySettings"));
 const StaffHomePage = lazy(() => import("../features/staff/pages/StaffHomePage"));
 const StaffBookingsTodayPage = lazy(() => import("../features/staff/pages/StaffBookingsTodayPage"));
@@ -123,7 +122,6 @@ export function AppRoutes() {
         <Route path={PATHS.CUSTOMER_FEEDBACKS} element={<CustomerGuard><Feedbacks /></CustomerGuard>} />
         <Route path={PATHS.CUSTOMER_FEEDBACK_CREATE} element={<CustomerGuard><CreateFeedback /></CustomerGuard>} />
         <Route path={PATHS.CUSTOMER_PROFILE} element={<CustomerGuard><Profile /></CustomerGuard>} />
-        <Route path={PATHS.CUSTOMER_PROFILE_EDIT} element={<CustomerGuard><ProfileEdit /></CustomerGuard>} />
         <Route path={PATHS.CUSTOMER_SETTINGS} element={<CustomerGuard><Settings /></CustomerGuard>} />
         <Route path={PATHS.CUSTOMER_SETTINGS_ADVANCED} element={<CustomerGuard><SecuritySettings /></CustomerGuard>} />
       </Route>
