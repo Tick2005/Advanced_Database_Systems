@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import RoomCard from "../RoomCard";
 import { roomService } from "../roomService";
+import { serviceService } from "../../services/serviceService";
 import LoadingState from "../../../components/common/LoadingState";
 import ErrorState from "../../../components/common/ErrorState";
 import { PATHS } from "../../../routes/pathConstants";
@@ -17,7 +18,8 @@ export default function RoomList({ customer = false }) {
     status: "",
     minPrice: "",
     maxPrice: "",
-    occupancy: ""
+    occupancy: "",
+    serviceId: ""
   });
   const [sortBy, setSortBy] = useState("featured");
   const [page, setPage] = useState(1);
@@ -29,7 +31,14 @@ export default function RoomList({ customer = false }) {
     staleTime: 60 * 1000
   });
 
+  const servicesQuery = useApiQuery({
+    queryKey: queryKeys.services,
+    queryFn: () => serviceService.getServices(),
+    staleTime: 60 * 1000
+  });
+
   const rooms = roomsQuery.data || [];
+  const services = servicesQuery.data || [];
   const debouncedFilters = useDebouncedValue(filters, 250);
 
   const filtered = useMemo(() => {

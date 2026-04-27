@@ -1,6 +1,50 @@
 import { useEffect, useState } from "react";
 import { branchService } from "../features/branches/branchService";
 
+// Static advantages for hotel branches
+const BRANCH_ADVANTAGES = {
+  "default": [
+    { icon: "🏊", title: "Hồ bơi sang trọng", desc: "Hồ bơi vô cực view thành phố" },
+    { icon: "🍳", title: "Buffet cao cấp", desc: "Bữa sáng 40+ món mỗi ngày" },
+    { icon: "🧖", title: "Spa & Massage", desc: "Liệu trình thư giãn chuyên nghiệp" },
+    { icon: "🏋️", title: "Phòng Gym 24/7", desc: "Trang thiết bị hiện đại" },
+  ],
+  "beach": [
+    { icon: "🏖️", title: "Bãi biển riêng", desc: "Khu vực bãi biển dành cho khách" },
+    { icon: "🚤", title: "Water Sports", desc: "Lướt ván, chèo kayak miễn phí" },
+    { icon: "🌅", title: "Sunset Bar", desc: "Đón hoàng hôn tại bãi biển" },
+    { icon: "🐠", title: "Restaurant hải sản", desc: "Hải sản tươi sống mỗi ngày" },
+  ],
+  "city": [
+    { icon: "📍", title: "Vị trí trung tâm", desc: "Gần các điểm du lịch nổi tiếng" },
+    { icon: "🛍️", title: "Shopping district", desc: "Tiện mua sắm, giải trí" },
+    { icon: "🍽️", title: "Fine Dining", desc: "Nhà hàng cao cấp đa quốc gia" },
+    { icon: "🎉", title: "Ballroom & Event", desc: "Không gian tổ chức sự kiện" },
+  ],
+  "heritage": [
+    { icon: "🏛️", title: "Gần di sản", desc: "Tiếp cận các điểm du lịch lịch sử" },
+    { icon: "🎭", title: "Văn hóa địa phương", desc: "Trải nghiệm văn hóa bản địa" },
+    { icon: "🚲", title: "Tour khám phá", desc: "Hướng dẫn viên địa phương" },
+    { icon: "🏺", title: "Art Gallery", desc: "Bộ sưu tập nghệ thuật" },
+  ],
+};
+
+const getBranchType = (branchName, city) => {
+  const nameLower = (branchName || "").toLowerCase();
+  const cityLower = (city || "").toLowerCase();
+  
+  if (cityLower.includes("đà nẵng") || cityLower.includes("nha trang") || cityLower.includes("phú quốc") || cityLower.includes("vũng tàu")) {
+    return "beach";
+  }
+  if (cityLower.includes("hội an") || cityLower.includes("huế") || cityLower.includes("hà nội")) {
+    return "heritage";
+  }
+  if (cityLower.includes("hồ chí minh") || cityLower.includes("hà nội")) {
+    return "city";
+  }
+  return "default";
+};
+
 export default function Branches() {
   const [branches, setBranches] = useState([]);
   const [selectedBranchId, setSelectedBranchId] = useState("");
@@ -97,6 +141,20 @@ export default function Branches() {
                   <a href={`mailto:${selectedBranch.email}`} style={{ fontSize: 14, color: "#9a7d24", textDecoration: "none", fontWeight: 500 }}>{selectedBranch.email}</a>
                 </div>
               )}
+            </div>
+
+            {/* Branch Advantages */}
+            <div style={{ marginTop: 8, paddingTop: 12, borderTop: "1px solid #e2e8f0" }}>
+              <div style={{ fontSize: 12, color: "#64748b", fontWeight: 600, marginBottom: 10 }}>✨ ƯU ĐIỂM CỦA KHÁCH SẠN</div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10 }}>
+                {(BRANCH_ADVANTAGES[getBranchType(selectedBranch?.name, selectedBranch?.city)] || BRANCH_ADVANTAGES["default"]).map((adv, idx) => (
+                  <div key={idx} style={{ padding: "12px 10px", borderRadius: 10, background: "#f8fafc", border: "1px solid #e2e8f0" }}>
+                    <div style={{ fontSize: 20, marginBottom: 4 }}>{adv.icon}</div>
+                    <div style={{ fontWeight: 700, fontSize: 12, color: "#0d2238" }}>{adv.title}</div>
+                    <div style={{ fontSize: 10, color: "#64748b", marginTop: 2 }}>{adv.desc}</div>
+                  </div>
+                ))}
+              </div>
             </div>
 
             <div style={{ borderTop: "1px solid #e2e8f0", paddingTop: 10, color: "#475569", fontSize: 13 }}>

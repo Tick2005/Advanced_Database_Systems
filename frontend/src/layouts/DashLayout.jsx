@@ -77,29 +77,35 @@ export default function DashLayout({ children }) {
             <div style={{ fontWeight: 700, marginTop: 4, fontSize: 13 }}>{auth?.email || "No account"}</div>
           </div>
         </div>
-        <div style={{ display: "grid", gap: 14 }}>
+        <nav style={{ display: "grid", gap: 14 }}>
           {Object.entries(groupedMenus).map(([groupName, items]) => (
-            <div key={groupName} style={{ display: "grid", gap: 8 }}>
-              <div style={{ color: "rgba(255,255,255,0.62)", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.1em", fontWeight: 700 }}>{groupName}</div>
+            <div key={groupName} style={{ display: "grid", gap: 4 }}>
+              <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 10, textTransform: "uppercase", letterSpacing: "0.12em", fontWeight: 700, paddingLeft: 4, marginBottom: 2 }}>{groupName}</div>
               {items.map((item) => {
-                const active = item.to === roleBase
-                  ? location.pathname === roleBase
-                  : (location.pathname === item.to || location.pathname.startsWith(item.to + "/"));
+                const isRoot = item.to === roleBase;
+                const active = isRoot
+                  ? location.pathname === roleBase || location.pathname === roleBase + "/"
+                  : location.pathname === item.to || location.pathname.startsWith(item.to + "/");
                 return (
                   <Link
                     key={item.to}
                     to={item.to}
                     className={`dashboard-nav-link${active ? " active" : ""}`}
+                    style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", borderRadius: 10, textDecoration: "none", fontWeight: active ? 700 : 500, fontSize: 14, color: active ? "white" : "rgba(255,255,255,0.78)", background: active ? "rgba(255,255,255,0.14)" : "transparent", transition: "background 0.15s, color 0.15s" }}
+                    aria-current={active ? "page" : undefined}
                   >
-                    <span>{item.icon}</span>
+                    <span style={{ fontSize: 16, lineHeight: 1 }}>{item.icon}</span>
                     <span>{item.label}</span>
+                    {active && <span style={{ marginLeft: "auto", width: 6, height: 6, borderRadius: 999, background: "#c9a84c" }} />}
                   </Link>
                 );
               })}
             </div>
           ))}
+        </nav>
+        <div style={{ marginTop: 18, display: "grid", gap: 8 }}>
+          <button className="btn btn-gold" style={{ width: "100%" }} onClick={logout} aria-label="Dang xuat khoi workspace">🚪 Đăng xuất</button>
         </div>
-        <button className="btn btn-gold" style={{ marginTop: 18, width: "100%" }} onClick={logout} aria-label="Dang xuat khoi workspace">Đăng xuất</button>
       </aside>
       <main className="dashboard-main">
         <header className="surface-panel dashboard-topbar" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>

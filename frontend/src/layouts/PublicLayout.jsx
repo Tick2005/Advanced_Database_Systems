@@ -1,177 +1,219 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Link, Outlet } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
+import { Link, Outlet, useLocation } from "react-router-dom";
 import { PATHS } from "../routes/pathConstants";
 import { useAuth } from "../features/auth/useAuth";
+
+const CUSTOMER_MENU = [
+  { to: PATHS.CUSTOMER_ROOMS, label: "Tìm phòng", icon: "🛏️" },
+  { to: PATHS.CUSTOMER_BOOKINGS, label: "Booking của tôi", icon: "🧾" },
+  { to: PATHS.CUSTOMER_FEEDBACKS, label: "Đánh giá", icon: "💬" },
+  { to: PATHS.CUSTOMER_PROFILE, label: "Hồ sơ", icon: "👤" },
+  { to: PATHS.BRANCHES, label: "Chi nhánh", icon: "🏢" },
+];
+
+// Uniform pill style for all nav/auth buttons
+const PILL = {
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: 6,
+  height: 40,
+  padding: "0 18px",
+  borderRadius: 999,
+  fontSize: 14,
+  fontWeight: 600,
+  border: "1px solid #dbe4ee",
+  background: "rgba(255,255,255,0.7)",
+  color: "#17314d",
+  textDecoration: "none",
+  cursor: "pointer",
+  whiteSpace: "nowrap",
+  transition: "background 0.15s, box-shadow 0.15s",
+  boxSizing: "border-box",
+};
+
+const PILL_GOLD = {
+  ...PILL,
+  background: "linear-gradient(135deg,#c9a84c,#9a7d24)",
+  color: "#fff",
+  border: "none",
+  boxShadow: "0 2px 10px rgba(180,130,20,0.28)",
+};
 
 export default function PublicLayout() {
   const { isAuthenticated, role, auth, logout } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
-  const accountMenuRef = useRef(null);
+  const [scrolled, setScrolled] = useState(false);
+  const menuRef = useRef(null);
+  const location = useLocation();
 
-  const roleHome = role === "CUSTOMER"
-    ? PATHS.CUSTOMER_HOME
-    : role === "STAFF"
-      ? PATHS.STAFF
-      : role === "MANAGER"
-        ? PATHS.MANAGER
-        : role === "OWNER"
-          ? PATHS.OWNER
-          : PATHS.HOME;
+  const roleHome =
+    role === "CUSTOMER" ? PATHS.CUSTOMER_HOME
+    : role === "STAFF" ? PATHS.STAFF
+    : role === "MANAGER" ? PATHS.MANAGER
+    : role === "OWNER" ? PATHS.OWNER
+    : PATHS.HOME;
 
   const displayName = auth?.email ? auth.email.split("@")[0] : "Guest";
-  const roleLabel = role === "CUSTOMER" ? "Khách hàng" : role === "STAFF" ? "Staff" : role === "MANAGER" ? "Manager" : role === "OWNER" ? "Owner" : "Khách";
+  const initials = displayName.slice(0, 1).toUpperCase();
 
-  const publicNavLinks = useMemo(() => {
-    if (isAuthenticated && role === "CUSTOMER") {
-      return [
-        { to: PATHS.CUSTOMER_ROOMS, label: "List room", icon: "🛏️" },
-        { to: PATHS.BRANCHES, label: "Chi nhánh", icon: "🏢" },
-        { to: PATHS.CUSTOMER_BOOKINGS, label: "Lịch sử", icon: "🧾" }
-      ];
-    }
+  // Close menu on route change
+  useEffect(() => { setMenuOpen(false); }, [location.pathname]);
 
-    return [
-      { to: PATHS.ROOMS, label: "List room", icon: "🛏️" },
-      { to: PATHS.BRANCHES, label: "Chi nhánh", icon: "🏢" }
-    ];
-  }, [isAuthenticated, role]);
-
-  const accountLinks = useMemo(() => {
-    if (!isAuthenticated) return [];
-    if (role === "CUSTOMER") {
-      return [
-        { to: PATHS.CUSTOMER_PROFILE, label: "Hồ sơ", icon: "👤" },
-        { to: PATHS.CUSTOMER_SETTINGS, label: "Settings", icon: "🎛️" },
-        { to: PATHS.CUSTOMER_BOOKINGS, label: "History", icon: "🧾" },
-        { to: PATHS.CUSTOMER_ROOMS, label: "List room", icon: "🛏️" },
-        { to: PATHS.BRANCHES, label: "Danh sách chi nhánh", icon: "🏢" }
-      ];
-    }
-
-    return [
-      { to: roleHome, label: "Đi tới workspace", icon: "🧭" }
-    ];
-  }, [isAuthenticated, role, roleHome]);
-
+  // Close menu on outside click
   useEffect(() => {
-    const onPointerDown = (event) => {
-      if (accountMenuRef.current && !accountMenuRef.current.contains(event.target)) {
-        setMenuOpen(false);
-      }
+    const handler = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(false);
     };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
 
-    document.addEventListener("mousedown", onPointerDown);
-    return () => document.removeEventListener("mousedown", onPointerDown);
+  // Shadow on scroll
+  useEffect(() => {
+    const handler = () => setScrolled(window.scrollY > 10);
+    window.addEventListener("scroll", handler, { passive: true });
+    return () => window.removeEventListener("scroll", handler);
   }, []);
 
   return (
     <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
-      <a href="#main-content" style={{ position: "absolute", left: -10000, top: "auto", width: 1, height: 1, overflow: "hidden" }} onFocus={(e) => {
-        e.currentTarget.style.left = "16px";
-        e.currentTarget.style.top = "12px";
-        e.currentTarget.style.width = "auto";
-        e.currentTarget.style.height = "auto";
-        e.currentTarget.style.padding = "8px 12px";
-        e.currentTarget.style.background = "#0d2238";
-        e.currentTarget.style.color = "#fff";
-        e.currentTarget.style.borderRadius = "10px";
-        e.currentTarget.style.zIndex = 999;
-      }} onBlur={(e) => {
-        e.currentTarget.style.left = "-10000px";
-        e.currentTarget.style.top = "auto";
-        e.currentTarget.style.width = "1px";
-        e.currentTarget.style.height = "1px";
-        e.currentTarget.style.overflow = "hidden";
-      }}>
-        Bỏ qua menu, đến nội dung chính
+      {/* Skip nav */}
+      <a
+        href="#main-content"
+        style={{ position: "absolute", left: -9999, top: 8, padding: "8px 14px", background: "#0d2238", color: "#fff", borderRadius: 8, zIndex: 999, fontSize: 13 }}
+        onFocus={(e) => (e.currentTarget.style.left = "12px")}
+        onBlur={(e) => (e.currentTarget.style.left = "-9999px")}
+      >
+        Bỏ qua menu
       </a>
-      <header style={{ position: "sticky", top: 0, zIndex: 20 }}>
-        <div className="surface-panel" style={{ margin: 12, borderRadius: 999, backdropFilter: "blur(16px)", position: "relative" }}>
-          <div className="container" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, minHeight: 76 }}>
-            <Link to={PATHS.HOME} style={{ display: "grid", gap: 2, flex: "0 0 auto" }}>
-              <span style={{ fontFamily: "Playfair Display", fontWeight: 800, fontSize: 28, lineHeight: 1 }}>LuxStay</span>
-              <span style={{ fontSize: 12, color: "#64748b", letterSpacing: "0.1em", textTransform: "uppercase", fontWeight: 700 }}>Luxury Hotel Platform</span>
+
+      {/* ── HEADER ── */}
+      <header style={{
+        position: "sticky", top: 0, zIndex: 30,
+        transition: "box-shadow 0.2s",
+        boxShadow: scrolled ? "0 4px 24px rgba(0,0,0,0.10)" : "none"
+      }}>
+        <div style={{
+          margin: "8px 12px",
+          borderRadius: 16,
+          background: "rgba(255,255,255,0.88)",
+          backdropFilter: "blur(18px)",
+          border: "1px solid rgba(255,255,255,0.6)",
+        }}>
+          <div className="container" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, minHeight: 68 }}>
+
+            {/* Logo */}
+            <Link to={PATHS.HOME} style={{ textDecoration: "none", flexShrink: 0 }}>
+              <div style={{ fontFamily: "Playfair Display, serif", fontWeight: 800, fontSize: 26, color: "#0d2238", lineHeight: 1 }}>
+                LuxStay
+              </div>
+              <div style={{ fontSize: 10, color: "#9a7d24", letterSpacing: "0.15em", textTransform: "uppercase", fontWeight: 700, marginTop: 1 }}>
+                Luxury Hotel Platform
+              </div>
             </Link>
 
-            <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", justifyContent: "flex-end", position: "relative" }}>
-              {publicNavLinks.length > 0 && (
-                <nav aria-label="Dieu huong chinh" style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", justifyContent: "flex-end" }}>
-                  {publicNavLinks.map((item) => (
-                    <Link
-                      key={item.to}
-                      className="pill pill-soft"
-                      to={item.to}
-                      aria-label={`Di den ${item.label}`}
-                      title={item.label}
-                      style={{ display: "inline-flex", alignItems: "center", gap: 6, minWidth: 112, justifyContent: "center" }}
-                    >
-                      <span aria-hidden="true">{item.icon}</span>
-                      <span>{item.label}</span>
-                    </Link>
-                  ))}
-                </nav>
-              )}
+            {/* Right section */}
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
 
+              {/* ── GUEST (not logged in) ── */}
               {!isAuthenticated && (
                 <>
-                  <Link className="btn pill pill-soft" to={PATHS.LOGIN} aria-label="Dang nhap" style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><span aria-hidden="true">🔐</span><span>Đăng nhập</span></Link>
-                  <Link className="btn btn-gold" to={PATHS.REGISTER} aria-label="Dang ky" style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><span aria-hidden="true">✨</span><span>Đăng ký</span></Link>
+                  <Link to={PATHS.ROOMS} style={PILL}>🛏️ List room</Link>
+                  <Link to={PATHS.BRANCHES} style={PILL}>🏢 Chi nhánh</Link>
+                  <Link to={PATHS.LOGIN} style={PILL}>🔐 Đăng nhập</Link>
+                  <Link to={PATHS.REGISTER} style={PILL_GOLD}>✨ Đăng ký</Link>
                 </>
               )}
 
+              {/* ── STAFF / MANAGER / OWNER ── */}
               {isAuthenticated && role !== "CUSTOMER" && (
-                <Link className="btn btn-gold" to={roleHome} aria-label="Vao khu dieu khien">Vào workspace</Link>
+                <>
+                  <Link to={roleHome} style={PILL_GOLD}>🧭 Workspace</Link>
+                  <button type="button" style={{ ...PILL, border: "1px solid #fecaca", color: "#b91c1c", background: "#fff5f5" }} onClick={logout}>
+                    🚪 Đăng xuất
+                  </button>
+                </>
               )}
 
-              {isAuthenticated && (
-                <div ref={accountMenuRef} style={{ position: "relative" }}>
+              {/* ── CUSTOMER (logged in) — avatar + dropdown ── */}
+              {isAuthenticated && role === "CUSTOMER" && (
+                <div ref={menuRef} style={{ position: "relative" }}>
                   <button
                     type="button"
-                    className="btn"
-                    onClick={() => setMenuOpen((prev) => !prev)}
+                    onClick={() => setMenuOpen((v) => !v)}
                     aria-expanded={menuOpen}
                     aria-haspopup="menu"
-                    aria-label="Mo menu tai khoan"
                     style={{
-                      background: "rgba(23,49,77,0.08)",
-                      border: "1px solid #dbe4ee",
-                      color: "#17314d",
-                      boxShadow: "none",
-                      gap: 10,
-                      padding: "8px 12px"
+                      display: "inline-flex", alignItems: "center", gap: 8,
+                      height: 40, padding: "0 14px", borderRadius: 999,
+                      border: "1px solid #dbe4ee", background: "rgba(255,255,255,0.85)",
+                      cursor: "pointer", fontWeight: 700, fontSize: 14, color: "#17314d",
                     }}
                   >
-                    <span aria-hidden="true" style={{ fontSize: 15 }}>👤</span>
-                    <span style={{ width: 28, height: 28, borderRadius: 999, background: "#17314d", color: "#fff", display: "grid", placeItems: "center", fontSize: 12, fontWeight: 700 }}>
-                      {displayName.slice(0, 1).toUpperCase()}
-                    </span>
-                    <span style={{ display: "grid", textAlign: "left", lineHeight: 1.2 }}>
-                      <span style={{ fontSize: 13, fontWeight: 700 }}>{displayName}</span>
-                      <span style={{ fontSize: 11, color: "#64748b" }}>{roleLabel}</span>
-                    </span>
+                    <span style={{
+                      width: 28, height: 28, borderRadius: 999,
+                      background: "linear-gradient(135deg,#0d2238,#1e3a5f)",
+                      color: "#c9a84c", display: "grid", placeItems: "center",
+                      fontSize: 12, fontWeight: 800, flexShrink: 0
+                    }}>{initials}</span>
+                    <span>{displayName}</span>
+                    <span style={{ fontSize: 10, opacity: 0.6 }}>{menuOpen ? "▲" : "▼"}</span>
                   </button>
 
                   {menuOpen && (
-                    <div className="card" style={{ position: "absolute", right: 0, top: "calc(100% + 8px)", minWidth: 230, padding: 8, display: "grid", gap: 4, zIndex: 50 }}>
-                      {accountLinks.map((item) => (
-                        <Link
-                          key={item.to}
-                          to={item.to}
-                          onClick={() => setMenuOpen(false)}
-                          style={{ padding: "9px 10px", borderRadius: 10, fontSize: 13, fontWeight: 600, color: "#17314d", display: "inline-flex", alignItems: "center", gap: 8 }}
+                    <div
+                      style={{
+                        position: "absolute", right: 0, top: "calc(100% + 8px)",
+                        minWidth: 240, borderRadius: 16,
+                        background: "#fff", border: "1px solid #e2e8f0",
+                        boxShadow: "0 12px 40px rgba(0,0,0,0.14)",
+                        overflow: "hidden", zIndex: 100
+                      }}
+                    >
+                      {/* Header */}
+                      <div style={{ padding: "14px 16px", background: "#f8fafc", borderBottom: "1px solid #e2e8f0" }}>
+                        <div style={{ fontWeight: 800, fontSize: 14, color: "#0d2238" }}>{auth?.fullName || displayName}</div>
+                        <div style={{ fontSize: 12, color: "#64748b" }}>{auth?.email}</div>
+                      </div>
+                      {/* Links */}
+                      <div style={{ padding: "8px" }}>
+                        {CUSTOMER_MENU.map((item) => (
+                          <Link
+                            key={item.to}
+                            to={item.to}
+                            style={{
+                              display: "flex", alignItems: "center", gap: 10,
+                              padding: "9px 12px", borderRadius: 10, textDecoration: "none",
+                              fontSize: 13, fontWeight: 600, color: "#0d2238",
+                              transition: "background 0.1s",
+                            }}
+                            onMouseEnter={(e) => (e.currentTarget.style.background = "#f1f5f9")}
+                            onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                          >
+                            <span style={{ fontSize: 16 }}>{item.icon}</span>
+                            {item.label}
+                          </Link>
+                        ))}
+                      </div>
+                      {/* Logout */}
+                      <div style={{ padding: "8px", borderTop: "1px solid #f1f5f9" }}>
+                        <button
+                          type="button"
+                          onClick={logout}
+                          style={{
+                            width: "100%", display: "flex", alignItems: "center", gap: 10,
+                            padding: "9px 12px", borderRadius: 10, border: "none",
+                            background: "transparent", cursor: "pointer",
+                            fontSize: 13, fontWeight: 700, color: "#b91c1c",
+                            transition: "background 0.1s",
+                          }}
+                          onMouseEnter={(e) => (e.currentTarget.style.background = "#fff5f5")}
+                          onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
                         >
-                          <span aria-hidden="true">{item.icon}</span>
-                          {item.label}
-                        </Link>
-                      ))}
-                      <button
-                        type="button"
-                        onClick={logout}
-                        style={{ padding: "9px 10px", borderRadius: 10, border: "1px solid #fee2e2", background: "#fff5f5", color: "#b91c1c", textAlign: "left", fontSize: 13, fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 8 }}
-                      >
-                        <span aria-hidden="true">🚪</span>
-                        <span>Đăng xuất</span>
-                      </button>
+                          <span>🚪</span> Đăng xuất
+                        </button>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -180,30 +222,50 @@ export default function PublicLayout() {
           </div>
         </div>
       </header>
+
+      {/* ── MAIN ── */}
       <main id="main-content" style={{ flex: 1 }}>
         <Outlet />
       </main>
-      <footer style={{ background: "#0d2238", color: "#f8fafc", marginTop: 40, padding: "42px 0 28px" }}>
-        <div className="container" style={{ display: "grid", gap: 18, gridTemplateColumns: "1.2fr 1fr 1fr" }}>
+
+      {/* ── FOOTER ── */}
+      <footer style={{ background: "#0d2238", color: "#f8fafc", marginTop: 60, padding: "48px 0 28px" }}>
+        <div className="container" style={{ display: "grid", gap: 32, gridTemplateColumns: "repeat(auto-fit, minmax(200px,1fr))" }}>
           <div style={{ display: "grid", gap: 12 }}>
-            <div style={{ fontFamily: "Playfair Display", fontWeight: 800, fontSize: 30 }}>LuxStay</div>
-            <div style={{ color: "#cbd5e1", maxWidth: 420 }}>Nền tảng vận hành khách sạn hiện đại, kết nối trải nghiệm đặt phòng sang trọng với quản trị chi nhánh, phòng và dịch vụ.</div>
+            <div style={{ fontFamily: "Playfair Display, serif", fontWeight: 800, fontSize: 28, color: "#c9a84c" }}>LuxStay</div>
+            <div style={{ color: "#94a3b8", lineHeight: 1.6, fontSize: 14, maxWidth: 300 }}>
+              Nền tảng vận hành khách sạn hiện đại — kết nối trải nghiệm lưu trú sang trọng với quản trị thông minh.
+            </div>
+            <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+              {["Facebook", "Instagram", "Zalo"].map((s) => (
+                <span key={s} style={{ padding: "4px 10px", borderRadius: 99, fontSize: 11, border: "1px solid rgba(255,255,255,0.15)", color: "#94a3b8", cursor: "pointer" }}>{s}</span>
+              ))}
+            </div>
           </div>
-          <div style={{ display: "grid", gap: 8 }}>
-            <strong>Thông tin liên hệ</strong>
-            <span style={{ color: "#cbd5e1" }}>Hotline: 1900 6868</span>
-            <span style={{ color: "#cbd5e1" }}>Email: support@luxstay.local</span>
-            <span style={{ color: "#cbd5e1" }}>01 Trần Phú, Hải Châu, Đà Nẵng</span>
+          <div style={{ display: "grid", gap: 8, alignContent: "start" }}>
+            <div style={{ fontWeight: 700, color: "#c9a84c", fontSize: 12, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 4 }}>Khám phá</div>
+            {[
+              { to: PATHS.ROOMS, label: "Tìm phòng" },
+              { to: PATHS.BRANCHES, label: "Chi nhánh" },
+              { to: PATHS.CUSTOMER_BOOKINGS, label: "Booking của tôi" },
+              { to: PATHS.CUSTOMER_FEEDBACKS, label: "Đánh giá" },
+            ].map((l) => (
+              <Link key={l.to} to={l.to} style={{ color: "#94a3b8", fontSize: 14, textDecoration: "none" }}
+                onMouseEnter={(e) => (e.currentTarget.style.color = "#fff")}
+                onMouseLeave={(e) => (e.currentTarget.style.color = "#94a3b8")}
+              >{l.label}</Link>
+            ))}
           </div>
-          <div style={{ display: "grid", gap: 8 }}>
-            <strong>Kết nối nhanh</strong>
-            <Link to={PATHS.ROOMS} style={{ color: "#cbd5e1" }}>Tìm phòng</Link>
-            <Link to={PATHS.BRANCHES} style={{ color: "#cbd5e1" }}>Danh sách chi nhánh</Link>
-            <Link to={role === "CUSTOMER" ? PATHS.CUSTOMER_BOOKINGS : roleHome} style={{ color: "#cbd5e1" }}>{role === "CUSTOMER" ? "Booking của tôi" : "Khu điều khiển"}</Link>
+          <div style={{ display: "grid", gap: 8, alignContent: "start" }}>
+            <div style={{ fontWeight: 700, color: "#c9a84c", fontSize: 12, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 4 }}>Liên hệ</div>
+            <span style={{ color: "#94a3b8", fontSize: 14 }}>📞 1900 6868</span>
+            <span style={{ color: "#94a3b8", fontSize: 14 }}>✉️ support@luxstay.local</span>
+            <span style={{ color: "#94a3b8", fontSize: 14 }}>📍 01 Trần Phú, Đà Nẵng</span>
           </div>
         </div>
-        <div className="container" style={{ marginTop: 20, color: "#94a3b8", borderTop: "1px solid rgba(148,163,184,0.18)", paddingTop: 14 }}>
-          © 2026 LuxStay. All rights reserved.
+        <div className="container" style={{ marginTop: 28, borderTop: "1px solid rgba(148,163,184,0.15)", paddingTop: 18, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+          <span style={{ color: "#475569", fontSize: 13 }}>© 2026 LuxStay. All rights reserved.</span>
+          <span style={{ color: "#475569", fontSize: 12 }}>Powered by LuxStay Technology</span>
         </div>
       </footer>
     </div>
