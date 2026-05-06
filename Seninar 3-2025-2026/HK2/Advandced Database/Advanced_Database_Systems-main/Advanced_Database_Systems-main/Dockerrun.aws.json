@@ -1,0 +1,81 @@
+{
+  "AWSEBDockerrunVersion": 2,
+  "containerDefinitions": [
+    {
+      "name": "hotel-backend",
+      "image": "ACCOUNT_ID.dkr.ecr.REGION.amazonaws.com/hotel-backend:latest",
+      "essential": true,
+      "memory": 1024,
+      "portMappings": [
+        {
+          "hostPort": 80,
+          "containerPort": 8080
+        }
+      ],
+      "environment": [
+        {
+          "name": "SPRING_PROFILES_ACTIVE",
+          "value": "prod"
+        },
+        {
+          "name": "SPRING_JPA_HIBERNATE_DDL_AUTO",
+          "value": "validate"
+        },
+        {
+          "name": "DB_URL",
+          "value": "jdbc:postgresql://YOUR_RDS_ENDPOINT:5432/hotel"
+        },
+        {
+          "name": "DB_USERNAME",
+          "value": "admin"
+        },
+        {
+          "name": "MONGODB_URI",
+          "value": "mongodb://YOUR_DOCUMENTDB_ENDPOINT:27017/hotel"
+        },
+        {
+          "name": "JWT_SECRET",
+          "value": "YOUR_JWT_SECRET_KEY"
+        },
+        {
+          "name": "CORS_ALLOWED_ORIGINS",
+          "value": "http://luxstayhotel-origin-env.eba-5nhij6eb.ap-southeast-1.elasticbeanstalk.com"
+        },
+        {
+          "name": "VNPAY_RETURN_URL",
+          "value": "http://luxstayhotel-origin-env.eba-5nhij6eb.ap-southeast-1.elasticbeanstalk.com/payment/vnpay-return"
+        },
+        {
+          "name": "VERIFY_EMAIL_BASE_URL",
+          "value": "http://luxstayhotel-origin-env.eba-5nhij6eb.ap-southeast-1.elasticbeanstalk.com/verify-email"
+        },
+        {
+          "name": "RESET_PASSWORD_BASE_URL",
+          "value": "http://luxstayhotel-origin-env.eba-5nhij6eb.ap-southeast-1.elasticbeanstalk.com/reset-password"
+        }
+      ],
+      "secrets": [
+        {
+          "name": "DB_PASSWORD",
+          "valueFrom": "arn:aws:secretsmanager:REGION:ACCOUNT_ID:secret:hotel-db-password"
+        },
+        {
+          "name": "VNPAY_HASH_SECRET",
+          "valueFrom": "arn:aws:secretsmanager:REGION:ACCOUNT_ID:secret:vnpay-hash-secret"
+        },
+        {
+          "name": "MAIL_PASSWORD",
+          "valueFrom": "arn:aws:secretsmanager:REGION:ACCOUNT_ID:secret:mail-password"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/aws/elasticbeanstalk/hotel-backend",
+          "awslogs-region": "ap-southeast-1",
+          "awslogs-stream-prefix": "eb"
+        }
+      }
+    }
+  ]
+}

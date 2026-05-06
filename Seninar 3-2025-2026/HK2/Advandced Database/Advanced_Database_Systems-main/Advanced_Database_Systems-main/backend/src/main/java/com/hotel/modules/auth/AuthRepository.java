@@ -1,0 +1,54 @@
+package com.hotel.modules.auth;
+
+import java.util.Optional;
+import java.util.UUID;
+
+import org.springframework.lang.NonNull;
+import org.springframework.stereotype.Repository;
+
+import com.hotel.modules.user.ProfileEntity;
+import com.hotel.modules.user.ProfileRepository;
+import com.hotel.modules.user.UserBranchAssignmentRepository;
+import com.hotel.modules.user.UserEntity;
+import com.hotel.modules.user.UserRepository;
+
+@Repository
+public class AuthRepository {
+
+    private final UserRepository userRepository;
+    private final ProfileRepository profileRepository;
+    private final UserBranchAssignmentRepository userBranchAssignmentRepository;
+
+    public AuthRepository(
+        UserRepository userRepository,
+        ProfileRepository profileRepository,
+        UserBranchAssignmentRepository userBranchAssignmentRepository
+    ) {
+        this.userRepository = userRepository;
+        this.profileRepository = profileRepository;
+        this.userBranchAssignmentRepository = userBranchAssignmentRepository;
+    }
+
+    public Optional<UserEntity> findUserByEmail(String email) {
+        return userRepository.findByEmail(email);
+    }
+
+    @SuppressWarnings("null")
+    public @NonNull UserEntity saveUser(@NonNull UserEntity userEntity) {
+        return userRepository.save(userEntity);
+    }
+
+    @SuppressWarnings("null")
+    public @NonNull ProfileEntity saveProfile(@NonNull ProfileEntity profileEntity) {
+        return profileRepository.save(profileEntity);
+    }
+
+    public Optional<ProfileEntity> findProfileByUserId(UUID userId) {
+        return profileRepository.findByUserId(userId);
+    }
+
+    public Optional<UUID> findBranchIdByUserId(UUID userId) {
+        return userBranchAssignmentRepository.findByUserId(userId)
+            .map(assignment -> assignment.getBranchId());
+    }
+}
