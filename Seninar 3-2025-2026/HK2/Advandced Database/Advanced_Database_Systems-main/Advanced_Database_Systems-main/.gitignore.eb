@@ -1,4 +1,0 @@
-# EB deployment files
-.elasticbeanstalk/
-eb-docker-bundle.zip
-*.log
