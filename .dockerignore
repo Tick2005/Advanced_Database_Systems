@@ -1,0 +1,11 @@
+.git
+.github
+.vscode
+.sixth
+frontend
+backend/target
+backend/.mvn
+backend/mvnw
+backend/mvnw.cmd
+node_modules
+*.zip

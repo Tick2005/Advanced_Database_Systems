@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<title>Booking Confirmed</title>
+</head>
+<body style="margin:0;padding:24px;background:#f6f8fb;font-family:Arial,sans-serif;color:#1f2937;">
+	<table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+		<tr>
+			<td align="center">
+				<table role="presentation" width="600" cellspacing="0" cellpadding="0" style="max-width:600px;background:#ffffff;border-radius:12px;padding:24px;">
+					<tr>
+						<td>
+							<h2 style="margin:0 0 12px 0;">Your booking is confirmed</h2>
+							<p style="margin:0 0 16px 0;">Hi <strong>${fullName}</strong>, your booking has been confirmed successfully.</p>
+							<p style="margin:0 0 8px 0;"><strong>Booking code:</strong> ${bookingCode}</p>
+							<p style="margin:0 0 8px 0;"><strong>Hotel:</strong> ${branchName}</p>
+							<p style="margin:0 0 8px 0;"><strong>Room:</strong> ${roomName}</p>
+							<p style="margin:0 0 8px 0;"><strong>Check-in:</strong> ${checkInDate}</p>
+							<p style="margin:0 0 16px 0;"><strong>Check-out:</strong> ${checkOutDate}</p>
+							<p style="margin:0 0 24px 0;"><strong>Total paid:</strong> ${amount}</p>
+							<p style="margin:0;color:#6b7280;font-size:13px;">Thank you for choosing our service.</p>
+						</td>
+					</tr>
+				</table>
+			</td>
+		</tr>
+	</table>
+</body>
+</html>
+
