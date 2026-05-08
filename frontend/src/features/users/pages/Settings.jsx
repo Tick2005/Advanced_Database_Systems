@@ -74,6 +74,7 @@ function CameraStatusCard({ browserStatus }) {
 export default function Settings() {
   const { settings, loading: settingsLoading, updateSettings } = useCustomerSettings();
   const [profileLoading, setProfileLoading] = useState(true);
+  const [profileLanguage, setProfileLanguage] = useState("vi");
   const [form, setForm] = useState({ theme: "light", fontScale: "normal", preferredLanguage: "vi", allowLocation: true, allowCamera: true });
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
@@ -101,10 +102,12 @@ export default function Settings() {
     setProfileLoading(true);
     userService.getProfile()
       .then((profile) => {
+        const nextLanguage = profile?.preferredLanguage || "vi";
+        setProfileLanguage(nextLanguage);
         setForm({
           theme: settings.theme || "light",
           fontScale: settings.fontScale || "normal",
-          preferredLanguage: profile?.preferredLanguage || "vi",
+          preferredLanguage: nextLanguage,
           allowLocation: settings.allowLocation !== false,
           allowCamera: settings.allowCamera !== false,
         });
@@ -116,9 +119,44 @@ export default function Settings() {
 
   const onChange = useCallback((field, value) => {
     setForm((prev) => ({ ...prev, [field]: value }));
-    setDirty(true);
+    if (field === "preferredLanguage") {
+      setDirty(value !== profileLanguage);
+    }
     setMessage("");
-  }, []);
+  }, [profileLanguage]);
+
+  const updateDeviceSetting = useCallback(async (field, value) => {
+    const previousValue = form[field];
+    setForm((prev) => ({ ...prev, [field]: value }));
+    setError("");
+    try {
+      const updated = await updateSettings({ [field]: value });
+      if (field === "allowLocation" && !updated.allowLocation) {
+        localStorage.removeItem("user_location");
+        try {
+          window.dispatchEvent(new CustomEvent("user_location_updated", { detail: null }));
+        } catch (eventError) {
+          // Ignore cross-component event issues.
+        }
+      }
+      setMessage("Đã cập nhật cài đặt.");
+      return updated;
+    } catch (err) {
+      setForm((prev) => ({ ...prev, [field]: previousValue }));
+      setError(err?.message || "Không thể cập nhật cài đặt.");
+      throw err;
+    }
+  }, [form, updateSettings]);
+
+  useEffect(() => {
+    setForm((prev) => ({
+      ...prev,
+      theme: settings.theme || "light",
+      fontScale: settings.fontScale || "normal",
+      allowLocation: settings.allowLocation !== false,
+      allowCamera: settings.allowCamera !== false,
+    }));
+  }, [settings.theme, settings.fontScale, settings.allowLocation, settings.allowCamera]);
 
   const onSubmit = async (event) => {
     event.preventDefault();
@@ -127,15 +165,9 @@ export default function Settings() {
     setMessage("");
     try {
       await userService.updateProfile({ preferredLanguage: form.preferredLanguage });
-      await updateSettings({ theme: form.theme, fontScale: form.fontScale, allowLocation: form.allowLocation, allowCamera: form.allowCamera });
-      document.documentElement.dataset.theme = form.theme;
-      document.documentElement.dataset.fontScale = form.fontScale;
-      try {
-        window.dispatchEvent(new CustomEvent("user_settings_updated", { detail: { theme: form.theme, fontScale: form.fontScale, allowLocation: form.allowLocation, allowCamera: form.allowCamera } }));
-      } catch (_) {}
-      if (!form.allowLocation) localStorage.removeItem("user_location");
-      setMessage("Đã lưu cài đặt thành công.");
+      setProfileLanguage(form.preferredLanguage);updateDeviceSetting
       setDirty(false);
+      setMessage("Đã lưu ngôn ngữ hiển thị.");
     } catch (err) {
       setError(err?.message || "Cập nhật thất bại. Vui lòng thử lại.");
     } finally {
@@ -173,7 +205,7 @@ export default function Settings() {
             </select>
           </FieldRow>
           <FieldRow label="Cỡ chữ">
-            <select value={form.fontScale} onChange={(e) => onChange("fontScale", e.target.value)}>
+            <select value={form.fontScale} onChange={(e) => updateDeviceSetting("fontScale", e.target.value)}>
               <option value="compact">Nhỏ</option>
               <option value="normal">Vừa (mặc định)</option>
               <option value="large">Lớn</option>
@@ -194,14 +226,14 @@ export default function Settings() {
             title="Cho phép lấy vị trí"
             description="Dùng GPS để gợi ý chi nhánh gần nhất và phòng phù hợp."
             checked={form.allowLocation}
-            onToggle={() => onChange("allowLocation", !form.allowLocation)}
+            onToggle={() => updateDeviceSetting("allowLocation", !form.allowLocation)}
             badge={form.allowLocation ? { label: "Bật", bg: "#dcfce7", color: "#166534" } : { label: "Tắt", bg: "#f1f5f9", color: "#64748b" }}
           />
           <ToggleRow
             title="Cho phép truy cập camera"
             description="Dùng camera để chụp ảnh đại diện hoặc xác thực hình ảnh."
             checked={form.allowCamera}
-            onToggle={() => onChange("allowCamera", !form.allowCamera)}
+            onToggle={() => updateDeviceSetting("allowCamera", !form.allowCamera)}
             badge={form.allowCamera ? { label: "Bật", bg: "#dcfce7", color: "#166534" } : { label: "Tắt", bg: "#f1f5f9", color: "#64748b" }}
           />
           {form.allowCamera && <CameraStatusCard browserStatus={browserCameraStatus} />}
@@ -217,7 +249,7 @@ export default function Settings() {
 
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 4 }}>
           <button className="btn btn-gold" disabled={saving || !dirty} style={{ opacity: saving || !dirty ? 0.6 : 1, cursor: saving || !dirty ? "not-allowed" : "pointer" }}>
-            {saving ? "⏳ Đang lưu..." : "💾 Lưu cài đặt"}
+            {saving ? "⏳ Đang lưu..." : "💾 Lưu ngôn ngữ"}
           </button>
           <Link className="btn pill pill-soft" to={PATHS.CUSTOMER_PROFILE}>👤 Hồ sơ cá nhân</Link>
           <Link className="btn pill pill-soft" to={PATHS.CUSTOMER_SETTINGS_ADVANCED}>🔐 Bảo mật</Link>

@@ -3,3 +3,5 @@ frontend/dist/
 frontend/node_modules/
 .idea/
 .vscode/
+.github/
+.sixth/

@@ -80,7 +80,7 @@ public class SeedController {
 			jdbc.execute("DELETE FROM payments       WHERE booking_id LIKE 'aaaaaaaa%'");
 			jdbc.execute("DELETE FROM bookings       WHERE id          LIKE 'aaaaaaaa%'");
 			safeDelete("feedbacks",        "id LIKE 'ff%'");
-			safeDelete("pricing_logs",     "id LIKE 'ee%'");
+			safeDelete("room_rate_change_audit", "id IN (1, 2)");
 			safeDelete("pricing_requests", "id LIKE 'dd%'");
 
 			result.put("deleted", true);

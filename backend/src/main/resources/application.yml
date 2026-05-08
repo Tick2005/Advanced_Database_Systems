@@ -1,12 +1,28 @@
 spring:
   application:
     name: hotel-backend
-  profiles:
-    active: ${SPRING_PROFILES_ACTIVE:prod}
   jackson:
     time-zone: Asia/Ho_Chi_Minh
     serialization:
       write-dates-as-timestamps: false
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/hotel}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:postgres}
+    driver-class-name: org.postgresql.Driver
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    validate-on-migrate: false
+  data:
+    mongodb:
+      uri: ${MONGODB_URI:mongodb://localhost:27017/hotel}
+      database: ${MONGODB_DATABASE:hotel}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
   mail:
     host: ${MAIL_HOST:smtp.gmail.com}
     port: ${MAIL_PORT:587}
@@ -24,9 +40,13 @@ spring:
     protocol: ${MAIL_PROTOCOL:smtp}
 
 server:
-  port: 8080
+  port: ${SERVER_PORT:5000}
+  forward-headers-strategy: framework
 
 management:
+  health:
+    mail:
+      enabled: false
   endpoints:
     web:
       exposure:
@@ -66,6 +86,6 @@ app:
 logging:
   level:
     root: INFO
-    org.springframework.web: INFO
+    org.springframework: WARN
     org.hibernate.SQL: WARN
 

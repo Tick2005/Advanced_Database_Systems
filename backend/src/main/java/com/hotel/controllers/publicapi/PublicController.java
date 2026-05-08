@@ -1,11 +1,13 @@
 package com.hotel.controllers.publicapi;
 
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -16,6 +18,7 @@ import com.hotel.modules.branch.BranchService;
 import com.hotel.modules.branch.dto.BranchResponse;
 import com.hotel.modules.feedback.FeedbackService;
 import com.hotel.modules.feedback.dto.FeedbackResponse;
+import com.hotel.modules.feedback.dto.RoomFeedbackSummaryResponse;
 import com.hotel.modules.payment.dto.VNPayCallbackResponse;
 import com.hotel.modules.report.ReportService;
 import com.hotel.modules.report.dto.RevenueReportResponse;
@@ -75,6 +78,17 @@ public class PublicController {
     @GetMapping("/feedbacks/{roomId}")
     public ApiResponse<List<FeedbackResponse>> getFeedbackByRoom(@PathVariable String roomId) {
         return ApiResponse.ok("Feedback list", feedbackService.getByRoom(roomId));
+    }
+
+    @GetMapping("/feedbacks/top")
+    public ApiResponse<List<FeedbackResponse>> getTopFeedbacks(@RequestParam(defaultValue = "10") int limit) {
+        return ApiResponse.ok("Top feedbacks", feedbackService.getTopFeedbacks(limit));
+    }
+
+    @PostMapping("/feedbacks/summary")
+    public ApiResponse<List<RoomFeedbackSummaryResponse>> getRoomFeedbackSummaries(@RequestBody Map<String, List<String>> payload) {
+        List<String> roomIds = payload == null ? List.of() : payload.getOrDefault("roomIds", List.of());
+        return ApiResponse.ok("Room feedback summaries", feedbackService.getRoomSummaries(roomIds));
     }
 
     @GetMapping("/top-room-types")

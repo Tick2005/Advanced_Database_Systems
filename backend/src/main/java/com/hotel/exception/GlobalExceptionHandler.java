@@ -5,6 +5,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+import org.hibernate.StaleObjectStateException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -53,7 +54,14 @@ public class GlobalExceptionHandler {
 		Map<String, String> fieldErrors = new LinkedHashMap<>();
 		ex.getConstraintViolations().forEach(violation -> fieldErrors.put(violation.getPropertyPath().toString(), violation.getMessage()));
 		log.info("Constraint validation failed: {}", fieldErrors);
+
 		return build(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", "Request validation failed", fieldErrors);
+	}
+
+	@ExceptionHandler(StaleObjectStateException.class)
+	public ResponseEntity<ErrorResponse> handleOptimisticLocking(StaleObjectStateException ex) {
+		log.warn("Optimistic locking failure - concurrent modification detected: {}", ex.getMessage());
+		return build(HttpStatus.CONFLICT, "CONFLICT_ERROR", "The record has been modified by another request. Please refresh and try again.", null);
 	}
 
 	@ExceptionHandler(IllegalArgumentException.class)

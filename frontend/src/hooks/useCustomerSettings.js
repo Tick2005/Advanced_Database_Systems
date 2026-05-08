@@ -1,136 +1,215 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { userService } from "../features/users/userService";
 import { useAuth } from "../features/auth/useAuth";
 
-/**
- * Custom hook to manage customer settings from backend
- * Fetches and caches settings, provides update method
- * Uses localStorage as fallback but prioritizes backend
- */
-export function useCustomerSettings() {
-  const { isAuthenticated } = useAuth();
-  const [settings, setSettings] = useState({
-    theme: "light",
-    fontScale: "normal",
-    allowLocation: true,
-    allowCamera: true,
+const LS_KEYS = {
+  theme: "ux_theme",
+  fontScale: "ux_font_scale",
+  allowLocation: "ux_allow_location",
+  allowCamera: "ux_allow_camera",
+  dirty: "ux_settings_dirty",
+};
+
+const DEFAULT_SETTINGS = {
+  theme: "light",
+  fontScale: "normal",
+  allowLocation: true,
+  allowCamera: true,
+};
+
+function normalizeSettings(input) {
+  const source = input || {};
+  const theme = source.theme === "dark" ? "dark" : "light";
+  const fontScale = ["compact", "normal", "large"].includes(source.fontScale) ? source.fontScale : "normal";
+  return {
+    theme,
+    fontScale,
+    allowLocation: source.allowLocation !== false,
+    allowCamera: source.allowCamera !== false,
+  };
+}
+
+function readLocalSettings() {
+  return normalizeSettings({
+    theme: localStorage.getItem(LS_KEYS.theme) || DEFAULT_SETTINGS.theme,
+    fontScale: localStorage.getItem(LS_KEYS.fontScale) || DEFAULT_SETTINGS.fontScale,
+    allowLocation: localStorage.getItem(LS_KEYS.allowLocation) !== "false",
+    allowCamera: localStorage.getItem(LS_KEYS.allowCamera) !== "false",
   });
+}
+
+function writeLocalSettings(settings, dirty = false) {
+  localStorage.setItem(LS_KEYS.theme, settings.theme);
+  localStorage.setItem(LS_KEYS.fontScale, settings.fontScale);
+  localStorage.setItem(LS_KEYS.allowLocation, String(settings.allowLocation));
+  localStorage.setItem(LS_KEYS.allowCamera, String(settings.allowCamera));
+  localStorage.setItem(LS_KEYS.dirty, dirty ? "true" : "false");
+}
+
+function applyVisualSettings(settings) {
+  document.documentElement.dataset.theme = settings.theme;
+  document.documentElement.dataset.fontScale = settings.fontScale;
+  document.documentElement.style.colorScheme = settings.theme;
+}
+
+function sameSettings(prev, next) {
+  if (!prev || !next) return prev === next;
+  return (
+    prev.theme === next.theme &&
+    prev.fontScale === next.fontScale &&
+    prev.allowLocation === next.allowLocation &&
+    prev.allowCamera === next.allowCamera
+  );
+}
+
+export function useCustomerSettings() {
+  const { isAuthenticated, auth } = useAuth();
+  const [settings, setSettings] = useState(() => readLocalSettings());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const instanceIdRef = useRef(
+    typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+      ? crypto.randomUUID()
+      : `settings-${Date.now()}-${Math.random().toString(36).slice(2)}`
+  );
+  const syncingRef = useRef(false);
 
-  // Fetch settings from backend on mount or when authentication changes
+  useEffect(() => {
+    if (syncingRef.current) {
+      syncingRef.current = false;
+      return;
+    }
+
+    applyVisualSettings(settings);
+    try {
+      window.dispatchEvent(new CustomEvent("user_settings_updated", { detail: { settings, sourceId: instanceIdRef.current } }));
+    } catch (err) {
+      // Ignore event errors for older browsers.
+    }
+  }, [settings]);
+
+  useEffect(() => {
+    const handleSettingsUpdate = (event) => {
+      const detail = event?.detail || {};
+      if (detail.sourceId && detail.sourceId === instanceIdRef.current) {
+        return;
+      }
+
+      const nextSettings = normalizeSettings(detail.settings || detail);
+      syncingRef.current = true;
+      setSettings((prev) => (sameSettings(prev, nextSettings) ? prev : nextSettings));
+    };
+
+    const handleStorageChange = (event) => {
+      if (![LS_KEYS.theme, LS_KEYS.fontScale, LS_KEYS.allowLocation, LS_KEYS.allowCamera, LS_KEYS.dirty].includes(event.key)) {
+        return;
+      }
+      syncingRef.current = true;
+      setSettings(readLocalSettings());
+    };
+
+    window.addEventListener("user_settings_updated", handleSettingsUpdate);
+    window.addEventListener("storage", handleStorageChange);
+    return () => {
+      window.removeEventListener("user_settings_updated", handleSettingsUpdate);
+      window.removeEventListener("storage", handleStorageChange);
+    };
+  }, []);
+
+  useEffect(() => {
+    applyVisualSettings(settings);
+    try {
+      window.dispatchEvent(new CustomEvent("user_settings_updated", { detail: { settings, sourceId: instanceIdRef.current } }));
+    } catch (err) {
+      // Ignore event errors for older browsers.
+    }
+  }, [settings]);
+
   useEffect(() => {
     if (!isAuthenticated) {
-      // Not authenticated - use localStorage defaults
-      const stored = {
-        theme: localStorage.getItem("ux_theme") || "light",
-        fontScale: localStorage.getItem("ux_font_scale") || "normal",
-        allowLocation: localStorage.getItem("ux_allow_location") !== "false",
-        allowCamera: localStorage.getItem("ux_allow_camera") !== "false",
-      };
-      setSettings(stored);
+      setSettings(readLocalSettings());
       setLoading(false);
       return;
     }
 
-    // Authenticated - fetch from backend
+    let mounted = true;
     setLoading(true);
     setError(null);
-    
+
     userService
       .getSettings()
-      .then((data) => {
-        setSettings({
-          theme: data.theme || "light",
-          fontScale: data.fontScale || "normal",
-          allowLocation: data.allowLocation !== false,
-          allowCamera: data.allowCamera !== false,
-        });
-        // Keep localStorage in sync
-        localStorage.setItem("ux_theme", data.theme || "light");
-        localStorage.setItem("ux_font_scale", data.fontScale || "normal");
-        localStorage.setItem("ux_allow_location", String(data.allowLocation !== false));
-        localStorage.setItem("ux_allow_camera", String(data.allowCamera !== false));
+      .then(async (data) => {
+        if (!mounted) return;
+
+        const remote = normalizeSettings(data);
+        const local = readLocalSettings();
+        const hasPendingGuestChanges = localStorage.getItem(LS_KEYS.dirty) === "true";
+
+        if (hasPendingGuestChanges) {
+          const merged = { ...remote, ...local };
+          const updated = normalizeSettings(await userService.updateSettings(merged));
+          if (!mounted) return;
+          setSettings(updated);
+          writeLocalSettings(updated, false);
+          return;
+        }
+
+        setSettings(remote);
+        writeLocalSettings(remote, false);
       })
       .catch((err) => {
-        console.error("Failed to fetch settings:", err);
+        if (!mounted) return;
         setError(err);
-        // Fallback to localStorage
-        const stored = {
-          theme: localStorage.getItem("ux_theme") || "light",
-          fontScale: localStorage.getItem("ux_font_scale") || "normal",
-          allowLocation: localStorage.getItem("ux_allow_location") !== "false",
-          allowCamera: localStorage.getItem("ux_allow_camera") !== "false",
-        };
-        setSettings(stored);
+        setSettings(readLocalSettings());
       })
-      .finally(() => setLoading(false));
-  }, [isAuthenticated]);
+      .finally(() => {
+        if (mounted) {
+          setLoading(false);
+        }
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [isAuthenticated, auth?.email]);
 
   const updateSettings = useCallback(
     async (updates) => {
+      const nextLocal = normalizeSettings({ ...settings, ...updates });
+
       if (!isAuthenticated) {
-        // Update only localStorage for guest
-        const newSettings = { ...settings, ...updates };
-        setSettings(newSettings);
-        Object.entries(updates).forEach(([key, value]) => {
-          const lsKey = `ux_${key.replace(/([A-Z])/g, "_$1").toLowerCase()}`;
-          localStorage.setItem(lsKey, String(value));
-        });
-        return newSettings;
+        setSettings(nextLocal);
+        writeLocalSettings(nextLocal, true);
+        return nextLocal;
       }
 
-      // Update backend for authenticated users
       try {
-        const updatedSettings = await userService.updateSettings(updates);
-        const newSettings = {
-          theme: updatedSettings.theme || "light",
-          fontScale: updatedSettings.fontScale || "normal",
-          allowLocation: updatedSettings.allowLocation !== false,
-          allowCamera: updatedSettings.allowCamera !== false,
-        };
-        setSettings(newSettings);
-        
-        // Keep localStorage in sync
-        localStorage.setItem("ux_theme", newSettings.theme);
-        localStorage.setItem("ux_font_scale", newSettings.fontScale);
-        localStorage.setItem("ux_allow_location", String(newSettings.allowLocation));
-        localStorage.setItem("ux_allow_camera", String(newSettings.allowCamera));
-        
-        return newSettings;
+        const updated = normalizeSettings(await userService.updateSettings(nextLocal));
+        setSettings(updated);
+        writeLocalSettings(updated, false);
+        return updated;
       } catch (err) {
-        console.error("Failed to update settings:", err);
         setError(err);
         throw err;
       }
     },
-    [isAuthenticated]
+    [isAuthenticated, settings]
   );
 
   const refetch = useCallback(() => {
     if (!isAuthenticated) return;
-    
+
     setLoading(true);
     setError(null);
-    
+
     userService
       .getSettings()
       .then((data) => {
-        setSettings({
-          theme: data.theme || "light",
-          fontScale: data.fontScale || "normal",
-          allowLocation: data.allowLocation !== false,
-          allowCamera: data.allowCamera !== false,
-        });
-        localStorage.setItem("ux_theme", data.theme || "light");
-        localStorage.setItem("ux_font_scale", data.fontScale || "normal");
-        localStorage.setItem("ux_allow_location", String(data.allowLocation !== false));
-        localStorage.setItem("ux_allow_camera", String(data.allowCamera !== false));
+        const normalized = normalizeSettings(data);
+        setSettings(normalized);
+        writeLocalSettings(normalized, false);
       })
-      .catch((err) => {
-        console.error("Failed to refetch settings:", err);
-        setError(err);
-      })
+      .catch(setError)
       .finally(() => setLoading(false));
   }, [isAuthenticated]);
 
