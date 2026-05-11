@@ -1,3 +1,8 @@
+/**
+ * ManagerServicesPage.jsx
+ * Commit: fix(manager): ManagerServicesPage – dịch toàn bộ text, chuẩn UI nhất quán với các trang Manager khác
+ */
+
 import { useEffect, useState } from "react";
 import { dashboardService } from "../../dashboard/dashboardService";
 import { branchService } from "../../branches/branchService";
@@ -10,9 +15,19 @@ import { validateSelectedImageFile } from "../../../services/uploadGuard";
 import UploadGuardHint from "../../../components/common/UploadGuardHint";
 import { useTracking } from "../../../hooks/useTracking";
 
+const MODE_OPTIONS = [
+  { value: "ALL",      label: "Tất cả chế độ" },
+  { value: "BOTH",     label: "BOTH – Đặt trước & tại chỗ" },
+  { value: "PREBOOK",  label: "PREBOOK – Chỉ đặt trước" },
+  { value: "ON_SITE",  label: "ON_SITE – Chỉ tại chỗ" },
+];
+
+const EMPTY_FORM = { code: "", name: "", description: "", thumbnailUrl: "", price: 0, serviceMode: "BOTH" };
+
 export default function ManagerServicesPage() {
   const { can } = usePermissions();
   const track = useTracking("manager-services");
+
   const [branches, setBranches] = useState([]);
   const [branchId, setBranchId] = useState("");
   const [services, setServices] = useState([]);
@@ -20,7 +35,7 @@ export default function ManagerServicesPage() {
   const [modeFilter, setModeFilter] = useState("ALL");
   const [openModal, setOpenModal] = useState(false);
   const [editing, setEditing] = useState(null);
-  const [form, setForm] = useState({ code: "", name: "", description: "", thumbnailUrl: "", price: 0, serviceMode: "BOTH" });
+  const [form, setForm] = useState(EMPTY_FORM);
   const [fieldErrors, setFieldErrors] = useState({});
   const [thumbnailPreview, setThumbnailPreview] = useState("");
   const [saving, setSaving] = useState(false);
@@ -31,201 +46,205 @@ export default function ManagerServicesPage() {
     branchService.getBranches().then((data) => {
       setBranches(data || []);
       setBranchId(data?.[0]?.id || "");
-    });
+    }).catch(() => setError("Không thể tải danh sách chi nhánh."));
   }, []);
 
-  const fetchData = async (id) => {
+  const fetchData = (id) => {
     if (!id) return;
-    try {
-      const data = await dashboardService.getManagerServicesByBranch(id);
-      setServices(data || []);
-      setError("");
-    } catch (err) {
-      setError(err.message || "Khong the tai danh sach dich vu");
-    }
+    dashboardService.getManagerServicesByBranch(id)
+      .then((data) => { setServices(data || []); setError(""); })
+      .catch((err) => setError(err.message || "Không thể tải danh sách dịch vụ."));
   };
 
-  useEffect(() => {
-    fetchData(branchId);
-  }, [branchId]);
+  useEffect(() => { fetchData(branchId); }, [branchId]);
 
   const filtered = services.filter((item) => {
-    const matchQuery = !query || item.code?.toLowerCase().includes(query.toLowerCase()) || item.name?.toLowerCase().includes(query.toLowerCase());
+    const matchQuery = !query
+      || item.code?.toLowerCase().includes(query.toLowerCase())
+      || item.name?.toLowerCase().includes(query.toLowerCase());
     const matchMode = modeFilter === "ALL" || item.serviceMode === modeFilter;
     return matchQuery && matchMode;
   });
 
+  const openCreate = () => {
+    if (!can(ACTIONS.SERVICE_CREATE)) { setError("Bạn không có quyền tạo dịch vụ."); return; }
+    setEditing(null);
+    setForm(EMPTY_FORM);
+    setFieldErrors({});
+    setThumbnailPreview("");
+    setOpenModal(true);
+  };
+
+  const openEdit = (item) => {
+    setEditing(item);
+    setForm({ code: item.code || "", name: item.name || "", description: item.description || "", thumbnailUrl: item.thumbnailUrl || "", price: Number(item.price || 0), serviceMode: item.serviceMode || "BOTH" });
+    setFieldErrors({});
+    setThumbnailPreview(item.thumbnailUrl || "");
+    setOpenModal(true);
+  };
+
+  const closeModal = () => { setOpenModal(false); setEditing(null); setFieldErrors({}); setThumbnailPreview(""); };
+
+  const setField = (k, v) => setForm((prev) => ({ ...prev, [k]: v }));
+
   const saveService = async () => {
     const action = editing ? ACTIONS.SERVICE_EDIT : ACTIONS.SERVICE_CREATE;
-    if (!can(action)) {
-      setError("Ban khong co quyen thuc hien thao tac nay");
-      return;
-    }
+    if (!can(action)) { setError("Bạn không có quyền thực hiện thao tác này."); return; }
 
     const nextErrors = validateServiceForm(form, { isCreate: !editing });
     setFieldErrors(nextErrors);
-    if (Object.keys(nextErrors).length > 0) {
-      return;
-    }
+    if (Object.keys(nextErrors).length > 0) return;
 
     setSaving(true);
     try {
       if (editing) {
-        await dashboardService.updateManagerService(editing.id, {
-          name: form.name,
-          description: form.description,
-          thumbnailUrl: form.thumbnailUrl,
-          price: Number(form.price || 0),
-          serviceMode: form.serviceMode
-        });
-        setMessage("Da cap nhat dich vu");
+        await dashboardService.updateManagerService(editing.id, { name: form.name, description: form.description, thumbnailUrl: form.thumbnailUrl, price: Number(form.price || 0), serviceMode: form.serviceMode });
+        setMessage("Đã cập nhật dịch vụ thành công.");
         track("service_updated", { serviceId: editing.id, branchId });
       } else {
-        await dashboardService.createManagerService({
-          ...form,
-          branchId,
-          price: Number(form.price || 0)
-        });
-        setMessage("Da tao dich vu");
+        await dashboardService.createManagerService({ ...form, branchId, price: Number(form.price || 0) });
+        setMessage("Đã tạo dịch vụ mới thành công.");
         track("service_created", { code: form.code, branchId });
       }
-      setOpenModal(false);
-      setEditing(null);
-      setFieldErrors({});
-      setThumbnailPreview("");
+      closeModal();
       fetchData(branchId);
     } catch (err) {
-      setError(err.message || "Khong the luu dich vu");
+      setError(err.message || "Không thể lưu dịch vụ. Vui lòng thử lại.");
       track("service_save_failed", { branchId, reason: err.message || "unknown" });
     } finally {
       setSaving(false);
     }
   };
 
-  const onCreate = () => {
-    if (!can(ACTIONS.SERVICE_CREATE)) {
-      setError("Ban khong co quyen tao dich vu");
-      return;
-    }
-    setEditing(null);
-    setForm({ code: "", name: "", description: "", thumbnailUrl: "", price: 0, serviceMode: "BOTH" });
-    setFieldErrors({});
-    setThumbnailPreview("");
-    setOpenModal(true);
-  };
-
-  const onEdit = (item) => {
-    setEditing(item);
-    setForm({
-      code: item.code || "",
-      name: item.name || "",
-      description: item.description || "",
-      thumbnailUrl: item.thumbnailUrl || "",
-      price: Number(item.price || 0),
-      serviceMode: item.serviceMode || "BOTH"
-    });
-    setFieldErrors({});
-    setThumbnailPreview(item.thumbnailUrl || "");
-    setOpenModal(true);
-  };
-
   const onSelectThumbnail = (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
-
     const fileError = validateSelectedImageFile(file);
-    if (fileError) {
-      setError(fileError);
-      return;
-    }
-
+    if (fileError) { setError(fileError); return; }
     const localPreview = URL.createObjectURL(file);
     setThumbnailPreview(localPreview);
-    setMessage("Anh hop le. He thong dang dung URL thumbnail tu backend, ban co the paste URL de luu.");
+    setMessage("Ảnh hợp lệ. Hệ thống dùng URL thumbnail từ backend – bạn có thể paste URL để lưu.");
   };
+
+  const formatPrice = (val) =>
+    typeof val === "number" ? val.toLocaleString("vi-VN") + " ₫" : val;
 
   return (
     <section style={{ display: "grid", gap: 16 }}>
-      <div style={{
-        padding: "16px 20px", borderRadius: 14,
-        background: "linear-gradient(135deg, #0d2238 0%, #1e3a5f 100%)",
-        color: "white", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8
-      }}>
+      {/* Header */}
+      <div style={{ padding: "16px 20px", borderRadius: 14, background: "linear-gradient(135deg, #0d2238 0%, #1e3a5f 100%)", color: "white", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
         <div>
           <div style={{ fontSize: 12, opacity: 0.7, marginBottom: 4 }}>Dịch vụ phòng</div>
           <div style={{ fontWeight: 800, fontSize: 20 }}>Quản lý Dịch vụ</div>
           <div style={{ fontSize: 13, opacity: 0.75, marginTop: 2 }}>Tạo và cấu hình dịch vụ tại chi nhánh</div>
         </div>
       </div>
+
       <ToastMessage type="success" message={message} onClose={() => setMessage("")} />
-      <ToastMessage type="error" message={error} onClose={() => setError("")} />
+      <ToastMessage type="error"   message={error}   onClose={() => setError("")}   />
 
-      <div className="card" style={{ padding: 14, display: "grid", gap: 12 }}>
-        <div className="table-toolbar" style={{ margin: 0 }}>
-        <input placeholder="Tim code / ten dich vu" value={query} onChange={(event) => setQuery(event.target.value)} />
-        <select value={modeFilter} onChange={(event) => setModeFilter(event.target.value)}>
-          <option value="ALL">Tat ca mode</option>
-          <option value="BOTH">BOTH</option>
-          <option value="PREBOOK">PREBOOK</option>
-          <option value="ON_SITE">ON_SITE</option>
-        </select>
-        <button className="btn btn-primary" onClick={onCreate} disabled={!can(ACTIONS.SERVICE_CREATE)}>+ Tao dich vu</button>
+      {/* Toolbar */}
+      <div className="card" style={{ padding: 14, display: "grid", gap: 10 }}>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+          <select value={branchId} onChange={(e) => setBranchId(e.target.value)} style={{ minWidth: 200 }}>
+            {branches.map((b) => <option key={b.id} value={b.id}>{b.name} – {b.city}</option>)}
+          </select>
+          <input
+            placeholder="🔍 Tìm theo mã / tên dịch vụ"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            style={{ flex: 1, minWidth: 180 }}
+          />
+          <select value={modeFilter} onChange={(e) => setModeFilter(e.target.value)}>
+            {MODE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+          <button className="btn btn-primary" onClick={openCreate} disabled={!can(ACTIONS.SERVICE_CREATE)}>
+            + Tạo dịch vụ
+          </button>
         </div>
-
-        <div className="toolbar" style={{ margin: 0 }}>
-        <select value={branchId} onChange={(event) => setBranchId(event.target.value)}>
-          {branches.map((branch) => (
-            <option key={branch.id} value={branch.id}>{branch.name} - {branch.city}</option>
-          ))}
-        </select>
+        <div style={{ fontSize: 13, color: "#64748b" }}>
+          Hiển thị <strong>{filtered.length}</strong> / {services.length} dịch vụ
         </div>
       </div>
 
+      {/* Table */}
       <DataTable
         rows={filtered}
         columns={[
-          { key: "code", label: "Code" },
-          { key: "name", label: "Ten" },
-          { key: "price", label: "Gia", render: (row) => <span className="mono">{row.price}</span> },
-          { key: "serviceMode", label: "Mode" }
+          { key: "code",        label: "Mã dịch vụ" },
+          { key: "name",        label: "Tên dịch vụ" },
+          { key: "price",       label: "Đơn giá", render: (row) => <span className="mono">{formatPrice(row.price)}</span> },
+          { key: "serviceMode", label: "Chế độ" },
+          {
+            key: "thumbnailUrl", label: "Ảnh",
+            render: (row) => row.thumbnailUrl
+              ? <img src={row.thumbnailUrl} alt={row.name} style={{ width: 56, height: 36, objectFit: "cover", borderRadius: 6 }} />
+              : <span style={{ color: "#cbd5e1", fontSize: 12 }}>Chưa có ảnh</span>
+          },
         ]}
         renderActions={(row) => (
-          <button className="btn" style={{ border: "1px solid #cbd5e1", background: "white", padding: "6px 10px" }} onClick={() => onEdit(row)} disabled={!can(ACTIONS.SERVICE_EDIT)}>Sua</button>
+          <button className="btn" style={{ border: "1px solid #cbd5e1", background: "white", padding: "6px 10px" }} onClick={() => openEdit(row)} disabled={!can(ACTIONS.SERVICE_EDIT)}>
+            ✏️ Sửa
+          </button>
         )}
       />
 
+      {/* Modal */}
       {openModal && (
         <div className="modal-overlay">
-          <div className="card modal-card">
-            <h3 style={{ margin: 0 }}>{editing ? "Cap nhat dich vu" : "Tao dich vu moi"}</h3>
+          <div className="card modal-card" style={{ maxWidth: 520 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+              <h3 style={{ margin: 0, fontWeight: 800, color: "#0d2238" }}>
+                {editing ? "✏️ Cập nhật dịch vụ" : "➕ Tạo dịch vụ mới"}
+              </h3>
+              <button type="button" onClick={closeModal} style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", color: "#64748b" }}>✕</button>
+            </div>
+
             <div className="form-grid">
-              {!editing && <input placeholder="Code" value={form.code} onChange={(event) => setForm((prev) => ({ ...prev, code: event.target.value }))} />}
-              {!editing && fieldErrors.code && <small style={{ color: "#b91c1c", gridColumn: "1 / -1" }}>{fieldErrors.code}</small>}
-              <input placeholder="Ten dich vu" value={form.name} onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))} />
+              {!editing && (
+                <>
+                  <input placeholder="Mã dịch vụ (VD: BF-SET)" value={form.code} onChange={(e) => setField("code", e.target.value)} />
+                  {fieldErrors.code && <small style={{ color: "#b91c1c", gridColumn: "1 / -1" }}>{fieldErrors.code}</small>}
+                </>
+              )}
+
+              <input placeholder="Tên dịch vụ" value={form.name} onChange={(e) => setField("name", e.target.value)} />
               {fieldErrors.name && <small style={{ color: "#b91c1c", gridColumn: "1 / -1" }}>{fieldErrors.name}</small>}
-              <input placeholder="Mo ta" value={form.description} onChange={(event) => setForm((prev) => ({ ...prev, description: event.target.value }))} />
+
+              <input placeholder="Mô tả ngắn" value={form.description} onChange={(e) => setField("description", e.target.value)} />
               {fieldErrors.description && <small style={{ color: "#b91c1c", gridColumn: "1 / -1" }}>{fieldErrors.description}</small>}
-              <input placeholder="Thumbnail URL" value={form.thumbnailUrl} onChange={(event) => setForm((prev) => ({ ...prev, thumbnailUrl: event.target.value }))} />
+
+              <input placeholder="URL hình ảnh (thumbnail)" value={form.thumbnailUrl} onChange={(e) => { setField("thumbnailUrl", e.target.value); setThumbnailPreview(e.target.value); }} />
               {fieldErrors.thumbnailUrl && <small style={{ color: "#b91c1c", gridColumn: "1 / -1" }}>{fieldErrors.thumbnailUrl}</small>}
-              <input type="file" accept="image/png,image/jpeg,image/webp" onChange={onSelectThumbnail} />
-              <UploadGuardHint />
+
+              <div style={{ gridColumn: "1 / -1" }}>
+                <label style={{ fontSize: 12, color: "#64748b", display: "block", marginBottom: 4 }}>Hoặc chọn ảnh từ máy tính:</label>
+                <input type="file" accept="image/png,image/jpeg,image/webp" onChange={onSelectThumbnail} />
+                <UploadGuardHint />
+              </div>
+
               {thumbnailPreview && (
                 <div style={{ gridColumn: "1 / -1" }}>
-                  <img src={thumbnailPreview} alt="thumbnail preview" style={{ width: 140, height: 90, objectFit: "cover", borderRadius: 8, border: "1px solid #e2e8f0" }} />
+                  <img src={thumbnailPreview} alt="Xem trước" style={{ width: 160, height: 100, objectFit: "cover", borderRadius: 8, border: "1px solid #e2e8f0" }} />
                 </div>
               )}
-              <input type="number" min={0} placeholder="Gia" value={form.price} onChange={(event) => setForm((prev) => ({ ...prev, price: Number(event.target.value || 0) }))} />
+
+              <input type="number" min={0} placeholder="Đơn giá (VND)" value={form.price} onChange={(e) => setField("price", Number(e.target.value || 0))} />
               {fieldErrors.price && <small style={{ color: "#b91c1c", gridColumn: "1 / -1" }}>{fieldErrors.price}</small>}
-              <select value={form.serviceMode} onChange={(event) => setForm((prev) => ({ ...prev, serviceMode: event.target.value }))}>
-                <option value="BOTH">BOTH</option>
-                <option value="PREBOOK">PREBOOK</option>
-                <option value="ON_SITE">ON_SITE</option>
+
+              <select value={form.serviceMode} onChange={(e) => setField("serviceMode", e.target.value)}>
+                <option value="BOTH">BOTH – Đặt trước & tại chỗ</option>
+                <option value="PREBOOK">PREBOOK – Chỉ đặt trước</option>
+                <option value="ON_SITE">ON_SITE – Chỉ tại chỗ</option>
               </select>
               {fieldErrors.serviceMode && <small style={{ color: "#b91c1c", gridColumn: "1 / -1" }}>{fieldErrors.serviceMode}</small>}
             </div>
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
-              <button className="btn" style={{ border: "1px solid #cbd5e1", background: "white" }} onClick={() => setOpenModal(false)}>Huy</button>
-              <button className="btn btn-primary" onClick={saveService} disabled={saving}>{editing ? "Luu cap nhat" : "Tao dich vu"}</button>
+
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 16 }}>
+              <button className="btn" style={{ border: "1px solid #cbd5e1", background: "white" }} onClick={closeModal}>Hủy</button>
+              <button className="btn btn-primary" onClick={saveService} disabled={saving}>
+                {saving ? "Đang lưu..." : editing ? "💾 Lưu cập nhật" : "➕ Tạo dịch vụ"}
+              </button>
             </div>
           </div>
         </div>

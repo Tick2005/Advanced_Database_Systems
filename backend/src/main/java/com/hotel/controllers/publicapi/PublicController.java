@@ -1,10 +1,12 @@
 package com.hotel.controllers.publicapi;
 
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -16,12 +18,14 @@ import com.hotel.modules.branch.BranchService;
 import com.hotel.modules.branch.dto.BranchResponse;
 import com.hotel.modules.feedback.FeedbackService;
 import com.hotel.modules.feedback.dto.FeedbackResponse;
+import com.hotel.modules.feedback.dto.RoomFeedbackSummaryResponse;
 import com.hotel.modules.payment.dto.VNPayCallbackResponse;
 import com.hotel.modules.report.ReportService;
 import com.hotel.modules.report.dto.RevenueReportResponse;
 import com.hotel.modules.room.RoomService;
 import com.hotel.modules.room.dto.RoomResponse;
 import com.hotel.modules.room.dto.RoomSearchFilter;
+import com.hotel.modules.room.dto.TopRoomResponse;
 import com.hotel.modules.service.ServiceService;
 import com.hotel.modules.service.dto.ServiceResponse;
 
@@ -77,9 +81,33 @@ public class PublicController {
         return ApiResponse.ok("Feedback list", feedbackService.getByRoom(roomId));
     }
 
+    @GetMapping("/feedbacks/top")
+    public ApiResponse<List<FeedbackResponse>> getTopFeedbacks(@RequestParam(defaultValue = "10") int limit) {
+        return ApiResponse.ok("Top feedbacks", feedbackService.getTopFeedbacks(limit));
+    }
+
+    @GetMapping("/feedbacks/summary")
+    public ApiResponse<List<RoomFeedbackSummaryResponse>> getRoomFeedbackSummaries(@RequestParam(required = false) List<String> roomIds) {
+        return ApiResponse.ok("Room feedback summaries", feedbackService.getRoomSummaries(roomIds));
+    }
+
+    @PostMapping("/feedbacks/summary")
+    public ApiResponse<List<RoomFeedbackSummaryResponse>> getRoomFeedbackSummariesPost(@RequestBody(required = false) Map<String, List<String>> payload) {
+        List<String> roomIds = payload == null ? List.of() : payload.getOrDefault("roomIds", List.of());
+        return ApiResponse.ok("Room feedback summaries", feedbackService.getRoomSummaries(roomIds));
+    }
+
     @GetMapping("/top-room-types")
     public ApiResponse<List<RevenueReportResponse>> getTopRoomTypes() {
         return ApiResponse.ok("Top room types by profit", reportService.getTopRoomTypesByProfit());
+    }
+
+    @GetMapping("/top-rooms")
+    public ApiResponse<List<TopRoomResponse>> getTopRooms(
+            @RequestParam(required = false) Double latitude,
+            @RequestParam(required = false) Double longitude,
+            @RequestParam(defaultValue = "4") Integer limit) {
+        return ApiResponse.ok("Top rooms", roomService.getTopRooms(latitude, longitude, limit));
     }
 
     @PostMapping("/payments/vnpay-ipn")

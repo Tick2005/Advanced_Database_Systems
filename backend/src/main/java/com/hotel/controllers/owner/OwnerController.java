@@ -47,6 +47,7 @@ public class OwnerController {
 	private final ReportService reportService;
 	private final DashboardService dashboardService;
 	private final PricingLogService pricingLogService;
+	private final com.hotel.modules.user.ProfileRepository profileRepository;
 
 	public OwnerController(
 		PricingService pricingService,
@@ -55,7 +56,8 @@ public class OwnerController {
 		UserService userService,
 		ReportService reportService,
 		DashboardService dashboardService,
-		PricingLogService pricingLogService
+		PricingLogService pricingLogService,
+		com.hotel.modules.user.ProfileRepository profileRepository
 	) {
 		this.pricingService = pricingService;
 		this.pricingRequestService = pricingRequestService;
@@ -64,6 +66,7 @@ public class OwnerController {
 		this.reportService = reportService;
 		this.dashboardService = dashboardService;
 		this.pricingLogService = pricingLogService;
+		this.profileRepository = profileRepository;
 	}
 
 	@PostMapping("/pricing")
@@ -128,15 +131,38 @@ public class OwnerController {
 
 	@GetMapping("/logs")
 	public ApiResponse<List<OwnerLogResponse>> logs() {
-		List<OwnerLogResponse> logs = pricingLogService.getRecentLogs().stream().map(this::toOwnerLogResponse).toList();
+		List<PricingLogEntity> recentLogs = pricingLogService.getRecentLogs();
+		
+		// Map user IDs to names
+		java.util.Set<java.util.UUID> userIds = recentLogs.stream()
+			.map(PricingLogEntity::getChangedBy)
+			.filter(id -> id != null)
+			.collect(java.util.stream.Collectors.toSet());
+			
+		java.util.Map<java.util.UUID, String> userNames = new java.util.HashMap<>();
+		if (!userIds.isEmpty()) {
+			profileRepository.findAllById(userIds).forEach(profile -> {
+				userNames.put(profile.getUserId(), profile.getFullName());
+			});
+		}
+
+		List<OwnerLogResponse> logs = recentLogs.stream()
+			.map(entity -> toOwnerLogResponse(entity, userNames))
+			.toList();
 		return ApiResponse.ok("Owner logs", logs);
 	}
 
-	private OwnerLogResponse toOwnerLogResponse(PricingLogEntity entity) {
+	private OwnerLogResponse toOwnerLogResponse(PricingLogEntity entity, java.util.Map<java.util.UUID, String> userNames) {
 		OwnerLogResponse response = new OwnerLogResponse();
 		response.setId(String.valueOf(entity.getId()));
 		response.setTime(entity.getChangedAt() != null ? entity.getChangedAt().toString() : null);
-		response.setActor(entity.getChangedBy() != null ? entity.getChangedBy().toString() : "system");
+		
+		String actorName = "system";
+		if (entity.getChangedBy() != null) {
+			actorName = userNames.getOrDefault(entity.getChangedBy(), entity.getChangedBy().toString());
+		}
+		response.setActor(actorName);
+		
 		response.setAction("ROOM_RATE_UPDATED");
 		response.setSource("room_rate_change_audit");
 		response.setDetails(String.format(

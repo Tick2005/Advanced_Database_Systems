@@ -19,7 +19,7 @@ public class RatingSyncScheduler {
 
     @PostConstruct
     public void initSync() {
-        // Run an initial sync at startup so average ratings are available immediately
+        // Run an initial sync at startup so room snapshots reflect feedback data immediately
         try {
             roomService.syncAverageRatings(feedbackService.getAverageRatingsByRoom());
         } catch (Exception ex) {

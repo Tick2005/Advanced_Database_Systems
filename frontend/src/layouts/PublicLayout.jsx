@@ -2,8 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { PATHS } from "../routes/pathConstants";
 import { useAuth } from "../features/auth/useAuth";
-import { useCustomerSettings } from "../hooks/useCustomerSettings";
-import { getBrowserLocation, loadLocationFromStorage, saveLocationToStorage } from "../services/geo";
 
 const CUSTOMER_MENU = [
   { to: PATHS.CUSTOMER_ROOMS, label: "Tìm phòng", icon: "🛏️" },
@@ -44,16 +42,11 @@ const PILL_GOLD = {
 
 export default function PublicLayout() {
   const { isAuthenticated, role, auth, logout } = useAuth();
-  const { settings } = useCustomerSettings();
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
-  const [locationPromptError, setLocationPromptError] = useState("");
-  const [locationLoading, setLocationLoading] = useState(false);
-  const [theme, setTheme] = useState(settings.theme);
   const menuRef = useRef(null);
   const location = useLocation();
   const navigate = useNavigate();
-  const [userLocation, setUserLocation] = useState(() => loadLocationFromStorage());
   const isCustomerSettingsPage = location.pathname.startsWith(PATHS.CUSTOMER_SETTINGS);
   const roleHome =
     role === "CUSTOMER" ? PATHS.CUSTOMER_HOME
@@ -64,11 +57,6 @@ export default function PublicLayout() {
 
   const displayName = auth?.email ? auth.email.split("@")[0] : "Guest";
   const initials = displayName.slice(0, 1).toUpperCase();
-
-  // Sync theme from settings hook
-  useEffect(() => {
-    setTheme(settings.theme);
-  }, [settings.theme]);
 
   // Close menu on route change
   useEffect(() => { setMenuOpen(false); }, [location.pathname]);
@@ -89,61 +77,9 @@ export default function PublicLayout() {
     return () => window.removeEventListener("scroll", handler);
   }, []);
 
-  useEffect(() => {
-    document.documentElement.dataset.theme = theme;
-  }, [theme]);
-
-  // Listen for settings updates from other components
-  useEffect(() => {
-    const handleSettingsUpdate = (event) => {
-      if (event.detail?.theme) {
-        setTheme(event.detail.theme);
-      }
-    };
-    window.addEventListener('user_settings_updated', handleSettingsUpdate);
-    return () => window.removeEventListener('user_settings_updated', handleSettingsUpdate);
-  }, []);
-
   const handleLogout = () => {
     logout();
     navigate(PATHS.LOGIN, { replace: true });
-  };
-
-  const toggleTheme = async () => {
-    const newTheme = theme === "dark" ? "light" : "dark";
-    setTheme(newTheme);
-    // Update backend settings for authenticated users
-    if (isAuthenticated) {
-      // Settings update will be handled by the hook automatically
-      window.dispatchEvent(new CustomEvent('user_theme_toggled', { detail: { theme: newTheme } }));
-    }
-  };
-
-  const enableLocation = async () => {
-    if (locationLoading) return; // Prevent double-click
-    if (!settings.allowLocation) {
-      setLocationPromptError("Bạn đang tắt quyền vị trí trong Cài đặt");
-      return;
-    }
-    
-    setLocationLoading(true);
-    setLocationPromptError("");
-    
-    const loc = await getBrowserLocation();
-    setLocationLoading(false);
-    
-    if (!loc) {
-      setLocationPromptError("Trình duyệt chưa cho phép truy cập vị trí. Vui lòng thử lại.");
-      // Auto-clear error after 5 seconds
-      setTimeout(() => setLocationPromptError(""), 5000);
-      return;
-    }
-
-    saveLocationToStorage(loc);
-    // notify other parts of the app in the same window
-    try { window.dispatchEvent(new CustomEvent('user_location_updated', { detail: loc })); } catch(e) {}
-    setUserLocation(loc);
-    setLocationPromptError("");
   };
 
   return (
@@ -186,83 +122,28 @@ export default function PublicLayout() {
             {/* Right section */}
             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
 
-              {/* ── GUEST (not logged in) — select (rooms/branches) + login icon + theme/location icons ── */}
+              {/* ── GUEST (not logged in) — login and register buttons only ── */}
               {!isAuthenticated && (
                 <>
-                  <select
-                    onChange={(e) => {
-                      if (e.target.value) navigate(e.target.value, { replace: false });
-                      e.target.value = "";
-                    }}
-                    defaultValue=""
-                    style={{
-                      height: 40,
-                      padding: "0 14px",
-                      borderRadius: 999,
-                      border: "1px solid #dbe4ee",
-                      background: "rgba(255,255,255,0.7)",
-                      color: "#17314d",
-                      fontSize: 14,
-                      fontWeight: 600,
-                      cursor: "pointer",
-                      transition: "background 0.15s, box-shadow 0.15s",
-                      boxSizing: "border-box",
-                    }}
-                  >
-                    <option value="">Home</option>
-                    <option value={PATHS.ROOMS}>🛏️ List phòng</option>
-                    <option value={PATHS.BRANCHES}>🏢 Chi nhánh</option>
-                  </select>
-
                   <button
                     type="button"
                     onClick={() => navigate(PATHS.LOGIN)}
                     aria-label="Đăng nhập"
-                    title="Đăng nhập tài khoản"
                     style={{
                       ...PILL,
-                      width: 40,
-                      padding: 0,
-                      borderRadius: 999,
-                      fontSize: 16,
+                      background: "transparent",
+                      border: "1px solid #dbe4ee",
                     }}
                   >
-                    🔐
+                    Đăng nhập
                   </button>
-
                   <button
                     type="button"
-                    onClick={toggleTheme}
-                    aria-label="Đổi giao diện sáng tối"
-                    title={theme === "dark" ? "Chuyển sang giao diện sáng" : "Chuyển sang giao diện tối"}
-                    style={{
-                      ...PILL,
-                      width: 40,
-                      padding: 0,
-                      borderRadius: 999,
-                      fontSize: 16,
-                    }}
+                    onClick={() => navigate(PATHS.REGISTER)}
+                    aria-label="Đăng ký"
+                    style={PILL_GOLD}
                   >
-                    {theme === "dark" ? "☀️" : "🌙"}
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={enableLocation}
-                    aria-label="Bật/tắt vị trí"
-                    title={userLocation ? `Vị trí: ${userLocation.label}` : "Bật vị trí để nhận gợi ý gần bạn"}
-                    disabled={locationLoading}
-                    style={{
-                      ...PILL,
-                      width: 40,
-                      padding: 0,
-                      borderRadius: 999,
-                      fontSize: 16,
-                      opacity: locationLoading ? 0.65 : 1,
-                      background: userLocation ? "rgba(13,34,56,0.08)" : "rgba(255,255,255,0.7)",
-                    }}
-                  >
-                    {locationLoading ? "⏳" : userLocation ? "📍" : "📍"}
+                    Đăng ký
                   </button>
                 </>
               )}
@@ -280,44 +161,6 @@ export default function PublicLayout() {
               {/* ── CUSTOMER (logged in) — avatar + dropdown ── */}
               {isAuthenticated && role === "CUSTOMER" && (
                 <>
-                  {!isCustomerSettingsPage && (
-                    <>
-                      <button
-                        type="button"
-                        onClick={enableLocation}
-                        aria-label="Bật vị trí"
-                        title={userLocation ? `Vị trí: ${userLocation.label}` : "Bật vị trí để nhận gợi ý gần bạn"}
-                        disabled={locationLoading}
-                        style={{
-                          ...PILL,
-                          width: 40,
-                          padding: 0,
-                          borderRadius: 999,
-                          fontSize: 16,
-                          opacity: locationLoading ? 0.65 : 1,
-                          background: userLocation ? "rgba(13,34,56,0.08)" : "rgba(255,255,255,0.7)",
-                        }}
-                      >
-                        {locationLoading ? "⏳" : "📍"}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={toggleTheme}
-                        aria-label="Đổi giao diện sáng tối"
-                        title={theme === "dark" ? "Chuyển sang giao diện sáng" : "Chuyển sang giao diện tối"}
-                        style={{
-                          ...PILL,
-                          width: 40,
-                          padding: 0,
-                          borderRadius: 999,
-                          fontSize: 16,
-                        }}
-                      >
-                        {theme === "dark" ? "☀️" : "🌙"}
-                      </button>
-                    </>
-                  )}
-
                   <div ref={menuRef} style={{ position: "relative" }}>
                     <button
                       type="button"
@@ -404,23 +247,6 @@ export default function PublicLayout() {
         </div>
       </header>
 
-      {!userLocation && locationPromptError && (
-        <div className="container" style={{ paddingTop: 12 }}>
-          <div className="surface-panel" style={{ padding: "12px 16px", display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
-            <span style={{ color: "#b91c1c", fontSize: 13 }}>{locationPromptError}</span>
-            <button
-              type="button"
-              className="btn btn-gold"
-              onClick={enableLocation}
-              disabled={locationLoading}
-              style={{ opacity: locationLoading ? 0.6 : 1, cursor: locationLoading ? "not-allowed" : "pointer" }}
-            >
-              {locationLoading ? "⏳ Đang xin cấp phép..." : "📍 Thử lại vị trí"}
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* ── MAIN ── */}
       <main id="main-content" style={{ flex: 1 }}>
         <Outlet />
@@ -457,7 +283,7 @@ export default function PublicLayout() {
           <div style={{ display: "grid", gap: 8, alignContent: "start" }}>
             <div style={{ fontWeight: 700, color: "#c9a84c", fontSize: 12, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 4 }}>Liên hệ</div>
             <span style={{ color: "#94a3b8", fontSize: 14 }}>📞 1900 6868</span>
-            <span style={{ color: "#94a3b8", fontSize: 14 }}>✉️ support@luxstay.local</span>
+            <span style={{ color: "#94a3b8", fontSize: 14 }}>✉️ support@luxstay.phanvanduong.site</span>
             <span style={{ color: "#94a3b8", fontSize: 14 }}>📍 01 Trần Phú, Đà Nẵng</span>
           </div>
         </div>

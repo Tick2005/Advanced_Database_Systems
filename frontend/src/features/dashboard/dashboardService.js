@@ -3,6 +3,7 @@ import { httpClient } from "../../services/httpClient";
 export const dashboardService = {
   // ── STAFF ──────────────────────────────────────────────────────────────
   getStaffTodayBookings: () => httpClient.get("/api/staff/bookings/today"),
+  getStaffBookingDetail: (id) => httpClient.get(`/api/staff/bookings/${id}`),
   checkInBooking: (id) => httpClient.put(`/api/staff/bookings/${id}/checkin`),
   checkOutBooking: (id) => httpClient.put(`/api/staff/bookings/${id}/checkout`),
   createWalkInBooking: (payload) => httpClient.post("/api/staff/bookings/walk-in", payload),

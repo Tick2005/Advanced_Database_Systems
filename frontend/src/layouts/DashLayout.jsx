@@ -29,10 +29,10 @@ export default function DashLayout({ children }) {
     OWNER: [
       { group: "Điều hành", to: PATHS.OWNER, label: "Dashboard", icon: "📊" },
       { group: "Điều hành", to: PATHS.OWNER_BRANCHES, label: "Chi nhánh", icon: "🏢" },
+      { group: "Điều hành", to: PATHS.OWNER_BOOKINGS, label: "Toàn bộ booking", icon: "📋" },
       { group: "Điều hành", to: PATHS.OWNER_USERS, label: "Người dùng", icon: "👥" },
       { group: "Giá và tài chính", to: PATHS.OWNER_PRICING, label: "Pricing", icon: "💵" },
-      { group: "Giá và tài chính", to: PATHS.OWNER_PRICING_REQUESTS, label: "Duyệt request", icon: "✅" },
-      { group: "Báo cáo hệ thống", to: PATHS.OWNER_LOGS, label: "Logs", icon: "🧾" }
+      { group: "Giá và tài chính", to: PATHS.OWNER_PRICING_REQUESTS, label: "Duyệt request", icon: "✅" }
     ]
   };
 
@@ -65,7 +65,7 @@ export default function DashLayout({ children }) {
       { prefix: PATHS.OWNER_PRICING.replace(":id", ""), title: "Quản lý pricing" },
       { prefix: PATHS.OWNER_PRICING_REQUESTS.replace(":id", ""), title: "Duyệt pricing requests" },
       { prefix: PATHS.OWNER_USERS.replace(":id", ""), title: "Quản lý người dùng" },
-      { prefix: PATHS.OWNER_LOGS.replace(":id", ""), title: "System logs" }
+      { prefix: PATHS.OWNER_BOOKINGS.replace(":id", ""), title: "Toàn bộ booking" }
     ];
 
     const matched = titleMappings.find((item) => location.pathname.startsWith(item.prefix));

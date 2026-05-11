@@ -128,7 +128,7 @@ export default function ManagerFeedbacksPage() {
       <div style={dashboardStyles.headerGradient}>
         <div>
           <div style={dashboardStyles.headerSubtitle}>Phản hồi khách hàng</div>
-          <div style={dashboardStyles.headerTitle}>Feedback & Đánh giá</div>
+          <div style={dashboardStyles.headerTitle}>Feedbacks & Phản hồi</div>
           <div style={dashboardStyles.headerDescription}>Quản lý và trả lời phản hồi của khách</div>
         </div>
       </div>

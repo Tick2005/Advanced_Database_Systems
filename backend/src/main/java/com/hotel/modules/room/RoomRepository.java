@@ -76,4 +76,11 @@ public interface RoomRepository extends JpaRepository<RoomEntity, UUID> {
         @Param("branchId") UUID branchId,
         @Param("minRating") Double minRating
     );
+
+    @Query(value = "SELECT * FROM get_top_rooms_by_location(:latitude, :longitude, :limit)", nativeQuery = true)
+    List<TopRoomProjection> findTopRoomsByLocation(
+        @Param("latitude") Double latitude,
+        @Param("longitude") Double longitude,
+        @Param("limit") Integer limit
+    );
 }

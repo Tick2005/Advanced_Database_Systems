@@ -16,6 +16,7 @@ import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 
 @Entity
 @Table(name = "bookings")
@@ -67,6 +68,10 @@ public class BookingEntity {
 
 	@Column(name = "updated_at")
 	private LocalDateTime updatedAt;
+
+	@Version
+	@Column(name = "version")
+	private Long version;
 
 	public UUID getId() {
 		return id;
@@ -186,6 +191,13 @@ public class BookingEntity {
 
 	public void setUpdatedAt(LocalDateTime updatedAt) {
 		this.updatedAt = updatedAt;
+	}
+	public Long getVersion() {
+		return version;
+	}
+
+	public void setVersion(Long version) {
+		this.version = version;
 	}
 }
 

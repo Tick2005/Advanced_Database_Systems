@@ -3,6 +3,7 @@ import RoomCard from "../RoomCard";
 import { roomService } from "../roomService";
 import { branchService } from "../../branches/branchService";
 import { serviceService } from "../../services/serviceService";
+import { feedbackService } from "../../feedback/feedbackService";
 import LoadingState from "../../../components/common/LoadingState";
 import ErrorState from "../../../components/common/ErrorState";
 import { PATHS } from "../../../routes/pathConstants";
@@ -49,15 +50,44 @@ export default function RoomList({ customer = false }) {
   const rooms = roomsQuery.data || [];
   const branches = branchesQuery.data || [];
   const services = servicesQuery.data || [];
+  const roomIds = useMemo(() => [...new Set(rooms.map((room) => room.id).filter(Boolean))], [rooms]);
+  const roomFeedbackSummaryQ = useApiQuery({
+    queryKey: ["room-list-feedback-summary", roomIds.join(",")],
+    queryFn: () => feedbackService.getRoomFeedbackSummaries(roomIds),
+    staleTime: 60 * 1000,
+    enabled: roomIds.length > 0,
+  });
   const debouncedFilters = useDebouncedValue(filters, 250);
+  const roomFeedbackSummaryMap = useMemo(() => {
+    const entries = roomFeedbackSummaryQ.data || [];
+    return entries.reduce((acc, item) => {
+      if (item?.roomId) {
+        acc[item.roomId] = {
+          averageRating: Number(item.averageRating || 0),
+          reviewCount: Number(item.reviewCount || 0),
+        };
+      }
+      return acc;
+    }, {});
+  }, [roomFeedbackSummaryQ.data]);
+  const roomsWithFeedback = useMemo(() => {
+    return rooms.map((room) => {
+      const summary = roomFeedbackSummaryMap[room.id];
+      return {
+        ...room,
+        averageRating: summary?.averageRating ?? Number(room.averageRating || 0),
+        reviewCount: summary?.reviewCount ?? Number(room.reviewCount || 0),
+      };
+    });
+  }, [rooms, roomFeedbackSummaryMap]);
 
   const filtered = useMemo(() => {
-    const nextRooms = applyRoomFilters(rooms, debouncedFilters);
+    const nextRooms = applyRoomFilters(roomsWithFeedback, debouncedFilters);
     if (sortBy === "featured") {
       return sortRoomsByProximityAndRating(nextRooms, branches, userLocation);
     }
     return sortRooms(nextRooms, sortBy);
-  }, [rooms, branches, userLocation, debouncedFilters, sortBy]);
+  }, [roomsWithFeedback, branches, userLocation, debouncedFilters, sortBy]);
 
   const paginated = useMemo(() => {
     const start = (page - 1) * pageSize;

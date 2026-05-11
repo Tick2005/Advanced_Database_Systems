@@ -16,10 +16,12 @@ import com.hotel.exception.BusinessException;
 import com.hotel.exception.NotFoundException;
 import com.hotel.modules.branch.BranchEntity;
 import com.hotel.modules.branch.BranchRepository;
+import com.hotel.modules.feedback.FeedbackService;
 import com.hotel.modules.room.dto.RoomCreateRequest;
 import com.hotel.modules.room.dto.RoomResponse;
 import com.hotel.modules.room.dto.RoomSearchFilter;
 import com.hotel.modules.room.dto.RoomUpdateRequest;
+import com.hotel.modules.room.dto.TopRoomResponse;
 
 @SuppressWarnings("null")
 @Service
@@ -28,17 +30,20 @@ public class RoomService {
 	private final RoomRepository roomRepository;
 	private final RoomTypeRepository roomTypeRepository;
 	private final BranchRepository branchRepository;
+	private final FeedbackService feedbackService;
 	private final RoomMapper roomMapper;
 
 	public RoomService(
 		RoomRepository roomRepository,
 		RoomTypeRepository roomTypeRepository,
 		BranchRepository branchRepository,
+		FeedbackService feedbackService,
 		RoomMapper roomMapper
 	) {
 		this.roomRepository = roomRepository;
 		this.roomTypeRepository = roomTypeRepository;
 		this.branchRepository = branchRepository;
+		this.feedbackService = feedbackService;
 		this.roomMapper = roomMapper;
 	}
 
@@ -71,9 +76,11 @@ public class RoomService {
 		Map<UUID, String> coverImageByRoomId = roomRepository.findCoverImageUrls(
 			rooms.stream().map(RoomEntity::getId).distinct().toList()
 		).stream().collect(java.util.stream.Collectors.toMap(RoomCoverImageProjection::getRoomId, RoomCoverImageProjection::getImageUrl));
+		Map<String, Double> averageRatingsByRoom = feedbackService.getAverageRatingsByRoom();
 
 		return rooms.stream()
 			.map(room -> {
+				enrichAverageRating(room, averageRatingsByRoom);
 				RoomTypeEntity roomType = roomTypeById.get(room.getRoomTypeId());
 				BranchEntity branch = roomType == null ? null : branchById.get(roomType.getBranchId());
 				if (roomType != null) {
@@ -97,6 +104,8 @@ public class RoomService {
 			.findFirst()
 			.map(RoomCoverImageProjection::getImageUrl)
 			.orElse(null);
+		Map<String, Double> averageRatingsByRoom = feedbackService.getAverageRatingsByRoom();
+		enrichAverageRating(room, averageRatingsByRoom);
 
 		room.setBranchId(roomType.getBranchId().toString());
 		return roomMapper.toResponse(room, roomType, branch.getCity(), imageUrl);
@@ -215,5 +224,56 @@ public class RoomService {
 
 	private @NonNull UUID parseUuid(String value) {
 		return UUID.fromString(value);
+	}
+
+	@Transactional(readOnly = true)
+	public List<TopRoomResponse> getTopRooms(Double latitude, Double longitude, Integer limit) {
+		if (limit == null || limit <= 0) {
+			limit = 4;
+		}
+
+		List<TopRoomProjection> projections = roomRepository.findTopRoomsByLocation(latitude, longitude, limit);
+		Map<String, Double> averageRatingsByRoom = feedbackService.getAverageRatingsByRoom();
+		List<UUID> roomIds = projections.stream()
+			.map(p -> UUID.fromString(p.getRoom_id()))
+			.toList();
+
+		Map<UUID, String> coverImageByRoomId = roomRepository.findCoverImageUrls(roomIds)
+			.stream()
+			.collect(java.util.stream.Collectors.toMap(RoomCoverImageProjection::getRoomId, RoomCoverImageProjection::getImageUrl));
+
+		return projections.stream()
+			.map(p -> {
+				Double liveAverageRating = averageRatingsByRoom.getOrDefault(p.getRoom_id(), p.getAverage_rating() == null ? 0.0d : p.getAverage_rating());
+				TopRoomResponse response = new TopRoomResponse(
+					p.getRoom_id(),
+					p.getRoom_number(),
+					liveAverageRating,
+					p.getRate(),
+					p.getStatus(),
+					p.getMax_occupancy(),
+					p.getRoom_type_id(),
+					p.getRoom_type_name(),
+					p.getBranch_id(),
+					p.getBranch_name(),
+					p.getBranch_city(),
+					p.getBranch_latitude(),
+					p.getBranch_longitude(),
+					p.getDistance_km()
+				);
+				response.setImageUrl(coverImageByRoomId.get(UUID.fromString(p.getRoom_id())));
+				return response;
+			})
+			.toList();
+	}
+
+	private void enrichAverageRating(RoomEntity room, Map<String, Double> averageRatingsByRoom) {
+		if (room == null || averageRatingsByRoom == null || averageRatingsByRoom.isEmpty()) {
+			return;
+		}
+		Double liveAverage = averageRatingsByRoom.get(room.getId().toString());
+		if (liveAverage != null) {
+			room.setAverageRating(liveAverage);
+		}
 	}
 }

@@ -50,6 +50,20 @@ export default function RoomDetail({ customer = false }) {
     const nights = Math.max(0, Math.round((to - from) / (1000 * 60 * 60 * 24)));
     return nights * Number(room.rate || 0);
   }, [checkInDate, checkOutDate, room]);
+  const feedbackStats = useMemo(() => {
+    const validRatings = feedbacks
+      .map((item) => Number(item.rating || 0))
+      .filter((value) => Number.isFinite(value) && value > 0);
+    const reviewCount = feedbacks.length;
+    const averageRating = validRatings.length > 0
+      ? validRatings.reduce((sum, value) => sum + value, 0) / validRatings.length
+      : Number(room?.averageRating || 0);
+
+    return {
+      averageRating,
+      reviewCount,
+    };
+  }, [feedbacks, room?.averageRating]);
 
   const goCreateBooking = () => {
     setBookingError("");
@@ -91,9 +105,10 @@ export default function RoomDetail({ customer = false }) {
   const gallery = [heroImage, heroImage, heroImage];
   const statusStyle = getStatusStyle(room.status);
   const amenities = getRoomAmenities(room);
-  const visibleFeedbacks = [...feedbacks]
-    .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
-    .slice(0, showAllFeedbacks ? feedbacks.length : 3);
+  const sortedFeedbacks = [...feedbacks]
+    .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+  const visibleFeedbacks = sortedFeedbacks.slice(0, showAllFeedbacks ? sortedFeedbacks.length : 3);
+  const hiddenFeedbacks = sortedFeedbacks.slice(3);
   const canBookAsCustomer = role === "CUSTOMER" && isAuthenticated;
 
   return (
@@ -120,7 +135,7 @@ export default function RoomDetail({ customer = false }) {
             <div>Phòng số: <strong>{room.roomNumber}</strong></div>
             <div>📍 {room.branchCity}</div>
             <div>👥 Tối đa {room.maxOccupancy} người</div>
-            <div><RatingStars value={room.averageRating} size={14} showValue /></div>
+            <div><RatingStars value={feedbackStats.averageRating} size={14} showValue count={feedbackStats.reviewCount} /></div>
             <div>Trạng thái: <strong>{formatStatus(room.status)}</strong></div>
             {room.roomTypeInterior && <div>🛋️ Nội thất: <strong>{room.roomTypeInterior}</strong></div>}
           </div>
@@ -182,7 +197,7 @@ export default function RoomDetail({ customer = false }) {
       <article className="card card-elevated" style={{ padding: 18 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
           <h3 style={{ margin: 0 }}>💬 Đánh giá gần nhất</h3>
-          <span style={{ fontSize: 12, color: "#64748b" }}>{feedbacks.length} đánh giá</span>
+          <span style={{ fontSize: 12, color: "#64748b" }}>{feedbackStats.reviewCount} đánh giá</span>
         </div>
 
         {feedbacks.length === 0 ? (
@@ -190,10 +205,7 @@ export default function RoomDetail({ customer = false }) {
         ) : (
           <div style={{ display: "grid", gap: 12 }}>
             {/* Chỉ lấy 3 đánh giá gần nhất */}
-            {[...feedbacks]
-              .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
-              .slice(0, 3)
-              .map((item) => (
+            {visibleFeedbacks.map((item) => (
                 <div key={item.id} style={{
                   padding: "14px 16px", borderRadius: 12,
                   background: "#f8fafc", border: "1px solid #e2e8f0"
@@ -216,7 +228,7 @@ export default function RoomDetail({ customer = false }) {
           </div>
         )}
 
-        {feedbacks.length > 3 && (
+        {sortedFeedbacks.length > 3 && (
           <div style={{ textAlign: "center", marginTop: 16 }}>
             <button
               type="button"
@@ -224,23 +236,19 @@ export default function RoomDetail({ customer = false }) {
               style={{ border: "1px solid #c9a84c", color: "#9a7d24", background: "white", padding: "10px 24px", borderRadius: 99 }}
               onClick={() => setShowAllFeedbacks((prev) => !prev)}
             >
-              {showAllFeedbacks ? "Thu gọn" : `Xem tất cả ${feedbacks.length} đánh giá →`}
+              {showAllFeedbacks ? "Thu gọn" : `Xem tất cả ${sortedFeedbacks.length} đánh giá →`}
             </button>
             {/* Khi mở full — show hết */}
             {showAllFeedbacks && (
               <div style={{ display: "grid", gap: 12, marginTop: 16, textAlign: "left" }}>
-                {[...feedbacks]
-                  .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
-                  .slice(3) // chỉ show phần còn lại
-                  .map((item) => (
+                {hiddenFeedbacks.map((item) => (
                     <div key={item.id} style={{ padding: "14px 16px", borderRadius: 12, background: "#f8fafc", border: "1px solid #e2e8f0" }}>
                       <div style={{ marginBottom: 6 }}>
                         <RatingStars value={item.rating} size={14} showValue />
                       </div>
                       <p style={{ margin: 0, fontSize: 14, color: "#334155" }}>{item.content}</p>
                     </div>
-                  ))
-                }
+                  ))}
               </div>
             )}
           </div>

@@ -2,6 +2,7 @@
 .github
 .vscode
 .sixth
+.idea
 frontend
 backend/target
 backend/.mvn
@@ -9,3 +10,4 @@ backend/mvnw
 backend/mvnw.cmd
 node_modules
 *.zip
+.env

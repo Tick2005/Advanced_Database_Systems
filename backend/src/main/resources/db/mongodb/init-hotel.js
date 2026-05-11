@@ -33,7 +33,7 @@ db.hotel_catalogs.createIndex({ city: 1, is_active: 1 }, { name: "idx_hotel_cata
 db.hotel_catalogs.createIndex({ amenities: 1 }, { name: "idx_hotel_catalog_amenities" });
 db.hotel_catalogs.createIndex({ description: "text", amenities: "text" }, { name: "idx_hotel_catalog_text_desc_amenities", default_language: "english" });
 
-db.customer_settings.createIndex({ user_id: 1 }, { name: "ux_customer_settings_user_id", unique: true });}
+db.customer_settings.createIndex({ user_id: 1 }, { name: "ux_customer_settings_user_id", unique: true });
 db.customer_settings.createIndex({ updated_at: -1 }, { name: "idx_customer_settings_updated_at" });
 
 // Seed dữ liệu
@@ -60,9 +60,10 @@ upsertMany("feedbacks", [
     user_id: "44444444-4444-4444-4444-444444444444",
     room_id: "77777777-7777-7777-7777-777777777771",
     rating: 5,
-    content: "Great stay, clean room and helpful staff.",
+    content: "Phòng rất sạch sẽ, view biển tuyệt đẹp. Nhân viên thân thiện và hỗ trợ nhanh chóng. Chắc chắn sẽ quay lại lần sau!",
+    manager_reply: "Cảm ơn bạn đã ở lại với chúng tôi. Rất vui khi bạn có trải nghiệm tốt!",
     created_at: new Date("2026-04-21T09:00:00Z"),
-    updated_at: new Date("2026-04-21T10:00:00Z")
+    updated_at: new Date("2026-04-21T14:00:00Z")
   },
   {
     _id: "feedback_demo_002",
@@ -70,7 +71,8 @@ upsertMany("feedbacks", [
     user_id: "44444444-4444-4444-4444-444444444444",
     room_id: "77777777-7777-7777-7777-777777777772",
     rating: 4,
-    content: "View đẹp, nhân viên hỗ trợ nhanh.",
+    content: "View đẹp từ tầng cao, nhân viên hỗ trợ rất nhanh khi tôi cần thêm khăn tắm. Bữa sáng phong phú. Trừ 1 sao vì điều hòa hơi ồn.",
+    manager_reply: null,
     created_at: new Date("2026-04-22T08:30:00Z"),
     updated_at: new Date("2026-04-22T08:30:00Z")
   },
@@ -80,9 +82,10 @@ upsertMany("feedbacks", [
     user_id: "44444444-4444-4444-4444-444444444444",
     room_id: "77777777-7777-7777-7777-777777777773",
     rating: 5,
-    content: "Phòng gia đình rộng, sạch.",
+    content: "Phòng suite gia đình rất rộng và thoáng, đủ chỗ cho 4 người thoải mái. Bể bơi sạch, trẻ em rất thích. Tuyệt vời!",
+    manager_reply: "Cảm ơn gia đình đã lựa chọn chúng tôi! Rất vui khi các bé thích bể bơi.",
     created_at: new Date("2026-05-03T10:00:00Z"),
-    updated_at: new Date("2026-05-03T10:00:00Z")
+    updated_at: new Date("2026-05-03T15:00:00Z")
   },
   {
     _id: "feedback_demo_004",
@@ -90,7 +93,8 @@ upsertMany("feedbacks", [
     user_id: "44444444-4444-4444-4444-444444444444",
     room_id: "77777777-7777-7777-7777-777777777774",
     rating: 5,
-    content: "Không gian yên tĩnh.",
+    content: "Không gian yên tĩnh, nệm êm, rèm cửa cách sáng tốt. Phù hợp để nghỉ ngơi sau chuyến công tác dài. Wifi tốc độ cao rất tiện.",
+    manager_reply: null,
     created_at: new Date("2026-05-05T15:45:00Z"),
     updated_at: new Date("2026-05-05T15:45:00Z")
   },
@@ -100,9 +104,120 @@ upsertMany("feedbacks", [
     user_id: "44444444-4444-4444-4444-444444444446",
     room_id: "77777777-7777-7777-7777-777777777775",
     rating: 2,
-    content: "Phòng chưa tốt.",
+    content: "Phòng chưa được dọn sạch khi check-in, còn rác từ khách trước. Đã báo lễ tân nhưng chờ 40 phút mới có người lên. Cần cải thiện.",
+    manager_reply: "Chúng tôi xin lỗi chân thành về sự cố này. Chúng tôi đã ghi nhận và sẽ cải thiện quy trình kiểm tra phòng trước check-in.",
     created_at: new Date("2026-04-29T08:30:00Z"),
-    updated_at: new Date("2026-04-29T08:30:00Z")
+    updated_at: new Date("2026-04-29T11:00:00Z")
+  },
+  {
+    _id: "feedback_demo_006",
+    booking_id: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa6",
+    user_id: "44444444-4444-4444-4444-444444444446",
+    room_id: "77777777-7777-7777-7777-777777777771",
+    rating: 5,
+    content: "Lần này trải nghiệm hoàn hảo hơn nhiều! Phòng sạch, thơm, view biển hoàng hôn cực đẹp. Bữa sáng buffet rất ngon và đa dạng.",
+    manager_reply: null,
+    created_at: new Date("2026-05-06T09:00:00Z"),
+    updated_at: new Date("2026-05-06T09:00:00Z")
+  },
+  {
+    _id: "feedback_demo_007",
+    booking_id: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa7",
+    user_id: "44444444-4444-4444-4444-444444444447",
+    room_id: "77777777-7777-7777-7777-777777777772",
+    rating: 3,
+    content: "Phòng ổn, nhân viên lịch sự. Tuy nhiên wifi khá chậm vào buổi tối, hồ bơi đóng cửa sớm hơn giờ ghi trên website.",
+    manager_reply: "Cảm ơn bạn đã phản hồi. Chúng tôi đang nâng cấp hệ thống wifi và sẽ cập nhật lại giờ mở cửa hồ bơi.",
+    created_at: new Date("2026-05-03T12:00:00Z"),
+    updated_at: new Date("2026-05-03T14:30:00Z")
+  },
+  {
+    _id: "feedback_demo_008",
+    booking_id: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa8",
+    user_id: "44444444-4444-4444-4444-444444444447",
+    room_id: "77777777-7777-7777-7777-777777777773",
+    rating: 5,
+    content: "Suite penthouse tuyệt đỉnh! Jacuzzi ngoài ban công với view thành phố ban đêm không thể chê. Xứng đáng từng đồng. Nhân viên butler phục vụ tận tâm.",
+    manager_reply: null,
+    created_at: new Date("2026-05-04T16:00:00Z"),
+    updated_at: new Date("2026-05-04T16:00:00Z")
+  },
+  {
+    _id: "feedback_demo_009",
+    booking_id: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa9",
+    user_id: "44444444-4444-4444-4444-444444444448",
+    room_id: "77777777-7777-7777-7777-777777777774",
+    rating: 4,
+    content: "Phòng deluxe rất tốt, giá hợp lý cho chất lượng. Mini bar đầy đủ. Chỉ cần cải thiện thêm ánh sáng phòng tắm và bổ sung gương lớn hơn.",
+    manager_reply: null,
+    created_at: new Date("2026-05-01T10:30:00Z"),
+    updated_at: new Date("2026-05-01T10:30:00Z")
+  },
+  {
+    _id: "feedback_demo_010",
+    booking_id: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaa10",
+    user_id: "44444444-4444-4444-4444-444444444448",
+    room_id: "77777777-7777-7777-7777-777777777775",
+    rating: 5,
+    content: "Trải nghiệm 5 sao thực sự. Check-in nhanh chỉ 5 phút, phòng chuẩn bị sẵn hoa tươi và trái cây theo yêu cầu. Sẽ giới thiệu cho bạn bè.",
+    manager_reply: "Cảm ơn bạn rất nhiều! Chúng tôi rất vui được đón bạn và những người thân của bạn trong tương lai.",
+    created_at: new Date("2026-05-02T08:00:00Z"),
+    updated_at: new Date("2026-05-02T09:00:00Z")
+  },
+  {
+    _id: "feedback_demo_011",
+    booking_id: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaa13",
+    user_id: "44444444-4444-4444-4444-444444444446",
+    room_id: "77777777-7777-7777-7777-777777777773",
+    rating: 5,
+    content: "Phòng rất đẹp và sạch sẽ. Tầm nhìn ra biển tuyệt vời! Nhân viên nhiệt tình.",
+    manager_reply: "Cảm ơn bạn đã trải nghiệm tại LuxStay! Hẹn gặp lại bạn lần sau.",
+    created_at: new Date("2026-05-06T10:00:00Z"),
+    updated_at: new Date("2026-05-06T10:00:00Z")
+  },
+  {
+    _id: "feedback_demo_012",
+    booking_id: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaa14",
+    user_id: "44444444-4444-4444-4444-444444444448",
+    room_id: "77777777-7777-7777-7777-777777777775",
+    rating: 4,
+    content: "Giá cả hợp lý, phòng ốc tiện nghi. Tuy nhiên buffet sáng hơi ít món.",
+    manager_reply: "Cảm ơn góp ý của bạn, chúng tôi sẽ cải thiện thực đơn buffet.",
+    created_at: new Date("2026-05-07T14:30:00Z"),
+    updated_at: new Date("2026-05-07T14:30:00Z")
+  },
+  {
+    _id: "feedback_demo_013",
+    booking_id: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaa15",
+    user_id: "44444444-4444-4444-4444-444444444447",
+    room_id: "77777777-7777-7777-7777-777777777772",
+    rating: 5,
+    content: "Trải nghiệm sang trọng thực sự. Giường ngủ cực kỳ êm ái, rất đáng tiền.",
+    manager_reply: "Rất vui vì bạn hài lòng với dịch vụ phòng cao cấp của chúng tôi.",
+    created_at: new Date("2026-05-08T09:15:00Z"),
+    updated_at: new Date("2026-05-08T09:15:00Z")
+  },
+  {
+    _id: "feedback_demo_014",
+    booking_id: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaa11",
+    user_id: "44444444-4444-4444-4444-444444444446",
+    room_id: "77777777-7777-7777-7777-777777777774",
+    rating: 4,
+    content: "Không gian yên tĩnh, rất phù hợp để nghỉ ngơi cuối tuần. Sẽ quay lại.",
+    manager_reply: null,
+    created_at: new Date("2026-05-09T18:20:00Z"),
+    updated_at: new Date("2026-05-09T18:20:00Z")
+  },
+  {
+    _id: "feedback_demo_015",
+    booking_id: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaa12",
+    user_id: "44444444-4444-4444-4444-444444444448",
+    room_id: "77777777-7777-7777-7777-777777777771",
+    rating: 5,
+    content: "Mọi thứ đều hoàn hảo từ lúc check-in đến check-out. 10 điểm!",
+    manager_reply: "LuxStay cảm ơn bạn đã cho chúng tôi 10 điểm!",
+    created_at: new Date("2026-05-10T08:00:00Z"),
+    updated_at: new Date("2026-05-10T08:00:00Z")
   }
 ]);
 
@@ -209,4 +324,3 @@ upsertDocument("customer_settings", {
   allowCamera: true,
   updated_at: new Date("2026-04-20T12:00:00Z")
 });
-

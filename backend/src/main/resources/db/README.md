@@ -25,5 +25,9 @@ Notes
 	 database before migrating with this compact layout.
 
 MongoDB notes
-- init-hotel.js: manual idempotent seed/bootstrap script for MongoDB
+- `mongodb/init-hotel.js`: manual idempotent seed/bootstrap script for MongoDB
+	- Creates collections: `sessions`, `verification_tokens`, `feedbacks`, `activity_logs`, `room_cache`, `hotel_catalogs`, `customer_settings`.
+	- Adds TTL indexes for `sessions.expires_at` and `verification_tokens.expires_at`.
+	- Seed data is idempotent and intended for local/demo environments only.
+	- The backend `FeedbackDocument` is mapped to the `feedbacks` collection and repository-level aggregations use this collection.
 

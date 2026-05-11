@@ -12,7 +12,7 @@ import RatingStars from "../components/common/RatingStars";
 import { formatCurrencyVnd } from "../services/presenters";
 import { useApiQuery } from "../hooks/useApiQuery";
 import { queryKeys } from "../services/queryKeys";
-import { loadLocationFromStorage, sortRoomsByProximityAndRating } from "../services/geo";
+import { getBrowserLocation, loadLocationFromStorage, saveLocationToStorage } from "../services/geo";
 
 /* ─── STATIC DATA (fallback + enrichment) ─────────────────────────────────── */
 const HERO_IMAGES = [
@@ -22,6 +22,13 @@ const HERO_IMAGES = [
   "https://images.pexels.com/photos/271619/pexels-photo-271619.jpeg",
   "https://images.pexels.com/photos/1743229/pexels-photo-1743229.jpeg",
   "https://images.pexels.com/photos/262048/pexels-photo-262048.jpeg",
+];
+
+const ROOM_IMAGES = [
+  "https://images.pexels.com/photos/271624/pexels-photo-271624.jpeg",
+  "https://images.pexels.com/photos/164595/pexels-photo-164595.jpeg",
+  "https://images.pexels.com/photos/271639/pexels-photo-271639.jpeg",
+  "https://images.pexels.com/photos/258154/pexels-photo-258154.jpeg",
 ];
 
 const SERVICE_CATEGORIES = ["Tất cả", "BOTH", "PREBOOK", "ON_SITE"];
@@ -78,6 +85,30 @@ export default function Home() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!allowLocation || userLocation) {
+      return;
+    }
+
+    let cancelled = false;
+    getBrowserLocation().then((location) => {
+      if (cancelled || !location) {
+        return;
+      }
+      setUserLocation(location);
+      saveLocationToStorage(location);
+      try {
+        window.dispatchEvent(new CustomEvent("user_location_updated", { detail: location }));
+      } catch (err) {
+        // Ignore cross-component event errors.
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [allowLocation, userLocation]);
+
   /* ── Queries ── */
   const branchesQ = useApiQuery({ queryKey: queryKeys.branches, queryFn: () => branchService.getTopBranches(), staleTime: 60000 });
   const roomsQ = useApiQuery({ queryKey: queryKeys.rooms(), queryFn: () => roomService.getRooms(), staleTime: 60000 });
@@ -87,34 +118,67 @@ export default function Home() {
     staleTime: 60000,
     enabled: Boolean(selectedBranchId),
   });
+  const rooms = roomsQ.data || [];
+  const roomIds = useMemo(() => [...new Set(rooms.map((room) => room.id).filter(Boolean))], [rooms]);
+  const roomFeedbackSummaryQ = useApiQuery({
+    queryKey: ["home-feedback-summary", roomIds.join(",")],
+    queryFn: () => feedbackService.getRoomFeedbackSummaries(roomIds),
+    staleTime: 60000,
+    enabled: roomIds.length > 0,
+  });
   const feedbackQ = useApiQuery({
-    queryKey: ["home-fb-all"],
-    queryFn: async () => {
-      const rooms = await roomService.getRooms();
-      const chunks = await Promise.all((rooms || []).map((r) => feedbackService.getFeedbackByRoom(r.id || r.roomId).catch(() => [])));
-      return chunks.flatMap((c) => c || []).sort((a, b) => (b.rating || 0) - (a.rating || 0)).slice(0, 10);
-    },
+    queryKey: ["home-feedback-top"],
+    queryFn: () => feedbackService.getTopFeedbacks(10),
     staleTime: 60000,
   });
 
   const branches = branchesQ.data || [];
-  const rooms = roomsQ.data || [];
-  
-  /* Enrich from DB or use static - prioritize by user location */
-  const topRooms = useMemo(() => {
-    if (!rooms || rooms.length === 0) return [];
+  const roomFeedbackSummaryMap = useMemo(() => {
+    const entries = roomFeedbackSummaryQ.data || [];
+    return entries.reduce((acc, item) => {
+      if (item?.roomId) {
+        acc[item.roomId] = {
+          averageRating: Number(item.averageRating || 0),
+          reviewCount: Number(item.reviewCount || 0),
+        };
+      }
+      return acc;
+    }, {});
+  }, [roomFeedbackSummaryQ.data]);
 
-    return sortRoomsByProximityAndRating(rooms, branches, userLocation, allowLocation)
-      .slice(0, 4)
-      .map((room, index) => ({
+  /* ── Query top rooms from backend (with optional location) ── */
+  const topRoomsQ = useApiQuery({
+    queryKey: ["home-top-rooms", allowLocation, userLocation?.latitude, userLocation?.longitude],
+    queryFn: () => roomService.getTopRooms({
+      latitude: allowLocation && userLocation?.latitude ? userLocation.latitude : undefined,
+      longitude: allowLocation && userLocation?.longitude ? userLocation.longitude : undefined,
+      limit: 4
+    }),
+    staleTime: 60000,
+  });
+  const roomsWithFeedback = useMemo(() => {
+    return rooms.map((room) => {
+      const summary = roomFeedbackSummaryMap[room.id];
+      return {
         ...room,
-        img: room.imageUrl || ROOM_IMAGES[index % ROOM_IMAGES.length]
-      }));
-  }, [rooms, branches, userLocation, allowLocation]);
+        averageRating: summary?.averageRating ?? Number(room.averageRating || 0),
+        reviewCount: summary?.reviewCount ?? Number(room.reviewCount || 0),
+      };
+    });
+  }, [rooms, roomFeedbackSummaryMap]);
+  
+  /* ── Top rooms from API (calculated by backend: distance + rating) ── */
+  const topRooms = useMemo(() => {
+    const data = topRoomsQ.data || [];
+    return data.map((room, index) => ({
+      ...room,
+      img: room.imageUrl || ROOM_IMAGES[index % ROOM_IMAGES.length],
+    }));
+  }, [topRoomsQ.data]);
 
   const reviews = useMemo(() => {
-  return feedbackQ.data || [];
-}, [feedbackQ.data]);
+    return feedbackQ.data || [];
+  }, [feedbackQ.data]);
 
   const services = useMemo(() => {
     const live = servicesQ.data || [];
@@ -295,11 +359,9 @@ export default function Home() {
                   <div style={{ position: "absolute", top: 10, left: 10, background: "#0d2238", color: "#c9a84c", padding: "3px 10px", borderRadius: 99, fontSize: 11, fontWeight: 800 }}>
                     #{i + 1}
                   </div>
-                  {Number(room.averageRating || 0) > 0 && (
-                    <div style={{ position: "absolute", top: 10, right: 10, background: "rgba(0,0,0,0.6)", color: "#fbbf24", padding: "3px 10px", borderRadius: 99, fontSize: 11, fontWeight: 700 }}>
-                      ★ {Number(room.averageRating || 0).toFixed(1)}
-                    </div>
-                  )}
+                  <div style={{ position: "absolute", top: 10, right: 10, background: "rgba(0,0,0,0.6)", color: "#fbbf24", padding: "3px 10px", borderRadius: 99, fontSize: 11, fontWeight: 700 }}>
+                    {Number(room.averageRating || 0) > 0 ? `★ ${Number(room.averageRating || 0).toFixed(1)}` : "Chưa có đánh giá"}
+                  </div>
                 </div>
                 <div style={{ padding: "14px 16px" }}>
                   <div style={{ fontWeight: 800, fontSize: 14, color: "#0d2238", marginBottom: 4 }}>{room.roomTypeName} · #{room.roomNumber}</div>
@@ -309,6 +371,11 @@ export default function Home() {
                   <div style={{ marginBottom: 8 }}>
                     <RatingStars value={room.averageRating} size={14} showValue />
                   </div>
+                  {Number(room.reviewCount || 0) > 0 && (
+                    <div style={{ fontSize: 11, color: "#64748b", marginBottom: 6 }}>
+                      {room.reviewCount} đánh giá thực tế
+                    </div>
+                  )}
                   {room.branchCity && (
                     <div style={{ fontSize: 11, color: "#16a34a", fontWeight: 700, marginBottom: 6 }}>
                       📍 {room.branchCity}
@@ -404,7 +471,7 @@ export default function Home() {
           <div style={{ textAlign: "center", marginBottom: 36 }}>
             <div style={{ fontSize: 12, fontWeight: 700, color: "#9a7d24", textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 8 }}>💬 Khách hàng nói gì</div>
             <h2 style={{ margin: 0, fontSize: "clamp(22px,3vw,32px)", fontWeight: 800, fontFamily: "Playfair Display, serif", color: "#0d2238" }}>
-              Top 10 đánh giá cao nhất
+              Top 10 phản hồi nổi bật
             </h2>
             <p style={{ color: "#64748b", marginTop: 10 }}>Phản hồi thực từ khách hàng đã lưu trú tại LuxStay</p>
           </div>
@@ -440,12 +507,12 @@ export default function Home() {
                   </p>
                   <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                     <div style={{ width: 48, height: 48, borderRadius: 999, background: "linear-gradient(135deg,#0d2238,#1e3a5f)", color: "#c9a84c", display: "grid", placeItems: "center", fontSize: 18, fontWeight: 800 }}>
-                      {reviews[reviewIdx].avatar || (reviews[reviewIdx].customerName || "K").slice(0, 1).toUpperCase()}
+                      {reviews[reviewIdx].avatarUrl ? "🖼️" : (reviews[reviewIdx].customerName || "K").slice(0, 1).toUpperCase()}
                     </div>
                     <div style={{ textAlign: "left" }}>
-                      <div style={{ fontWeight: 700, fontSize: 14, color: "#0d2238" }}>{reviews[reviewIdx].name || reviews[reviewIdx].customerName || "Khách hàng"}</div>
+                      <div style={{ fontWeight: 700, fontSize: 14, color: "#0d2238" }}>{reviews[reviewIdx].customerName || "Khách hàng"}</div>
                       <div style={{ fontSize: 12, color: "#94a3b8" }}>
-                        {reviews[reviewIdx].room || ""}{reviews[reviewIdx].room && reviews[reviewIdx].branch ? " · " : ""}{reviews[reviewIdx].branch || ""}
+                        {reviews[reviewIdx].roomName || ""}{reviews[reviewIdx].roomName && reviews[reviewIdx].branchName ? " · " : ""}{reviews[reviewIdx].branchName || ""}
                       </div>
                     </div>
                   </div>
