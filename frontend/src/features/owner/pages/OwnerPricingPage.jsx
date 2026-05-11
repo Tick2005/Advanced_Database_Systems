@@ -102,6 +102,20 @@ export default function OwnerPricingPage() {
     }
   }, [editingId, form, selectedBranchId, can, track, fetchPricing]);
 
+  const toggleActive = useCallback(async (item) => {
+    if (!can(ACTIONS.PRICING_UPDATE)) {
+      setError("Bạn không có quyền thực hiện hành động này"); return;
+    }
+    try {
+      await dashboardService.updateOwnerPricing(item.id, { active: !item.active });
+      setMessage(item.active ? "Đã tạm ngưng pricing" : "Đã kích hoạt pricing");
+      track("pricing_toggled", { id: item.id, active: !item.active });
+      fetchPricing(selectedBranchId);
+    } catch (err) {
+      setError(err.message || "Không thể cập nhật trạng thái pricing");
+    }
+  }, [fetchPricing, selectedBranchId, track, can]);
+
   const currentBranch = branches.find((b) => b.id === selectedBranchId);
 
   return (
@@ -110,7 +124,7 @@ export default function OwnerPricingPage() {
       <ToastMessage type="success" message={message} onClose={() => setMessage("")} />
       <ToastMessage type="error" message={error} onClose={() => setError("")} />
       <BranchSelector branches={branches} selectedBranchId={selectedBranchId} onSelect={handleBranchChange} />
-      {roomTypes.length > 0 ? <RoomTypeGroupedPricings roomTypes={roomTypes} rows={rows} onEdit={openEdit} /> : rows.length > 0 ? <FallbackPricings rows={rows} onEdit={openEdit} /> : selectedBranchId && <EmptyState />}
+      {roomTypes.length > 0 ? <RoomTypeGroupedPricings roomTypes={roomTypes} rows={rows} onEdit={openEdit} onToggleActive={toggleActive} /> : rows.length > 0 ? <FallbackPricings rows={rows} onEdit={openEdit} onToggleActive={toggleActive} /> : selectedBranchId && <EmptyState />}
       {openModal && <CreateEditPricingModal editing={editingId} form={form} setField={setField} fieldErrors={fieldErrors} saving={saving} branch={currentBranch} roomTypes={roomTypes} toggleRoomType={toggleRoomType} onSave={save} onClose={() => setOpenModal(false)} />}
     </section>
   );
@@ -151,13 +165,13 @@ function BranchSelector({ branches, selectedBranchId, onSelect }) {
 }
 
 // Subcomponent: Room Type Grouped Pricings
-function RoomTypeGroupedPricings({ roomTypes, rows, onEdit }) {
+function RoomTypeGroupedPricings({ roomTypes, rows, onEdit, onToggleActive }) {
   return (
     <div style={{ display: "grid", gap: 14 }}>
       {roomTypes.map((rt) => {
         const rtPricings = rows.filter((r) => (r.roomTypes || []).includes(rt.id) || r.roomTypeId === rt.id);
         return (
-          <RoomTypeCard key={rt.id} roomType={rt} pricings={rtPricings} onEdit={onEdit} />
+          <RoomTypeCard key={rt.id} roomType={rt} pricings={rtPricings} onEdit={onEdit} onToggleActive={onToggleActive} />
         );
       })}
     </div>
@@ -165,7 +179,7 @@ function RoomTypeGroupedPricings({ roomTypes, rows, onEdit }) {
 }
 
 // Subcomponent: Room Type Card
-function RoomTypeCard({ roomType, pricings, onEdit }) {
+function RoomTypeCard({ roomType, pricings, onEdit, onToggleActive }) {
   return (
     <article style={dashboardStyles.summaryCard}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 10 }}>
@@ -178,7 +192,7 @@ function RoomTypeCard({ roomType, pricings, onEdit }) {
       {pricings.length > 0 ? (
         <div style={{ display: "grid", gap: 8, paddingTop: 8, borderTop: "1px solid #f1f5f9" }}>
           {pricings.map((p) => (
-            <PricingItem key={p.id} pricing={p} onEdit={onEdit} />
+            <PricingItem key={p.id} pricing={p} onEdit={onEdit} onToggleActive={onToggleActive} />
           ))}
         </div>
       ) : (
@@ -189,36 +203,44 @@ function RoomTypeCard({ roomType, pricings, onEdit }) {
 }
 
 // Subcomponent: Pricing Item
-function PricingItem({ pricing, onEdit }) {
+function PricingItem({ pricing, onEdit, onToggleActive }) {
   return (
-    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 8, background: "#f8fafc", border: "1px solid #e2e8f0", flexWrap: "wrap" }}>
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 8, background: pricing.active === false ? "#f1f5f9" : "#f8fafc", border: "1px solid #e2e8f0", flexWrap: "wrap", opacity: pricing.active === false ? 0.6 : 1 }}>
       <div style={{ display: "grid", gap: 3, flex: 1 }}>
-        <span style={{ fontWeight: 700, fontSize: 13 }}>{pricing.name}</span>
+        <span style={{ fontWeight: 700, fontSize: 13, textDecoration: pricing.active === false ? "line-through" : "none" }}>{pricing.name}</span>
         <span style={{ fontSize: 12, color: "#64748b" }}>{pricing.startsOn} → {pricing.endsOn}</span>
       </div>
       <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
         {pricing.discountPercent > 0 && (
-          <span style={{ background: "#dcfce7", color: "#16a34a", padding: "4px 10px", borderRadius: 6, fontSize: 12, fontWeight: 700 }}>
+          <span style={{ background: pricing.active === false ? "#e2e8f0" : "#dcfce7", color: pricing.active === false ? "#64748b" : "#16a34a", padding: "4px 10px", borderRadius: 6, fontSize: 12, fontWeight: 700 }}>
             -{pricing.discountPercent}%
           </span>
         )}
-        <button className="btn" style={{ border: "1px solid #e2e8f0", background: "white", padding: "6px 10px", fontSize: 12 }} onClick={() => onEdit(pricing)}>✏️</button>
+        <button className="btn" style={{ border: pricing.active ? "1px solid #fca5a5" : "1px solid #bbf7d0", background: pricing.active ? "#fee2e2" : "#dcfce7", color: pricing.active ? "#b91c1c" : "#16a34a", padding: "6px 10px", fontSize: 12, fontWeight: 600 }} onClick={() => onToggleActive(pricing)}>
+          {pricing.active ? "⏸ Tạm ngưng" : "▶ Kích hoạt"}
+        </button>
+        <button className="btn" style={{ border: "1px solid #e2e8f0", background: "white", padding: "6px 10px", fontSize: 12 }} onClick={() => onEdit(pricing)}>✏️ Sửa</button>
       </div>
     </div>
   );
 }
 
 // Subcomponent: Fallback Pricings
-function FallbackPricings({ rows, onEdit }) {
+function FallbackPricings({ rows, onEdit, onToggleActive }) {
   return (
     <div style={{ display: "grid", gap: 12 }}>
       {rows.map((p) => (
-        <article key={p.id} style={{ ...dashboardStyles.summaryCard, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap", padding: "12px 16px" }}>
+        <article key={p.id} style={{ ...dashboardStyles.summaryCard, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap", padding: "12px 16px", opacity: p.active === false ? 0.6 : 1 }}>
           <div>
-            <div style={{ fontWeight: 700, fontSize: 14 }}>{p.name}</div>
+            <div style={{ fontWeight: 700, fontSize: 14, textDecoration: p.active === false ? "line-through" : "none" }}>{p.name}</div>
             <div style={{ fontSize: 12, color: "#64748b" }}>{p.startsOn} → {p.endsOn} · -{p.discountPercent}%</div>
           </div>
-          <button className="btn" style={{ border: "1px solid #e2e8f0", background: "white", padding: "6px 12px", fontSize: 13 }} onClick={() => onEdit(p)}>✏️ Sửa</button>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button className="btn" style={{ border: p.active ? "1px solid #fca5a5" : "1px solid #bbf7d0", background: p.active ? "#fee2e2" : "#dcfce7", color: p.active ? "#b91c1c" : "#16a34a", padding: "6px 12px", fontSize: 13, fontWeight: 600 }} onClick={() => onToggleActive(p)}>
+              {p.active ? "⏸ Tạm ngưng" : "▶ Kích hoạt"}
+            </button>
+            <button className="btn" style={{ border: "1px solid #e2e8f0", background: "white", padding: "6px 12px", fontSize: 13 }} onClick={() => onEdit(p)}>✏️ Sửa</button>
+          </div>
         </article>
       ))}
     </div>

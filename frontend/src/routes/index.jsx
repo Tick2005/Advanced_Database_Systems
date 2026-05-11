@@ -55,7 +55,6 @@ const OwnerBookingsPage = lazy(() => import("../features/owner/pages/OwnerBookin
 const OwnerPricingPage = lazy(() => import("../features/owner/pages/OwnerPricingPage"));
 const OwnerPricingRequestsPage = lazy(() => import("../features/owner/pages/OwnerPricingRequestsPage"));
 const OwnerUsersPage = lazy(() => import("../features/owner/pages/OwnerUsersPage"));
-const OwnerLogsPage = lazy(() => import("../features/owner/pages/OwnerLogsPage"));
 
 function defaultRedirectByRole(role) {
   if (role === "CUSTOMER") return PATHS.CUSTOMER_HOME;
@@ -158,7 +157,6 @@ export function AppRoutes() {
           <Route path="pricing" element={<OwnerPricingPage />} />
           <Route path="pricing-requests" element={<OwnerPricingRequestsPage />} />
           <Route path="users" element={<OwnerUsersPage />} />
-          <Route path="logs" element={<OwnerLogsPage />} />
         </Route>
 
         <Route path={PATHS.FORBIDDEN} element={<Forbidden />} />

@@ -94,11 +94,13 @@ export default function Home() {
     staleTime: 60000,
     enabled: Boolean(selectedBranchId),
   });
+  const rooms = roomsQ.data || [];
+  const roomIds = useMemo(() => [...new Set(rooms.map((room) => room.id).filter(Boolean))], [rooms]);
   const roomFeedbackSummaryQ = useApiQuery({
-    queryKey: ["home-feedback-summary", roomsQ.data?.length || 0],
-    queryFn: () => feedbackService.getRoomFeedbackSummaries((roomsQ.data || []).map((room) => room.id)),
+    queryKey: ["home-feedback-summary", roomIds.join(",")],
+    queryFn: () => feedbackService.getRoomFeedbackSummaries(roomIds),
     staleTime: 60000,
-    enabled: Boolean((roomsQ.data || []).length),
+    enabled: roomIds.length > 0,
   });
   const feedbackQ = useApiQuery({
     queryKey: ["home-feedback-top"],
@@ -107,7 +109,6 @@ export default function Home() {
   });
 
   const branches = branchesQ.data || [];
-  const rooms = roomsQ.data || [];
   const roomFeedbackSummaryMap = useMemo(() => {
     const entries = roomFeedbackSummaryQ.data || [];
     return entries.reduce((acc, item) => {
@@ -120,20 +121,28 @@ export default function Home() {
       return acc;
     }, {});
   }, [roomFeedbackSummaryQ.data]);
+  const roomsWithFeedback = useMemo(() => {
+    return rooms.map((room) => {
+      const summary = roomFeedbackSummaryMap[room.id];
+      return {
+        ...room,
+        averageRating: summary?.averageRating ?? Number(room.averageRating || 0),
+        reviewCount: summary?.reviewCount ?? Number(room.reviewCount || 0),
+      };
+    });
+  }, [rooms, roomFeedbackSummaryMap]);
   
   /* Enrich from DB or use static - prioritize by user location */
   const topRooms = useMemo(() => {
-    if (!rooms || rooms.length === 0) return [];
+    if (!roomsWithFeedback || roomsWithFeedback.length === 0) return [];
 
-    return sortRoomsByProximityAndRating(rooms, branches, userLocation, allowLocation)
+    return sortRoomsByProximityAndRating(roomsWithFeedback, branches, userLocation, allowLocation)
       .slice(0, 4)
       .map((room, index) => ({
         ...room,
-        averageRating: roomFeedbackSummaryMap[room.id]?.averageRating ?? 0,
-        reviewCount: roomFeedbackSummaryMap[room.id]?.reviewCount ?? 0,
         img: room.imageUrl || ROOM_IMAGES[index % ROOM_IMAGES.length],
       }));
-  }, [rooms, branches, userLocation, allowLocation, roomFeedbackSummaryMap]);
+  }, [roomsWithFeedback, branches, userLocation, allowLocation]);
 
   const reviews = useMemo(() => {
     return feedbackQ.data || [];

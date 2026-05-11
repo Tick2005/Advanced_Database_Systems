@@ -230,13 +230,13 @@ DECLARE
 BEGIN
   -- Clean expired verification tokens
   SELECT fn_cleanup_expired_tokens() INTO v_cleaned_tokens;
-  INSERT INTO audit_logs(table_name, operation, changes, user_id, created_at)
-  VALUES('verification_tokens', 'CLEANUP', jsonb_build_object('deleted_tokens', v_cleaned_tokens), NULL, CURRENT_TIMESTAMP);
+  INSERT INTO permission_audit_logs(user_id, action, old_value, new_value, changed_by, change_reason, created_at)
+  VALUES(NULL, 'CLEANUP_TOKENS', NULL, jsonb_build_object('deleted_tokens', v_cleaned_tokens)::text, NULL, 'sp_monthly_maintenance', CURRENT_TIMESTAMP);
 
   -- Auto-expire old bookings
   SELECT * INTO v_expired_result FROM fn_auto_expire_bookings();
-  INSERT INTO audit_logs(table_name, operation, changes, user_id, created_at)
-  VALUES('bookings', 'AUTO_EXPIRE', jsonb_build_object('expired_count', v_expired_result.expired_count, 'cancelled_count', v_expired_result.cancelled_count), NULL, CURRENT_TIMESTAMP);
+  INSERT INTO permission_audit_logs(user_id, action, old_value, new_value, changed_by, change_reason, created_at)
+  VALUES(NULL, 'AUTO_EXPIRE_BOOKINGS', NULL, jsonb_build_object('expired_count', v_expired_result.expired_count, 'cancelled_count', v_expired_result.cancelled_count)::text, NULL, 'sp_monthly_maintenance', CURRENT_TIMESTAMP);
 
   COMMIT;
 END;

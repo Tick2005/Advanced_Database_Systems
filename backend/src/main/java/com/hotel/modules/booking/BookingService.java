@@ -4,11 +4,11 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
-import org.springframework.data.domain.Sort;
 import org.springframework.dao.CannotAcquireLockException;
 import org.springframework.dao.ConcurrencyFailureException;
 import org.springframework.dao.PessimisticLockingFailureException;
 import org.springframework.dao.TransientDataAccessException;
+import org.springframework.data.domain.Sort;
 import org.springframework.retry.annotation.Backoff;
 import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Service;
@@ -78,21 +78,16 @@ public class BookingService {
 			throw new BusinessException("Room is not available for new booking");
 		}
 
-		boolean hasOverlap = bookingRepository.existsActiveOverlap(
-			room.getId(),
-			request.getCheckInDate(),
-			request.getCheckOutDate(),
-			List.of(BookingStatus.CANCELLED, BookingStatus.EXPIRED, BookingStatus.CHECKED_OUT)
-		);
-		if (hasOverlap) {
-			throw new BusinessException("Room already has an overlapping booking in the selected date range");
-		}
+		// Concurrency check has been moved to Postgres DB exclusion constraint (no_overlapping_bookings)
+		// It will throw a DataIntegrityViolationException if there is an overlap.
 
 		BookingEntity entity = bookingMapper.fromCreateRequest(request);
 		entity.setStatus(BookingStatus.HOLD);
 		bookingRepository.save(entity);
 
 		room.setStatus(RoomStatus.HELD);
+		room.setCurrentBookingId(entity.getId());
+		room.setUpdatedAt(LocalDateTime.now());
 		roomRepository.save(room);
 
 		return bookingMapper.toResponse(entity);
@@ -130,7 +125,7 @@ public class BookingService {
 		entity.setUpdatedAt(LocalDateTime.now());
 		bookingRepository.save(entity);
 
-		roomService.updateRoomStatus(entity.getRoomId().toString(), RoomStatus.AVAILABLE.name());
+		releaseRoomFromBooking(entity);
 		return bookingMapper.toResponse(entity);
 	}
 
@@ -145,7 +140,7 @@ public class BookingService {
 		entity.setUpdatedAt(LocalDateTime.now());
 		bookingRepository.save(entity);
 
-		roomService.updateRoomStatus(entity.getRoomId().toString(), RoomStatus.AVAILABLE.name());
+		releaseRoomFromBooking(entity);
 		return bookingMapper.toResponse(entity);
 	}
 
@@ -193,7 +188,7 @@ public class BookingService {
 		entity.setUpdatedAt(LocalDateTime.now());
 		bookingRepository.save(entity);
 
-		roomService.updateRoomStatus(entity.getRoomId().toString(), RoomStatus.OCCUPIED.name());
+		occupyRoomForBooking(entity);
 	}
 
 	@Transactional
@@ -249,7 +244,7 @@ public class BookingService {
 		entity.setUpdatedAt(LocalDateTime.now());
 		bookingRepository.save(entity);
 
-		roomService.updateRoomStatus(entity.getRoomId().toString(), RoomStatus.OCCUPIED.name());
+		occupyRoomForBooking(entity);
 		return buildActionResponse(entity.getId().toString(), "checkin", entity.getStatus().name());
 	}
 
@@ -281,7 +276,7 @@ public class BookingService {
 		entity.setUpdatedAt(LocalDateTime.now());
 		bookingRepository.save(entity);
 
-		roomService.updateRoomStatus(entity.getRoomId().toString(), RoomStatus.AVAILABLE.name());
+		releaseRoomFromBooking(entity);
 		return buildActionResponse(entity.getId().toString(), "checkout", entity.getStatus().name());
 	}
 
@@ -292,8 +287,26 @@ public class BookingService {
 			booking.setStatus(BookingStatus.EXPIRED);
 			booking.setUpdatedAt(now);
 			bookingRepository.save(booking);
-			roomService.updateRoomStatus(booking.getRoomId().toString(), RoomStatus.AVAILABLE.name());
+			releaseRoomFromBooking(booking);
 		}
+	}
+
+	private void occupyRoomForBooking(BookingEntity booking) {
+		var room = roomRepository.findByIdForUpdate(booking.getRoomId())
+			.orElseThrow(() -> new NotFoundException("Room not found: " + booking.getRoomId()));
+		room.setStatus(RoomStatus.OCCUPIED);
+		room.setCurrentBookingId(booking.getId());
+		room.setUpdatedAt(LocalDateTime.now());
+		roomRepository.save(room);
+	}
+
+	private void releaseRoomFromBooking(BookingEntity booking) {
+		var room = roomRepository.findByIdForUpdate(booking.getRoomId())
+			.orElseThrow(() -> new NotFoundException("Room not found: " + booking.getRoomId()));
+		room.setStatus(RoomStatus.AVAILABLE);
+		room.setCurrentBookingId(null);
+		room.setUpdatedAt(LocalDateTime.now());
+		roomRepository.save(room);
 	}
 
 	private BookingActionResponse buildActionResponse(String bookingId, String action, String status) {

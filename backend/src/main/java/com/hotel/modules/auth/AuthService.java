@@ -59,8 +59,8 @@ public class AuthService {
 		EmailService emailService,
 		PasswordResetTokenRepository passwordResetTokenRepository,
 		LoginAttemptRepository loginAttemptRepository,
-		@Value("${app.auth.verify-email-base-url:http://localhost:5173/verify-email}") String verifyEmailBaseUrl,
-		@Value("${app.auth.reset-password-base-url:http://localhost:5173/reset-password}") String resetPasswordBaseUrl,
+		@Value("${app.auth.verify-email-base-url:https://luxstay.phanvanduong.site/verify-email}") String verifyEmailBaseUrl,
+		@Value("${app.auth.reset-password-base-url:https://luxstay.phanvanduong.site/reset-password}") String resetPasswordBaseUrl,
 		@Value("${app.auth.reset-password-expire-minutes:15}") int resetPasswordExpireMinutes
 	) {
 		this.authRepository = authRepository;
@@ -152,8 +152,8 @@ public class AuthService {
 		loginAttempt.setLastFailedAt(Instant.now());
 		loginAttempt.setUpdatedAt(Instant.now());
 
-		if (failedCount >= 3) {
-			loginAttempt.setLockedUntil(Instant.now().plus(1, ChronoUnit.DAYS));
+		if (failedCount >= 5) {
+			loginAttempt.setLockedUntil(Instant.now().plus(15, ChronoUnit.MINUTES));
 			loginAttempt.setFailedCount(0);
 		}
 

@@ -10,7 +10,7 @@ export default defineConfig({
     strictPort: false,
     proxy: {
       "/api": {
-        target: "http://localhost:8080",
+        target: "https://luxstay.phanvanduong.site",
         changeOrigin: true,
         secure: false
       }

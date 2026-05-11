@@ -17,7 +17,7 @@ BEGIN
     FROM bookings
     WHERE room_id = NEW.room_id
       AND branch_id = NEW.branch_id
-      AND status NOT IN ('CANCELLED', 'REJECTED')
+      AND status NOT IN ('CANCELLED')
       AND id != NEW.id  -- Exclude self on UPDATE
       AND NOT (NEW.check_out_date <= check_in_date OR NEW.check_in_date >= check_out_date)
   ) THEN
@@ -130,13 +130,14 @@ $$ LANGUAGE plpgsql;
 CREATE OR REPLACE FUNCTION fn_audit_permission_change()
 RETURNS TRIGGER AS $$
 BEGIN
-  INSERT INTO audit_logs (table_name, record_id, action, changes, changed_by, changed_at)
+  INSERT INTO permission_audit_logs (user_id, action, old_value, new_value, changed_by, change_reason, created_at)
   VALUES (
-    'user_branch_assignments',
-    NEW.user_id::text,
-    CASE WHEN TG_OP = 'INSERT' THEN 'ASSIGN' WHEN TG_OP = 'DELETE' THEN 'REVOKE' ELSE 'MODIFY' END,
-    jsonb_build_object('branch_id', NEW.branch_id),
-    current_user,
+    COALESCE(NEW.user_id, OLD.user_id),
+    CASE WHEN TG_OP = 'INSERT' THEN 'ASSIGN_BRANCH' WHEN TG_OP = 'DELETE' THEN 'REVOKE_BRANCH' ELSE 'UPDATE_BRANCH' END,
+    CASE WHEN OLD IS NOT NULL THEN OLD.branch_id::text ELSE NULL END,
+    CASE WHEN NEW IS NOT NULL THEN NEW.branch_id::text ELSE NULL END,
+    NULL,
+    TG_OP,
     NOW()
   );
   RETURN COALESCE(NEW, OLD);

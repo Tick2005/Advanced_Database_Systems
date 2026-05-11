@@ -29,7 +29,7 @@ public class VNPayClient {
         @Value("${app.payment.vnpay.hash-secret:vnpay-demo-secret}") String hashSecret,
         @Value("${app.payment.vnpay.pay-url:https://sandbox.vnpayment.vn/paymentv2/vpcpay.html}") String payUrl,
         @Value("${app.payment.vnpay.tmn-code:DEMOV210}") String tmnCode,
-        @Value("${app.payment.vnpay.return-url:http://localhost:5173/payment/vnpay-return}") String returnUrl
+        @Value("${app.payment.vnpay.return-url:https://luxstay.phanvanduong.site/payment/vnpay-return}") String returnUrl
     ) {
         this.hashSecret = hashSecret;
         this.payUrl = payUrl;

@@ -3,15 +3,20 @@
 export const dashboardStyles = {
   // Headers
   headerGradient: {
-    padding: "16px 20px",
-    borderRadius: 14,
-    background: "linear-gradient(135deg, #0d2238 0%, #1e3a5f 100%)",
+    padding: "20px 24px",
+    borderRadius: 16,
+    background: "linear-gradient(135deg, rgba(13, 34, 56, 0.85) 0%, rgba(30, 58, 95, 0.9) 100%)",
+    backdropFilter: "blur(16px)",
+    WebkitBackdropFilter: "blur(16px)",
+    border: "1px solid rgba(255, 255, 255, 0.15)",
+    boxShadow: "0 8px 32px rgba(0, 0, 0, 0.1)",
     color: "white",
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
     flexWrap: "wrap",
-    gap: 8,
+    gap: 12,
+    transition: "all 0.3s ease",
   },
 
   headerTitle: {
@@ -39,14 +44,18 @@ export const dashboardStyles = {
 
   // Summary cards
   summaryCard: {
-    padding: 16,
-    borderRadius: 12,
-    background: "white",
-    border: "1px solid #e2e8f0",
+    padding: 18,
+    borderRadius: 16,
+    background: "rgba(255, 255, 255, 0.65)",
+    backdropFilter: "blur(12px)",
+    WebkitBackdropFilter: "blur(12px)",
+    border: "1px solid rgba(255, 255, 255, 0.5)",
+    boxShadow: "0 4px 24px rgba(13, 34, 56, 0.05)",
     display: "flex",
     justifyContent: "space-between",
     alignItems: "flex-start",
     gap: 12,
+    transition: "transform 0.2s ease, box-shadow 0.2s ease",
   },
 
   summaryCardLabel: {
@@ -69,11 +78,13 @@ export const dashboardStyles = {
 
   // Cards and sections
   cardContainer: {
-    padding: 16,
-    borderRadius: 12,
-    background: "white",
-    border: "1px solid #e2e8f0",
-    boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
+    padding: 20,
+    borderRadius: 16,
+    background: "rgba(255, 255, 255, 0.65)",
+    backdropFilter: "blur(12px)",
+    WebkitBackdropFilter: "blur(12px)",
+    border: "1px solid rgba(255, 255, 255, 0.5)",
+    boxShadow: "0 8px 32px rgba(13, 34, 56, 0.04)",
   },
 
   // Lists and items
@@ -82,10 +93,12 @@ export const dashboardStyles = {
     justifyContent: "space-between",
     alignItems: "center",
     gap: 8,
-    padding: "10px 14px",
-    borderRadius: 10,
-    background: "#f8fafc",
-    border: "1px solid #e2e8f0",
+    padding: "12px 16px",
+    borderRadius: 12,
+    background: "rgba(248, 250, 252, 0.6)",
+    backdropFilter: "blur(8px)",
+    border: "1px solid rgba(226, 232, 240, 0.6)",
+    transition: "background 0.2s ease, transform 0.2s ease",
   },
 
   listItemHighlight: {
@@ -102,10 +115,13 @@ export const dashboardStyles = {
 
   // Filters
   filterContainer: {
-    padding: 14,
-    borderRadius: 12,
-    background: "white",
-    border: "1px solid #e2e8f0",
+    padding: 16,
+    borderRadius: 14,
+    background: "rgba(255, 255, 255, 0.5)",
+    backdropFilter: "blur(10px)",
+    WebkitBackdropFilter: "blur(10px)",
+    border: "1px solid rgba(255, 255, 255, 0.6)",
+    boxShadow: "0 2px 12px rgba(0, 0, 0, 0.02)",
     display: "grid",
     gap: 12,
   },
@@ -131,10 +147,13 @@ export const dashboardStyles = {
   modalCard: {
     maxWidth: 500,
     width: "100%",
-    background: "white",
-    borderRadius: 16,
+    background: "rgba(255, 255, 255, 0.85)",
+    backdropFilter: "blur(24px)",
+    WebkitBackdropFilter: "blur(24px)",
+    border: "1px solid rgba(255, 255, 255, 0.4)",
+    borderRadius: 20,
     padding: 24,
-    boxShadow: "0 24px 60px rgba(0,0,0,0.2)",
+    boxShadow: "0 24px 60px rgba(0,0,0,0.12)",
   },
 
   // Form controls

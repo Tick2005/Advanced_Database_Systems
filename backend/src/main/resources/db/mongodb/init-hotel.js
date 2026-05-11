@@ -163,6 +163,61 @@ upsertMany("feedbacks", [
     manager_reply: "Cảm ơn bạn rất nhiều! Chúng tôi rất vui được đón bạn và những người thân của bạn trong tương lai.",
     created_at: new Date("2026-05-02T08:00:00Z"),
     updated_at: new Date("2026-05-02T09:00:00Z")
+  },
+  {
+    _id: "feedback_demo_011",
+    booking_id: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa3",
+    user_id: "44444444-4444-4444-4444-444444444446",
+    room_id: "77777777-7777-7777-7777-777777777773",
+    rating: 5,
+    content: "Phòng rất đẹp và sạch sẽ. Tầm nhìn ra biển tuyệt vời! Nhân viên nhiệt tình.",
+    manager_reply: "Cảm ơn bạn đã trải nghiệm tại LuxStay! Hẹn gặp lại bạn lần sau.",
+    created_at: new Date("2026-05-06T10:00:00Z"),
+    updated_at: new Date("2026-05-06T10:00:00Z")
+  },
+  {
+    _id: "feedback_demo_012",
+    booking_id: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa7",
+    user_id: "44444444-4444-4444-4444-444444444448",
+    room_id: "77777777-7777-7777-7777-777777777775",
+    rating: 4,
+    content: "Giá cả hợp lý, phòng ốc tiện nghi. Tuy nhiên buffet sáng hơi ít món.",
+    manager_reply: "Cảm ơn góp ý của bạn, chúng tôi sẽ cải thiện thực đơn buffet.",
+    created_at: new Date("2026-05-07T14:30:00Z"),
+    updated_at: new Date("2026-05-07T14:30:00Z")
+  },
+  {
+    _id: "feedback_demo_013",
+    booking_id: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaa10",
+    user_id: "44444444-4444-4444-4444-444444444447",
+    room_id: "77777777-7777-7777-7777-777777777772",
+    rating: 5,
+    content: "Trải nghiệm sang trọng thực sự. Giường ngủ cực kỳ êm ái, rất đáng tiền.",
+    manager_reply: "Rất vui vì bạn hài lòng với dịch vụ phòng cao cấp của chúng tôi.",
+    created_at: new Date("2026-05-08T09:15:00Z"),
+    updated_at: new Date("2026-05-08T09:15:00Z")
+  },
+  {
+    _id: "feedback_demo_014",
+    booking_id: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaa11",
+    user_id: "44444444-4444-4444-4444-444444444446",
+    room_id: "77777777-7777-7777-7777-777777777774",
+    rating: 4,
+    content: "Không gian yên tĩnh, rất phù hợp để nghỉ ngơi cuối tuần. Sẽ quay lại.",
+    manager_reply: null,
+    created_at: new Date("2026-05-09T18:20:00Z"),
+    updated_at: new Date("2026-05-09T18:20:00Z")
+  },
+  {
+    _id: "feedback_demo_015",
+    booking_id: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaa12",
+    user_id: "44444444-4444-4444-4444-444444444448",
+    room_id: "77777777-7777-7777-7777-777777777771",
+    rating: 5,
+    content: "Mọi thứ đều hoàn hảo từ lúc check-in đến check-out. 10 điểm!",
+    manager_reply: "LuxStay cảm ơn bạn đã cho chúng tôi 10 điểm!",
+    created_at: new Date("2026-05-10T08:00:00Z"),
+    updated_at: new Date("2026-05-10T08:00:00Z")
   }
 ]);
 

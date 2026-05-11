@@ -44,8 +44,11 @@ public class RoomEntity {
 	@Column(name = "max_occupancy")
 	private int maxOccupancy;
 
+	@Column(name = "current_booking_id")
+	private UUID currentBookingId;
+
 	@Column(name = "average_rating")
-	private Double averageRating;
+	private Double averageRating = 0.0;
 
 	@Column(name = "created_at")
 	private LocalDateTime createdAt;
@@ -107,6 +110,14 @@ public class RoomEntity {
 
 	public void setMaxOccupancy(int maxOccupancy) {
 		this.maxOccupancy = maxOccupancy;
+	}
+
+	public UUID getCurrentBookingId() {
+		return currentBookingId;
+	}
+
+	public void setCurrentBookingId(UUID currentBookingId) {
+		this.currentBookingId = currentBookingId;
 	}
 
 	public Double getAverageRating() {

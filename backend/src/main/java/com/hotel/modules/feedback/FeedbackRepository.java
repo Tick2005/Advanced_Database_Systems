@@ -19,13 +19,6 @@ public interface FeedbackRepository extends MongoRepository<FeedbackDocument, St
 
     List<FeedbackDocument> findAllByOrderByRatingDescCreatedAtDesc(Pageable pageable);
 
-    @Aggregation(pipeline = {
-        "{ '$match': { 'room_id': { '$exists': true, '$ne': '' } } }",
-        "{ '$group': { '_id': '$room_id', 'avgRating': { '$avg': '$rating' } } }",
-        "{ '$project': { 'roomId': '$_id', 'avgRating': 1, '_id': 0 } }"
-    })
-    List<RoomRatingAverageProjection> aggregateAverageRatingsByRoom();
-
     // Get room feedback summaries with count and average rating for multiple rooms
     @Aggregation(pipeline = {
         "{ '$match': { 'room_id': { '$in': ?0 } } }",
@@ -34,15 +27,6 @@ public interface FeedbackRepository extends MongoRepository<FeedbackDocument, St
     })
     List<RoomFeedbackSummaryProjection> aggregateRoomFeedbackSummaries(Collection<String> roomIds);
 
-    interface RoomRatingAverageProjection {
-        String getRoomId();
-        Double getAvgRating();
-    }
-
-    interface RoomFeedbackSummaryProjection {
-        String getRoomId();
-        Long getReviewCount();
-        Double getAverageRating();
-    }
+    record RoomFeedbackSummaryProjection(String roomId, Long reviewCount, Double averageRating) {}
 
 }

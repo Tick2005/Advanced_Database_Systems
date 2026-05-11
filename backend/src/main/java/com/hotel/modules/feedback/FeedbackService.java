@@ -172,12 +172,32 @@ public class FeedbackService {
     public Map<String, Double> getAverageRatingsByRoom() {
         Map<String, Double> result = new LinkedHashMap<>();
 
-        // Use repository aggregation projection to compute average ratings from MongoDB collection 'feedbacks'
-        for (FeedbackRepository.RoomRatingAverageProjection item : feedbackRepository.aggregateAverageRatingsByRoom()) {
-            if (item == null || item.getRoomId() == null || item.getRoomId().isBlank()) {
+        org.springframework.data.mongodb.core.aggregation.MatchOperation match =
+            org.springframework.data.mongodb.core.aggregation.Aggregation.match(
+                org.springframework.data.mongodb.core.query.Criteria.where("room_id").exists(true).ne("")
+            );
+
+        org.springframework.data.mongodb.core.aggregation.GroupOperation group =
+            org.springframework.data.mongodb.core.aggregation.Aggregation.group("room_id")
+                .avg("rating").as("avgRating");
+
+        org.springframework.data.mongodb.core.aggregation.ProjectionOperation project =
+            org.springframework.data.mongodb.core.aggregation.Aggregation.project()
+                .andExpression("$_id").as("roomId")
+                .andInclude("avgRating");
+
+        org.springframework.data.mongodb.core.aggregation.Aggregation agg =
+            org.springframework.data.mongodb.core.aggregation.Aggregation.newAggregation(match, group, project);
+
+        var results = mongoTemplate.aggregate(agg, "feedbacks", org.bson.Document.class).getMappedResults();
+
+        for (org.bson.Document doc : results) {
+            String roomId = doc.getString("roomId");
+            if (roomId == null || roomId.isBlank()) {
                 continue;
             }
-            result.put(item.getRoomId(), Objects.requireNonNullElse(item.getAvgRating(), 0.0d));
+            Object ar = doc.get("avgRating");
+            result.put(roomId, ar == null ? 0.0d : ((Number) ar).doubleValue());
         }
 
         return result;

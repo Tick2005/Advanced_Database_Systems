@@ -105,9 +105,21 @@ public class PaymentService {
 		backoff = @Backoff(delay = 120, multiplier = 2.0)
 	)
 	public PaymentEntity createVnPayPendingPayment(String bookingId, BigDecimal amount, String currency) {
+		if (currency != null && !currency.trim().equalsIgnoreCase("VND")) {
+			throw new BusinessException("Chỉ hỗ trợ thanh toán bằng tiền tệ VNĐ (VND)");
+		}
+		
 		UUID bookingUuid = UUID.fromString(bookingId);
-		bookingRepository.findByIdForUpdate(bookingUuid)
+		var booking = bookingRepository.findByIdForUpdate(bookingUuid)
 			.orElseThrow(() -> new NotFoundException("Booking not found: " + bookingId));
+
+		// Validate that the payment amount is at least the base booking total price (VAT & services added on frontend)
+		if (amount == null || amount.compareTo(booking.getTotalPrice()) < 0) {
+			throw new BusinessException(
+				"Số tiền thanh toán (" + amount + ") nhỏ hơn giá trị đơn đặt phòng (" + booking.getTotalPrice() + ")." +
+				" Vui lòng kiểm tra lại nếu có sự thay đổi giá."
+			);
+		}
 
 		PaymentEntity existing = paymentRepository.findByBookingIdForUpdate(bookingUuid).orElse(null);
 		if (existing != null) {

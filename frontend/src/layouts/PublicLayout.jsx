@@ -122,48 +122,28 @@ export default function PublicLayout() {
             {/* Right section */}
             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
 
-              {/* ── GUEST (not logged in) — select (rooms/branches) + login icon ── */}
+              {/* ── GUEST (not logged in) — login and register buttons only ── */}
               {!isAuthenticated && (
                 <>
-                  <select
-                    onChange={(e) => {
-                      if (e.target.value) navigate(e.target.value, { replace: false });
-                      e.target.value = "";
-                    }}
-                    defaultValue=""
-                    style={{
-                      height: 40,
-                      padding: "0 14px",
-                      borderRadius: 999,
-                      border: "1px solid #dbe4ee",
-                      background: "rgba(255,255,255,0.7)",
-                      color: "#17314d",
-                      fontSize: 14,
-                      fontWeight: 600,
-                      cursor: "pointer",
-                      transition: "background 0.15s, box-shadow 0.15s",
-                      boxSizing: "border-box",
-                    }}
-                  >
-                    <option value="">Home</option>
-                    <option value={PATHS.ROOMS}>🛏️ List phòng</option>
-                    <option value={PATHS.BRANCHES}>🏢 Chi nhánh</option>
-                  </select>
-
                   <button
                     type="button"
                     onClick={() => navigate(PATHS.LOGIN)}
                     aria-label="Đăng nhập"
-                    title="Đăng nhập tài khoản"
                     style={{
                       ...PILL,
-                      width: 40,
-                      padding: 0,
-                      borderRadius: 999,
-                      fontSize: 16,
+                      background: "transparent",
+                      border: "1px solid #dbe4ee",
                     }}
                   >
-                    🔐
+                    Đăng nhập
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => navigate(PATHS.REGISTER)}
+                    aria-label="Đăng ký"
+                    style={PILL_GOLD}
+                  >
+                    Đăng ký
                   </button>
                 </>
               )}
@@ -303,7 +283,7 @@ export default function PublicLayout() {
           <div style={{ display: "grid", gap: 8, alignContent: "start" }}>
             <div style={{ fontWeight: 700, color: "#c9a84c", fontSize: 12, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 4 }}>Liên hệ</div>
             <span style={{ color: "#94a3b8", fontSize: 14 }}>📞 1900 6868</span>
-            <span style={{ color: "#94a3b8", fontSize: 14 }}>✉️ support@luxstay.local</span>
+            <span style={{ color: "#94a3b8", fontSize: 14 }}>✉️ support@luxstay.phanvanduong.site</span>
             <span style={{ color: "#94a3b8", fontSize: 14 }}>📍 01 Trần Phú, Đà Nẵng</span>
           </div>
         </div>

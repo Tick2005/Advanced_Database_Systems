@@ -51,7 +51,6 @@ export const PATHS = {
   OWNER_PRICING: "/owner/pricing",
   OWNER_PRICING_REQUESTS: "/owner/pricing-requests",
   OWNER_USERS: "/owner/users",
-  OWNER_LOGS: "/owner/logs",
 
   FORBIDDEN: "/forbidden"
 };

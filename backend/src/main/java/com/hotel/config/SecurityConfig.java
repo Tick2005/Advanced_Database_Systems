@@ -16,15 +16,18 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import com.hotel.common.constants.ApiPath;
 import com.hotel.security.JwtFilter;
+import com.hotel.security.RateLimitFilter;
 
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
 
     private final JwtFilter jwtFilter;
+    private final RateLimitFilter rateLimitFilter;
 
-    public SecurityConfig(JwtFilter jwtFilter) {
+    public SecurityConfig(JwtFilter jwtFilter, RateLimitFilter rateLimitFilter) {
         this.jwtFilter = jwtFilter;
+        this.rateLimitFilter = rateLimitFilter;
     }
 
     @Bean
@@ -47,6 +50,7 @@ public class SecurityConfig {
                 .requestMatchers(ApiPath.INTERNAL + "/**").hasAnyRole("STAFF", "MANAGER", "OWNER")
                 .anyRequest().authenticated()
             )
+            .addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class)
             .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
