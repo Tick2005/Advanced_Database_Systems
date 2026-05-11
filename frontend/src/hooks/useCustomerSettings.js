@@ -117,15 +117,6 @@ export function useCustomerSettings() {
   }, []);
 
   useEffect(() => {
-    applyVisualSettings(settings);
-    try {
-      window.dispatchEvent(new CustomEvent("user_settings_updated", { detail: { settings, sourceId: instanceIdRef.current } }));
-    } catch (err) {
-      // Ignore event errors for older browsers.
-    }
-  }, [settings]);
-
-  useEffect(() => {
     if (!isAuthenticated) {
       setSettings(readLocalSettings());
       setLoading(false);

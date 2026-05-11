@@ -335,11 +335,9 @@ export default function Home() {
                   <div style={{ position: "absolute", top: 10, left: 10, background: "#0d2238", color: "#c9a84c", padding: "3px 10px", borderRadius: 99, fontSize: 11, fontWeight: 800 }}>
                     #{i + 1}
                   </div>
-                  {Number(room.averageRating || 0) > 0 && (
-                    <div style={{ position: "absolute", top: 10, right: 10, background: "rgba(0,0,0,0.6)", color: "#fbbf24", padding: "3px 10px", borderRadius: 99, fontSize: 11, fontWeight: 700 }}>
-                      ★ {Number(room.averageRating || 0).toFixed(1)}
-                    </div>
-                  )}
+                  <div style={{ position: "absolute", top: 10, right: 10, background: "rgba(0,0,0,0.6)", color: "#fbbf24", padding: "3px 10px", borderRadius: 99, fontSize: 11, fontWeight: 700 }}>
+                    {Number(room.averageRating || 0) > 0 ? `★ ${Number(room.averageRating || 0).toFixed(1)}` : "Chưa có đánh giá"}
+                  </div>
                 </div>
                 <div style={{ padding: "14px 16px" }}>
                   <div style={{ fontWeight: 800, fontSize: 14, color: "#0d2238", marginBottom: 4 }}>{room.roomTypeName} · #{room.roomNumber}</div>

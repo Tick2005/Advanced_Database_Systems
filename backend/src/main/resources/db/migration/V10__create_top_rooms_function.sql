@@ -75,6 +75,5 @@ CREATE INDEX IF NOT EXISTS idx_branches_coordinates
   WHERE is_active = TRUE;
 
 -- Create index on rooms for rating and status
-CREATE INDEX IF NOT EXISTS idx_rooms_rating_status
-  ON rooms (average_rating DESC, status)
-  WHERE status != 'INACTIVE';
+CREATE INDEX IF NOT EXISTS idx_rooms_rating
+  ON rooms (average_rating DESC);

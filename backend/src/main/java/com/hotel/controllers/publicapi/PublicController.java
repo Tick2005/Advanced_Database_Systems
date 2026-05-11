@@ -6,8 +6,8 @@ import java.util.Map;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -86,8 +86,13 @@ public class PublicController {
         return ApiResponse.ok("Top feedbacks", feedbackService.getTopFeedbacks(limit));
     }
 
+    @GetMapping("/feedbacks/summary")
+    public ApiResponse<List<RoomFeedbackSummaryResponse>> getRoomFeedbackSummaries(@RequestParam(required = false) List<String> roomIds) {
+        return ApiResponse.ok("Room feedback summaries", feedbackService.getRoomSummaries(roomIds));
+    }
+
     @PostMapping("/feedbacks/summary")
-    public ApiResponse<List<RoomFeedbackSummaryResponse>> getRoomFeedbackSummaries(@RequestBody Map<String, List<String>> payload) {
+    public ApiResponse<List<RoomFeedbackSummaryResponse>> getRoomFeedbackSummariesPost(@RequestBody(required = false) Map<String, List<String>> payload) {
         List<String> roomIds = payload == null ? List.of() : payload.getOrDefault("roomIds", List.of());
         return ApiResponse.ok("Room feedback summaries", feedbackService.getRoomSummaries(roomIds));
     }
