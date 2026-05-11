@@ -20,6 +20,7 @@ import com.hotel.modules.room.dto.RoomCreateRequest;
 import com.hotel.modules.room.dto.RoomResponse;
 import com.hotel.modules.room.dto.RoomSearchFilter;
 import com.hotel.modules.room.dto.RoomUpdateRequest;
+import com.hotel.modules.room.dto.TopRoomResponse;
 
 @SuppressWarnings("null")
 @Service
@@ -215,5 +216,44 @@ public class RoomService {
 
 	private @NonNull UUID parseUuid(String value) {
 		return UUID.fromString(value);
+	}
+
+	@Transactional(readOnly = true)
+	public List<TopRoomResponse> getTopRooms(Double latitude, Double longitude, Integer limit) {
+		if (limit == null || limit <= 0) {
+			limit = 4;
+		}
+
+		List<TopRoomProjection> projections = roomRepository.findTopRoomsByLocation(latitude, longitude, limit);
+		List<UUID> roomIds = projections.stream()
+			.map(p -> UUID.fromString(p.getRoom_id()))
+			.toList();
+
+		Map<UUID, String> coverImageByRoomId = roomRepository.findCoverImageUrls(roomIds)
+			.stream()
+			.collect(java.util.stream.Collectors.toMap(RoomCoverImageProjection::getRoomId, RoomCoverImageProjection::getImageUrl));
+
+		return projections.stream()
+			.map(p -> {
+				TopRoomResponse response = new TopRoomResponse(
+					p.getRoom_id(),
+					p.getRoom_number(),
+					p.getAverage_rating(),
+					p.getRate(),
+					p.getStatus(),
+					p.getMax_occupancy(),
+					p.getRoom_type_id(),
+					p.getRoom_type_name(),
+					p.getBranch_id(),
+					p.getBranch_name(),
+					p.getBranch_city(),
+					p.getBranch_latitude(),
+					p.getBranch_longitude(),
+					p.getDistance_km()
+				);
+				response.setImageUrl(coverImageByRoomId.get(UUID.fromString(p.getRoom_id())));
+				return response;
+			})
+			.toList();
 	}
 }

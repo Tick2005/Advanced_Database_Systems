@@ -25,6 +25,7 @@ import com.hotel.modules.report.dto.RevenueReportResponse;
 import com.hotel.modules.room.RoomService;
 import com.hotel.modules.room.dto.RoomResponse;
 import com.hotel.modules.room.dto.RoomSearchFilter;
+import com.hotel.modules.room.dto.TopRoomResponse;
 import com.hotel.modules.service.ServiceService;
 import com.hotel.modules.service.dto.ServiceResponse;
 
@@ -94,6 +95,14 @@ public class PublicController {
     @GetMapping("/top-room-types")
     public ApiResponse<List<RevenueReportResponse>> getTopRoomTypes() {
         return ApiResponse.ok("Top room types by profit", reportService.getTopRoomTypesByProfit());
+    }
+
+    @GetMapping("/top-rooms")
+    public ApiResponse<List<TopRoomResponse>> getTopRooms(
+            @RequestParam(required = false) Double latitude,
+            @RequestParam(required = false) Double longitude,
+            @RequestParam(defaultValue = "4") Integer limit) {
+        return ApiResponse.ok("Top rooms", roomService.getTopRooms(latitude, longitude, limit));
     }
 
     @PostMapping("/payments/vnpay-ipn")

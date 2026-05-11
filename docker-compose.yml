@@ -5,6 +5,7 @@ services:
     restart: unless-stopped
     volumes:
       - mongo-data:/data/db
+      - ./backend/src/main/resources/db/mongodb/init-hotel.js:/docker-entrypoint-initdb.d/init.js:ro
     healthcheck:
       test: ["CMD", "mongosh", "--quiet", "--eval", "db.runCommand({ ping: 1 }).ok"]
       interval: 5s

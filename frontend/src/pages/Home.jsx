@@ -12,7 +12,7 @@ import RatingStars from "../components/common/RatingStars";
 import { formatCurrencyVnd } from "../services/presenters";
 import { useApiQuery } from "../hooks/useApiQuery";
 import { queryKeys } from "../services/queryKeys";
-import { loadLocationFromStorage, sortRoomsByProximityAndRating } from "../services/geo";
+import { loadLocationFromStorage } from "../services/geo";
 
 /* ─── STATIC DATA (fallback + enrichment) ─────────────────────────────────── */
 const HERO_IMAGES = [
@@ -121,6 +121,17 @@ export default function Home() {
       return acc;
     }, {});
   }, [roomFeedbackSummaryQ.data]);
+
+  /* ── Query top rooms from backend (with optional location) ── */
+  const topRoomsQ = useApiQuery({
+    queryKey: ["home-top-rooms", allowLocation, userLocation?.latitude, userLocation?.longitude],
+    queryFn: () => roomService.getTopRooms({
+      latitude: allowLocation && userLocation?.latitude ? userLocation.latitude : undefined,
+      longitude: allowLocation && userLocation?.longitude ? userLocation.longitude : undefined,
+      limit: 4
+    }),
+    staleTime: 60000,
+  });
   const roomsWithFeedback = useMemo(() => {
     return rooms.map((room) => {
       const summary = roomFeedbackSummaryMap[room.id];
@@ -132,17 +143,14 @@ export default function Home() {
     });
   }, [rooms, roomFeedbackSummaryMap]);
   
-  /* Enrich from DB or use static - prioritize by user location */
+  /* ── Top rooms from API (calculated by backend: distance + rating) ── */
   const topRooms = useMemo(() => {
-    if (!roomsWithFeedback || roomsWithFeedback.length === 0) return [];
-
-    return sortRoomsByProximityAndRating(roomsWithFeedback, branches, userLocation, allowLocation)
-      .slice(0, 4)
-      .map((room, index) => ({
-        ...room,
-        img: room.imageUrl || ROOM_IMAGES[index % ROOM_IMAGES.length],
-      }));
-  }, [roomsWithFeedback, branches, userLocation, allowLocation]);
+    const data = topRoomsQ.data || [];
+    return data.map((room, index) => ({
+      ...room,
+      img: room.imageUrl || ROOM_IMAGES[index % ROOM_IMAGES.length],
+    }));
+  }, [topRoomsQ.data]);
 
   const reviews = useMemo(() => {
     return feedbackQ.data || [];
