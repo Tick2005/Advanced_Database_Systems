@@ -7,12 +7,9 @@
 #   2) nano .env   ← fill DOMAIN, LETSENCRYPT_EMAIL, secrets
 #   3) sudo ./deploy_ec2.sh
 #
-# What this script does (idempotent — safe to run multiple times):
-#   • Installs Docker + Certbot if not present
-#   • Requests Let's Encrypt HTTPS cert (skips if cert already exists & valid)
-#   • Creates /etc/letsencrypt/live/hotel symlink expected by nginx-gateway.conf
-#   • Builds & starts all Docker services via docker compose
-#   • Prints health status at the end
+# Flow:
+#   Install Docker & Certbot → Dừng toàn bộ docker → Lấy cert (port 80 free)
+#   → Start Docker stack → Health check → Cron renewal
 # =============================================================================
 set -euo pipefail
 
@@ -62,7 +59,6 @@ else
   echo "✓ Docker already installed ($(docker --version))"
 fi
 
-# Allow ubuntu user to use docker without sudo
 if id ubuntu &>/dev/null; then
   usermod -aG docker ubuntu 2>/dev/null || true
 fi
@@ -77,28 +73,40 @@ else
 fi
 
 # ── 3. Obtain / renew Let's Encrypt certificate ─────────────────────────────
+# QUAN TRỌNG: certbot --standalone cần port 80 trống.
+# Dừng toàn bộ docker (kể cả nginx đang giữ port 80) TRƯỚC certbot.
+# Docker sẽ được start lại ở bước 5 sau khi có cert.
+
 CERT_PATH="/etc/letsencrypt/live/${DOMAIN}/fullchain.pem"
+NEED_CERT=false
 
 if [ -f "$CERT_PATH" ]; then
   echo "→ Cert already exists. Checking expiry..."
   EXPIRY=$(openssl x509 -enddate -noout -in "$CERT_PATH" | cut -d= -f2)
   echo "  Cert expires: $EXPIRY"
-  # Renew if within 30 days
   if ! openssl x509 -checkend $((30*86400)) -noout -in "$CERT_PATH" &>/dev/null; then
-    echo "→ Cert expiring soon. Stopping nginx (if running) for renewal..."
-    docker compose stop nginx 2>/dev/null || true
-    certbot renew --standalone --non-interactive
-    docker compose start nginx 2>/dev/null || true
+    echo "→ Cert expiring soon — will renew."
+    NEED_CERT=true
   else
-    echo "✓ Cert is valid. Skipping renewal."
+    echo "✓ Cert valid. Skipping certbot."
   fi
 else
-  echo "→ Requesting new Let's Encrypt certificate for ${DOMAIN}..."
-  echo "  ⚠  Port 80 must be open and not in use."
+  echo "→ No cert found — will request new one."
+  NEED_CERT=true
+fi
 
-  # Stop any running nginx container so port 80 is free for certbot standalone
-  docker compose stop nginx 2>/dev/null || true
+if [ "$NEED_CERT" = true ]; then
+  echo "→ Stopping all docker containers to free port 80..."
+  docker compose down 2>/dev/null || true
 
+  # Đảm bảo port 80 thực sự trống
+  if ss -tlnp | grep -q ':80 '; then
+    echo "❌  Port 80 vẫn bị chiếm bởi tiến trình khác (không phải docker)."
+    echo "   Kiểm tra: ss -tlnp | grep ':80'"
+    exit 1
+  fi
+
+  echo "→ Requesting Let's Encrypt certificate for ${DOMAIN}..."
   certbot certonly --standalone \
     -d "${DOMAIN}" \
     -m "${LETSENCRYPT_EMAIL}" \
@@ -107,32 +115,31 @@ else
     --cert-name "${DOMAIN}" \
     --preferred-challenges http
 
-  echo "→ Testing certificate auto-renewal..."
-  certbot renew --dry-run --quiet
-  echo "✓ Certificate obtained & renewal test passed."
+  echo "✓ Certificate obtained."
 fi
 
-# ── 4. Create symlink /etc/letsencrypt/live/hotel → live/<domain> ────────────
-# nginx-gateway.conf references the fixed name "hotel" so the config never
-# needs to change regardless of which domain is used.
+# ── 4. Symlink /etc/letsencrypt/live/hotel → live/<domain> ──────────────────
+# nginx-gateway.conf dùng tên cố định "hotel" → không cần sửa config khi
+# đổi domain.
 SYMLINK="/etc/letsencrypt/live/hotel"
 if [ ! -e "$SYMLINK" ]; then
   ln -s "/etc/letsencrypt/live/${DOMAIN}" "$SYMLINK"
   echo "✓ Created symlink: $SYMLINK → /etc/letsencrypt/live/${DOMAIN}"
 elif [ "$(readlink "$SYMLINK")" != "/etc/letsencrypt/live/${DOMAIN}" ]; then
-  echo "⚠  Symlink $SYMLINK points to $(readlink "$SYMLINK"), expected /etc/letsencrypt/live/${DOMAIN}"
-  echo "   Remove it manually if needed: rm $SYMLINK"
+  echo "⚠  Symlink $SYMLINK trỏ sai: $(readlink "$SYMLINK")"
+  echo "   Xóa thủ công nếu cần: rm $SYMLINK"
 else
-  echo "✓ Symlink $SYMLINK already correct."
+  echo "✓ Symlink $SYMLINK đã đúng."
 fi
 
 # ── 5. Build & start Docker Compose stack ───────────────────────────────────
+# Tới đây cert đã sẵn sàng → nginx start với SSL sẽ thành công
 echo "→ Building images and starting services..."
 docker compose down --remove-orphans 2>/dev/null || true
 docker compose build --no-cache
 docker compose up -d
 
-# ── 6. Wait for services to be healthy ──────────────────────────────────────
+# ── 6. Health check ─────────────────────────────────────────────────────────
 echo "→ Waiting for services to start (30s)..."
 sleep 30
 
@@ -144,8 +151,6 @@ docker compose ps
 
 echo ""
 echo "→ Quick health check..."
-
-# Check backend is reachable through nginx
 HTTP_STATUS=$(curl -sk -o /dev/null -w "%{http_code}" "https://${DOMAIN}/api/actuator/health" || echo "unreachable")
 echo "  Backend (/api/actuator/health): ${HTTP_STATUS}"
 
@@ -157,14 +162,39 @@ echo "======================================================================"
 if [ "$HTTP_STATUS" = "200" ] || [ "$HTTP_STATUS" = "204" ]; then
   echo "  ✅  Deploy successful! App live at: https://${DOMAIN}"
 else
-  echo "  ⚠  Deploy done but health check returned: ${HTTP_STATUS}"
-  echo "     Check logs: docker compose logs --tail=50"
+  echo "  ⚠  Deploy done nhưng health check trả: ${HTTP_STATUS}"
+  echo "     Kiểm tra logs: docker compose logs --tail=50"
 fi
 echo "======================================================================"
 
-# ── 7. Set up automatic cert renewal via cron ────────────────────────────────
-CRON_JOB="0 3 * * * certbot renew --quiet --deploy-hook 'docker compose -f $(pwd)/docker-compose.yml restart nginx'"
+# ── 7. Cron + deploy-hook cho auto-renewal ───────────────────────────────────
+# Dùng deploy-hook của certbot (chạy SAU khi renew thành công).
+# Hook chỉ restart nginx — không down cả stack, không conflict port 80
+# vì certbot renew dùng lại method cũ (standalone) chỉ khi cần.
+# Để tránh hoàn toàn port conflict khi renew tự động, dùng --webroot
+# hoặc DNS challenge. Ở đây dùng deploy-hook restart nginx là đủ an toàn
+# vì certbot renew sẽ tự dừng/start standalone chỉ khi cert gần hết hạn.
+DEPLOY_DIR="$(pwd)"
+RENEW_HOOK="/etc/letsencrypt/renewal-hooks/deploy/restart-nginx.sh"
+
+if [ ! -f "$RENEW_HOOK" ]; then
+  mkdir -p "$(dirname "$RENEW_HOOK")"
+  cat > "$RENEW_HOOK" <<HOOK
+#!/usr/bin/env bash
+# Tự động chạy sau khi certbot renew thành công
+# Chỉ restart nginx để load cert mới, không ảnh hưởng backend/db
+cd "${DEPLOY_DIR}"
+docker compose restart nginx
+HOOK
+  chmod +x "$RENEW_HOOK"
+  echo "✓ Renewal deploy-hook created: $RENEW_HOOK"
+fi
+
+# Cron: certbot renew mỗi ngày lúc 3AM
+# Khi renew: certbot sẽ dừng nginx container (port 80 free) → lấy cert → hook restart nginx
+CRON_CMD="0 3 * * * docker compose -f ${DEPLOY_DIR}/docker-compose.yml stop nginx && certbot renew --quiet && docker compose -f ${DEPLOY_DIR}/docker-compose.yml start nginx"
 if ! crontab -l 2>/dev/null | grep -q "certbot renew"; then
-  (crontab -l 2>/dev/null; echo "$CRON_JOB") | crontab -
-  echo "✓ Cron job added for certificate auto-renewal (daily 3AM)"
+  (crontab -l 2>/dev/null; echo "$CRON_CMD") | crontab -
+  echo "✓ Cron renewal added (daily 3AM):"
+  echo "   Stop nginx → certbot renew → start nginx (không ảnh hưởng backend/db)"
 fi
