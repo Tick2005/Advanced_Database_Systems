@@ -50,9 +50,9 @@ function ToggleRow({ title, description, checked, onToggle, badge }) {
 
 function CameraStatusCard({ browserStatus }) {
   const MAP = {
-    granted: { icon: "✅", label: "Đã cấp quyền",  bg: "#dcfce7", color: "#166534", border: "#bbf7d0" },
-    denied:  { icon: "❌", label: "Đã từ chối",     bg: "#fee2e2", color: "#b91c1c", border: "#fecaca" },
-    prompt:  { icon: "⏳", label: "Chưa được hỏi",  bg: "#fef3c7", color: "#92400e", border: "#fde68a" },
+    granted: { icon: "✅", label: "Đã cấp quyền", bg: "#dcfce7", color: "#166534", border: "#bbf7d0" },
+    denied: { icon: "❌", label: "Đã từ chối", bg: "#fee2e2", color: "#b91c1c", border: "#fecaca" },
+    prompt: { icon: "⏳", label: "Chưa xác nhận quyền", bg: "#fef3c7", color: "#92400e", border: "#fde68a" },
     unknown: { icon: "❓", label: "Không xác định", bg: "#f1f5f9", color: "#475569", border: "#e2e8f0" },
   };
   const s = MAP[browserStatus] || MAP.unknown;
@@ -165,7 +165,7 @@ export default function Settings() {
     setMessage("");
     try {
       await userService.updateProfile({ preferredLanguage: form.preferredLanguage });
-      setProfileLanguage(form.preferredLanguage);updateDeviceSetting
+      setProfileLanguage(form.preferredLanguage);
       setDirty(false);
       setMessage("Đã lưu ngôn ngữ hiển thị.");
     } catch (err) {

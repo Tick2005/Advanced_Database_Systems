@@ -12,7 +12,7 @@ import RatingStars from "../components/common/RatingStars";
 import { formatCurrencyVnd } from "../services/presenters";
 import { useApiQuery } from "../hooks/useApiQuery";
 import { queryKeys } from "../services/queryKeys";
-import { loadLocationFromStorage } from "../services/geo";
+import { getBrowserLocation, loadLocationFromStorage, saveLocationToStorage } from "../services/geo";
 
 /* ─── STATIC DATA (fallback + enrichment) ─────────────────────────────────── */
 const HERO_IMAGES = [
@@ -84,6 +84,30 @@ export default function Home() {
       window.removeEventListener("user_location_updated", handleCustom);
     };
   }, []);
+
+  useEffect(() => {
+    if (!allowLocation || userLocation) {
+      return;
+    }
+
+    let cancelled = false;
+    getBrowserLocation().then((location) => {
+      if (cancelled || !location) {
+        return;
+      }
+      setUserLocation(location);
+      saveLocationToStorage(location);
+      try {
+        window.dispatchEvent(new CustomEvent("user_location_updated", { detail: location }));
+      } catch (err) {
+        // Ignore cross-component event errors.
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [allowLocation, userLocation]);
 
   /* ── Queries ── */
   const branchesQ = useApiQuery({ queryKey: queryKeys.branches, queryFn: () => branchService.getTopBranches(), staleTime: 60000 });
