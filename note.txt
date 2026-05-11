@@ -1,0 +1,27 @@
+1. check docker /docker compose
+2. install docker docker compose
+sudo apt update
+sudo apt install docker.io
+3. run  va cap user 
+docker compose version
+docker version
+sudo usermod -aG docker $USER
+newgrp docker
+4. cap chung chi ssh https
+
+sudo apt update
+sudo apt install certbot python3-certbot-nginx
+sudo certbot --nginx -d luxstay.phanvanduong.site
+
+5. tạo file .env từ file mẫu .env.example
+
+cp .env.example .env
+nano .env
+
+6. skill nginx ko can thiet 
+
+sudo systemctl stop nginx
+sudo systemctl disable nginx
+
+
+7. 
