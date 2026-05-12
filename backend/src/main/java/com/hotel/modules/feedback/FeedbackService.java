@@ -270,6 +270,10 @@ public class FeedbackService {
             if (profile != null) {
                 response.setCustomerName(profile.getFullName());
                 response.setAvatarUrl(profile.getAvatarUrl());
+            } else {
+                // Fallback to denormalized data in MongoDB for mock users
+                response.setCustomerName(document.getCustomerName() != null ? document.getCustomerName() : "Khách hàng ẩn danh");
+                response.setAvatarUrl(document.getAvatarUrl());
             }
 
             RoomEntity room = roomId == null ? null : roomsById.get(roomId);

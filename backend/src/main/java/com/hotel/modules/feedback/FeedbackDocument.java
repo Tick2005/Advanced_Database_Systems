@@ -21,6 +21,12 @@ public class FeedbackDocument {
     @Field("room_id")
     private String roomId;
 
+    @Field("customer_name")
+    private String customerName;
+
+    @Field("avatar_url")
+    private String avatarUrl;
+
     private Integer rating;
     private String content;
 
@@ -63,6 +69,22 @@ public class FeedbackDocument {
 
     public void setRoomId(String roomId) {
         this.roomId = roomId;
+    }
+
+    public String getCustomerName() {
+        return customerName;
+    }
+
+    public void setCustomerName(String customerName) {
+        this.customerName = customerName;
+    }
+
+    public String getAvatarUrl() {
+        return avatarUrl;
+    }
+
+    public void setAvatarUrl(String avatarUrl) {
+        this.avatarUrl = avatarUrl;
     }
 
     public Integer getRating() {

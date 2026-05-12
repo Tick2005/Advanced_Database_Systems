@@ -1,175 +1,90 @@
-import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
-import { dashboardService } from "../../dashboard/dashboardService";
-import SkeletonBlock from "../../../components/common/SkeletonBlock";
-import { PATHS } from "../../../routes/pathConstants";
-import EmptyState from "../../../components/common/EmptyState";
-import ErrorState from "../../../components/common/ErrorState";
-import StatusBadge from "../../../components/common/StatusBadge";
-import { BookingStatusChart, RoomStatusGroupBarChart } from "../../../components/common/ChartWidgets";
+import React from 'react';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+
+const mockRoomData = [
+  { name: 'Deluxe', available: 12, occupied: 15 },
+  { name: 'Suite', available: 5, occupied: 8 },
+  { name: 'Family', available: 3, occupied: 10 },
+  { name: 'Standard', available: 20, occupied: 5 },
+];
 
 export default function StaffHomePage() {
-  const [loading, setLoading] = useState(true);
-  const [bookings, setBookings] = useState([]);
-  const [rooms, setRooms] = useState([]);
-  const [error, setError] = useState("");
-
-  useEffect(() => {
-    setLoading(true);
-    setError("");
-    Promise.all([
-      dashboardService.getStaffTodayBookings(),
-      dashboardService.getStaffRoomStatus()
-    ]).then(([bookingData, roomData]) => {
-      setBookings(bookingData || []);
-      setRooms(roomData || []);
-    }).catch((err) => {
-      setError(err.message || "Không thể tải dashboard staff");
-    }).finally(() => setLoading(false));
-  }, []);
-
-  const summary = useMemo(() => ({
-    totalBookings: bookings.length,
-    pendingCheckin: bookings.filter((b) => b.status === "CONFIRMED").length,
-    checkedIn: bookings.filter((b) => b.status === "CHECKED_IN").length,
-    availableRooms: rooms.filter((r) => r.status === "AVAILABLE").length
-  }), [bookings, rooms]);
-
-  const bookingByStatus = useMemo(() => {
-    const map = new Map();
-    bookings.forEach((b) => map.set(b.status, (map.get(b.status) || 0) + 1));
-    return Array.from(map.entries()).map(([name, value]) => ({ name, value }));
-  }, [bookings]);
-
-  const top5Rooms = useMemo(() => {
-    const active = bookings.filter((b) => ["CONFIRMED", "CHECKED_IN", "HOLD"].includes(b.status));
-    const roomCount = new Map();
-    active.forEach((b) => {
-      const key = b.roomId || b.roomNumber || b.id;
-      const label = b.roomNumber || b.roomId?.slice(0, 8) || "?";
-      if (!roomCount.has(key)) roomCount.set(key, { roomId: key, roomNumber: label, count: 0, status: b.status });
-      roomCount.get(key).count += 1;
-    });
-    return Array.from(roomCount.values())
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 5);
-  }, [bookings]);
-
-  if (loading) return <SkeletonBlock rows={6} />;
-  if (error) return <ErrorState message={error} onRetry={() => window.location.reload()} />;
-
   return (
-    <section style={{ display: "grid", gap: 16 }}>
-      {/* Header card */}
-      <div style={{
-        padding: "16px 20px", borderRadius: 14,
-        background: "linear-gradient(135deg, #0d2238 0%, #1e3a5f 100%)",
-        color: "white", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8
-      }}>
+    <div style={{ padding: '20px', animation: 'fadeIn 0.3s ease' }}>
+      {/* Header */}
+      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
         <div>
-          <div style={{ fontSize: 12, opacity: 0.7, marginBottom: 4 }}>Ca làm việc hôm nay</div>
-          <div style={{ fontWeight: 800, fontSize: 20 }}>Staff Dashboard</div>
-          <div style={{ fontSize: 13, opacity: 0.75, marginTop: 2 }}>
-            Tổng quan vận hành ca, trình bày gọn để dễ quét nhanh
+          <h1 style={{ margin: 0, fontFamily: 'var(--font-heading)', color: 'var(--color-primary-deep)' }}>Staff Dashboard</h1>
+          <p style={{ margin: '5px 0 0 0', color: 'var(--color-muted)' }}>Cập nhật tình hình vận hành ca hôm nay</p>
+        </div>
+        <button className="btn-gold" style={{ 
+          padding: '12px 24px', borderRadius: 'var(--radius-sm)', border: 'none', 
+          background: 'var(--color-gold)', color: 'var(--color-primary-deep)',
+          fontWeight: 'bold', cursor: 'pointer', boxShadow: 'var(--shadow-soft)'
+        }}>+ Nhanh: Check-in / Đặt phòng</button>
+      </header>
+
+      {/* KPI Cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '20px', marginBottom: '30px' }}>
+        {[
+          { title: 'Nhận phòng h.nay', value: '24', color: '#f39c12', icon: '📥' },
+          { title: 'Đang lưu trú', value: '142', color: '#3498db', icon: '🛏️' },
+          { title: 'Chờ dọn dẹp', value: '18', color: '#e74c3c', icon: '🧹' },
+          { title: 'Phòng trống', value: '40', color: '#2ecc71', icon: '✅' },
+        ].map(kpi => (
+          <div key={kpi.title} className="card" style={{ padding: '20px', display: 'flex', alignItems: 'center', gap: '15px', backgroundColor: 'white', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-soft)' }}>
+            <div style={{ fontSize: '32px' }}>{kpi.icon}</div>
+            <div>
+              <div style={{ color: 'var(--color-muted)', fontSize: '14px', marginBottom: '5px' }}>{kpi.title}</div>
+              <div style={{ fontSize: '28px', fontWeight: 'bold', color: kpi.color }}>{kpi.value}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Tables & Charts */}
+      <div style={{ display: 'grid', gridTemplateColumns: '60% 40%', gap: '20px' }}>
+        <div className="card" style={{ padding: '20px', backgroundColor: 'white', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-soft)' }}>
+          <h3 style={{ marginTop: 0, marginBottom: '20px', color: 'var(--color-primary-deep)' }}>Booking cần xử lý gấp</h3>
+          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+            <thead>
+              <tr style={{ borderBottom: '1px solid var(--color-border)', color: 'var(--color-muted)' }}>
+                <th style={{ padding: '10px' }}>Khách hàng</th>
+                <th style={{ padding: '10px' }}>Phòng</th>
+                <th style={{ padding: '10px' }}>Thời gian</th>
+                <th style={{ padding: '10px' }}>Hành động</th>
+              </tr>
+            </thead>
+            <tbody>
+              {[1, 2, 3, 4].map(i => (
+                <tr key={i} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                  <td style={{ padding: '12px 10px', fontWeight: '500' }}>Nguyễn Văn Khách {i}</td>
+                  <td style={{ padding: '12px 10px' }}>{100 + i}</td>
+                  <td style={{ padding: '12px 10px', color: '#e74c3c' }}>Quá hạn 15p</td>
+                  <td style={{ padding: '12px 10px' }}>
+                    <button style={{ background: 'var(--color-gold)', border: 'none', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>Check-in</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="card" style={{ padding: '20px', backgroundColor: 'white', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-soft)' }}>
+          <h3 style={{ marginTop: 0, marginBottom: '20px', color: 'var(--color-primary-deep)' }}>Phân bố phòng</h3>
+          <div style={{ height: '300px' }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={mockRoomData}>
+                <XAxis dataKey="name" />
+                <YAxis />
+                <Tooltip cursor={{fill: 'rgba(0,0,0,0.05)'}}/>
+                <Bar dataKey="available" name="Trống" fill="var(--color-gold)" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="occupied" name="Có khách" fill="var(--color-primary)" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
           </div>
         </div>
-        <div style={{ textAlign: "right", fontSize: 13, opacity: 0.8 }}>
-          {new Date().toLocaleDateString("vi-VN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
-        </div>
       </div>
-
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 14 }}>
-        <SummaryCard icon="📅" label="Booking hôm nay" value={summary.totalBookings} color="#3b82f6" />
-        <SummaryCard icon="🔑" label="Chờ check-in" value={summary.pendingCheckin} color="#f59e0b" />
-        <SummaryCard icon="🛏️" label="Đang lưu trú" value={summary.checkedIn} color="#10b981" />
-        <SummaryCard icon="✅" label="Phòng trống" value={summary.availableRooms} color="#6366f1" />
-      </div>
-
-      <div className="card" style={{ padding: 16, display: "grid", gap: 10 }}>
-        <h3 style={{ margin: 0, fontSize: 15 }}>⚡ Tác vụ nhanh</h3>
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-          <Link className="btn btn-primary" to={PATHS.STAFF_BOOKINGS_TODAY}>📋 Xử lý booking hôm nay</Link>
-          <Link className="btn" style={{ border: "1px solid #cbd5e1", background: "white" }} to={PATHS.STAFF_ROOMS_STATUS}>🏨 Cập nhật trạng thái phòng</Link>
-          <Link className="btn btn-gold" to={PATHS.STAFF_SERVICE_USAGE}>🍽️ Dịch vụ booking</Link>
-        </div>
-      </div>
-
-      <div style={{ display: "grid", gap: 14, gridTemplateColumns: "repeat(auto-fit, minmax(380px, 1fr))" }}>
-        <RoomStatusGroupBarChart rooms={rooms} />
-        <BookingStatusChart data={bookingByStatus} />
-      </div>
-
-      <article className="card" style={{ padding: 16, display: "grid", gap: 12 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
-          <h3 style={{ margin: 0, fontSize: 15 }}>🏆 Top 5 phòng đang được đặt hôm nay</h3>
-          <Link className="btn btn-primary" style={{ fontSize: 13, padding: "6px 14px" }} to={PATHS.STAFF_BOOKINGS_TODAY}>
-            Xem chi tiết →
-          </Link>
-        </div>
-        {top5Rooms.length === 0 ? (
-          <EmptyState title="Hôm nay chưa có phòng được đặt" description="Booking sẽ hiển thị tại đây khi khách đặt phòng." />
-        ) : (
-          <div style={{ display: "grid", gap: 8 }}>
-            {top5Rooms.map((item, idx) => (
-              <div key={item.roomId} style={{
-                display: "flex", alignItems: "center", gap: 12,
-                padding: "10px 14px", borderRadius: 10,
-                background: idx === 0 ? "#fffbeb" : "#f8fafc",
-                border: `1px solid ${idx === 0 ? "#fde68a" : "#e2e8f0"}`
-              }}>
-                <span style={{ fontWeight: 800, fontSize: 18, color: idx === 0 ? "#d97706" : "#94a3b8", minWidth: 28 }}>
-                  #{idx + 1}
-                </span>
-                <div style={{ flex: 1, display: "grid", gap: 2 }}>
-                  <span style={{ fontWeight: 700, fontSize: 14 }}>Phòng {item.roomNumber}</span>
-                  <span style={{ fontSize: 12, color: "#64748b" }}>{item.count} booking active</span>
-                </div>
-                <StatusBadge value={item.status} />
-              </div>
-            ))}
-          </div>
-        )}
-      </article>
-
-      <article className="card" style={{ padding: 16, display: "grid", gap: 10 }}>
-        <h3 style={{ margin: 0, fontSize: 15 }}>📋 Tình trạng booking hôm nay</h3>
-        {bookings.length === 0 ? (
-          <EmptyState title="Hôm nay chưa có booking" description="Staff có thể tạo walk-in booking khi khách đến trực tiếp." />
-        ) : (
-          <div style={{ display: "grid", gap: 6 }}>
-            {bookings.slice(0, 8).map((item) => (
-              <div key={item.id} style={{
-                display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8,
-                borderBottom: "1px solid #f1f5f9", paddingBottom: 8
-              }}>
-                <div style={{ display: "grid", gap: 2 }}>
-                  <span style={{ fontWeight: 600, fontSize: 13 }}>
-                    {item.customerName || item.guestName || "Khách"} · Phòng {item.roomNumber || item.roomId?.slice(0, 6) || "?"}
-                  </span>
-                  <span style={{ fontSize: 12, color: "#94a3b8" }}>
-                    {item.checkInDate} → {item.checkOutDate}
-                  </span>
-                </div>
-                <StatusBadge value={item.status} />
-              </div>
-            ))}
-          </div>
-        )}
-      </article>
-    </section>
-  );
-}
-
-function SummaryCard({ icon, label, value, color }) {
-  return (
-    <article className="card" style={{ padding: 16, borderLeft: `4px solid ${color}` }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
-        <div>
-          <div style={{ color: "#64748b", fontSize: 12, marginBottom: 6 }}>{label}</div>
-          <div style={{ fontSize: 30, fontWeight: 800, color: "#0f172a" }}>{value}</div>
-        </div>
-        <span style={{ fontSize: 20, opacity: 0.9 }}>{icon}</span>
-      </div>
-    </article>
+    </div>
   );
 }

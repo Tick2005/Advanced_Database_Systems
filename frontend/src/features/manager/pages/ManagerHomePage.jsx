@@ -1,232 +1,107 @@
-import { useEffect, useMemo, useCallback, useState } from "react";
-import { Link } from "react-router-dom";
-import { dashboardService } from "../../dashboard/dashboardService";
-import { branchService } from "../../branches/branchService";
-import { PATHS } from "../../../routes/pathConstants";
-import { dashboardStyles } from "../../../styles/dashboardStyles";
-import SkeletonBlock from "../../../components/common/SkeletonBlock";
-import { RevenueChart, RoomStatusGroupBarChart, BookingStatusChart, RatingDistributionChart } from "../../../components/common/ChartWidgets";
-import EmptyState from "../../../components/common/EmptyState";
-import ErrorState from "../../../components/common/ErrorState";
-import StatusBadge from "../../../components/common/StatusBadge";
-import { formatCurrencyVnd } from "../../../services/presenters";
+import React from 'react';
+import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
-// Constants
-const KPI_CARDS = [
-  { icon: "🏨", label: "Tổng số phòng", key: "rooms", color: "#3b82f6" },
-  { icon: "✅", label: "Phòng trống", key: "availableRooms", color: "#10b981" },
-  { icon: "📋", label: "Booking đang mở", key: "openBookings", color: "#f59e0b" },
-  { icon: "💰", label: "Pricing pending", key: "pendingPricing", color: "#8b5cf6" },
-  { icon: "⭐", label: "Điểm rating TB", key: "averageRating", color: "#d97706" }
+const formatVND = (value) => {
+  return value.toLocaleString('vi-VN') + ' VNĐ';
+};
+
+const revenueData = [
+  { name: '1', uv: 40000000 }, { name: '5', uv: 30000000 }, { name: '10', uv: 20000000 },
+  { name: '15', uv: 27800000 }, { name: '20', uv: 18900000 }, { name: '25', uv: 23900000 },
+  { name: '30', uv: 34900000 },
 ];
 
-const QUICK_LINKS = [
-  { to: PATHS.MANAGER_ROOMS, icon: "🏨", label: "Quản lý phòng", variant: "primary" },
-  { to: PATHS.MANAGER_BOOKINGS, icon: "📋", label: "Xem tất cả booking", variant: "secondary" },
-  { to: PATHS.MANAGER_PRICING_REQUESTS, icon: "💰", label: "Pricing requests", variant: "gold" },
-  { to: PATHS.MANAGER_STAFF, icon: "👥", label: "Staff", variant: "secondary" },
-  { to: PATHS.MANAGER_FEEDBACKS, icon: "💬", label: "Feedback khách", variant: "secondary" }
+const occupancyData = [
+  { name: 'T2', pct: 60 }, { name: 'T3', pct: 55 }, { name: 'T4', pct: 70 },
+  { name: 'T5', pct: 85 }, { name: 'T6', pct: 95 }, { name: 'T7', pct: 100 }, { name: 'CN', pct: 80 }
 ];
 
 export default function ManagerHomePage() {
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [branch, setBranch] = useState(null);
-  const [rooms, setRooms] = useState([]);
-  const [bookings, setBookings] = useState([]);
-  const [requests, setRequests] = useState([]);
-
-  useEffect(() => {
-    const run = async () => {
-      try {
-        setError("");
-        const branchData = await branchService.getBranches();
-        const activeBranch = branchData?.[0] || null;
-        setBranch(activeBranch);
-        const activeBranchId = activeBranch?.id || "";
-        const [roomData, bookingData, requestData] = await Promise.all([
-          activeBranchId ? dashboardService.getManagerRoomsByBranch(activeBranchId) : Promise.resolve([]),
-          dashboardService.getManagerBookings(),
-          dashboardService.getManagerPricingRequests()
-        ]);
-        setRooms(roomData || []);
-        setBookings(bookingData || []);
-        setRequests(requestData || []);
-      } catch (err) {
-        setError(err.message || "Không thể tải manager dashboard");
-      } finally {
-        setLoading(false);
-      }
-    };
-    run();
-  }, []);
-
-  const summary = useMemo(() => ({
-    rooms: rooms.length,
-    openBookings: bookings.filter((b) => ["HOLD", "PENDING_PAYMENT", "CONFIRMED", "CHECKED_IN"].includes(b.status)).length,
-    pendingPricing: requests.filter((r) => r.status === "PENDING").length,
-    availableRooms: rooms.filter((r) => r.status === "AVAILABLE").length,
-    averageRating: rooms.length > 0 ? (rooms.reduce((sum, room) => sum + Number(room.averageRating || 0), 0) / rooms.length).toFixed(1) : 0
-  }), [rooms, bookings, requests]);
-
-  const bookingByStatus = useMemo(() => {
-    const map = new Map();
-    bookings.forEach((b) => map.set(b.status, (map.get(b.status) || 0) + 1));
-    return Array.from(map.entries()).map(([name, value]) => ({ name, value }));
-  }, [bookings]);
-
-  const revenueTrend = useMemo(() => {
-    const buckets = new Map();
-    bookings.forEach((item) => {
-      const sourceDate = item.checkInDate || item.createdAt || item.updatedAt;
-      const parsed = sourceDate ? new Date(sourceDate) : null;
-      if (!parsed || Number.isNaN(parsed.getTime())) return;
-      const key = `${parsed.getMonth() + 1}/${parsed.getFullYear()}`;
-      buckets.set(key, (buckets.get(key) || 0) + Number(item.totalPrice || 0));
-    });
-    return Array.from(buckets.entries()).slice(0, 6).map(([month, revenue]) => ({ month, revenue }));
-  }, [bookings]);
-
-  const recentBookings = useMemo(() => bookings.slice(0, 5), [bookings]);
-
-  if (loading) return <SkeletonBlock rows={6} />;
-  if (error) return <ErrorState message={error} onRetry={() => window.location.reload()} />;
-
   return (
-    <section style={dashboardStyles.gridSection}>
-      <BranchHeader branch={branch} />
-      <KPISection summary={summary} />
-      <QuickLinksSection />
-      <ChartSection data={{ revenueTrend, rooms, bookingByStatus }} />
-      <RecentBookingsSection bookings={recentBookings} />
-    </section>
-  );
-}
+    <div style={{ padding: '20px', animation: 'fadeIn 0.3s ease' }}>
+      {/* Filters */}
+      <div className="card" style={{ padding: '15px 20px', marginBottom: '20px', display: 'flex', gap: '20px', alignItems: 'center', backgroundColor: 'white', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-soft)' }}>
+        <select style={{ padding: '8px 12px', borderRadius: '4px', border: '1px solid var(--color-border)' }}>
+          <option>Tất cả chi nhánh</option>
+          <option>Da Nang Center Hotel</option>
+        </select>
+        <input type="month" style={{ padding: '8px 12px', borderRadius: '4px', border: '1px solid var(--color-border)' }} />
+        <button style={{ marginLeft: 'auto', background: 'var(--color-gold)', color: 'var(--color-primary-deep)', padding: '10px 20px', border: 'none', borderRadius: '4px', fontWeight: 'bold', cursor: 'pointer' }}>
+          Xuất báo cáo
+        </button>
+      </div>
 
-// Subcomponent: Branch Header
-function BranchHeader({ branch }) {
-  return (
-    <div style={{
-      ...dashboardStyles.headerGradient,
-      display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8
-    }}>
-      <div>
-        <div style={dashboardStyles.headerSubtitle}>Chi nhánh quản lý</div>
-        <div style={dashboardStyles.headerTitle}>{branch?.name || "Chưa xác định"}</div>
-        {branch && (
-          <div style={{ fontSize: 13, opacity: 0.75, marginTop: 2 }}>
-            📍 {branch.address}, {branch.city} · 📞 {branch.phone || "Chưa có SĐT"}
+      {/* Charts */}
+      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '20px', marginBottom: '30px' }}>
+        <div className="card" style={{ padding: '20px', backgroundColor: 'white', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-soft)' }}>
+          <h3 style={{ marginTop: 0, color: 'var(--color-primary-deep)' }}>Doanh thu 30 ngày (VNĐ)</h3>
+          <div style={{ height: '300px' }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={revenueData}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                <XAxis dataKey="name" />
+                <YAxis tickFormatter={formatVND} width={130} />
+                <Tooltip formatter={(value) => value.toLocaleString('vi-VN') + ' VNĐ'} />
+                <Line type="monotone" dataKey="uv" stroke="var(--color-gold)" strokeWidth={3} dot={{r: 4}} activeDot={{ r: 8 }} />
+              </LineChart>
+            </ResponsiveContainer>
           </div>
-        )}
-      </div>
-      <div style={{ textAlign: "right", fontSize: 13, opacity: 0.8 }}>
-        {new Date().toLocaleDateString("vi-VN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
-      </div>
-    </div>
-  );
-}
-
-// Subcomponent: KPI Cards Section
-function KPISection({ summary }) {
-  return (
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 14 }}>
-      {KPI_CARDS.map((card) => (
-        <SummaryCard
-          key={card.key}
-          icon={card.icon}
-          label={card.label}
-          value={summary[card.key]}
-          color={card.color}
-        />
-      ))}
-    </div>
-  );
-}
-
-// Subcomponent: Quick Links
-function QuickLinksSection() {
-  return (
-    <article style={{ ...dashboardStyles.summaryCard, display: "flex", flexWrap: "wrap", gap: 10 }}>
-      {QUICK_LINKS.map((link) => (
-        <Link
-          key={link.to}
-          className={`btn ${link.variant === "primary" ? "btn-primary" : link.variant === "gold" ? "btn-gold" : ""}`}
-          style={link.variant === "secondary" ? { border: "1px solid #cbd5e1", background: "white" } : {}}
-          to={link.to}
-        >
-          {link.icon} {link.label}
-        </Link>
-      ))}
-    </article>
-  );
-}
-
-// Subcomponent: Charts Section
-function ChartSection({ data }) {
-  return (
-    <div style={{ display: "grid", gap: 14, gridTemplateColumns: "repeat(auto-fit, minmax(380px, 1fr))" }}>
-      <RevenueChart data={data.revenueTrend.length > 0 ? data.revenueTrend : undefined} />
-      <RoomStatusGroupBarChart rooms={data.rooms} />
-      <BookingStatusChart data={data.bookingByStatus} />
-      <RatingDistributionChart rooms={data.rooms} />
-    </div>
-  );
-}
-
-// Subcomponent: Recent Bookings
-function RecentBookingsSection({ bookings }) {
-  return (
-    <article style={dashboardStyles.summaryCard}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
-        <h3 style={dashboardStyles.headerTitle}>📅 Tình trạng booking hôm nay (Top 5)</h3>
-        <Link className="btn btn-primary" style={{ fontSize: 13, padding: "6px 14px" }} to={PATHS.MANAGER_BOOKINGS}>
-          Xem chi tiết →
-        </Link>
-      </div>
-      {bookings.length === 0 ? (
-        <EmptyState title="Chưa có booking" description="Booking sẽ hiển thị tại đây khi có khách đặt phòng." />
-      ) : (
-        <div style={{ display: "grid", gap: 8 }}>
-          {bookings.map((item) => (
-            <BookingRowItem key={item.id} item={item} />
-          ))}
         </div>
-      )}
-    </article>
-  );
-}
-
-// Subcomponent: KPI Card
-function SummaryCard({ icon, label, value, color }) {
-  return (
-    <article style={{ ...dashboardStyles.summaryCard, borderLeft: `4px solid ${color}` }}>
-      <div style={{ display: "flex", justifyContent: "space-between" }}>
-        <div>
-          <div style={dashboardStyles.headerSubtitle}>{label}</div>
-          <div style={{ fontSize: 30, fontWeight: 800 }}>{value}</div>
+        
+        <div className="card" style={{ padding: '20px', backgroundColor: 'white', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-soft)' }}>
+          <h3 style={{ marginTop: 0, color: 'var(--color-primary-deep)' }}>Tỷ lệ lấp đầy tuần (%)</h3>
+          <div style={{ height: '300px' }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={occupancyData}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                <XAxis dataKey="name" />
+                <Tooltip cursor={{fill: 'rgba(0,0,0,0.05)'}}/>
+                <Bar dataKey="pct" fill="var(--color-primary)" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
         </div>
-        <span style={{ fontSize: 26 }}>{icon}</span>
       </div>
-    </article>
-  );
-}
 
-// Subcomponent: Booking Row Item
-function BookingRowItem({ item }) {
-  return (
-    <div style={{
-      display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8,
-      ...dashboardStyles.listItem
-    }}>
-      <div style={{ display: "grid", gap: 2 }}>
-        <span style={{ fontWeight: 700, fontSize: 13 }}>
-          {item.customerName || item.guestName || "Khách"} · Phòng {item.roomNumber || item.roomId?.slice(0, 6) || "?"}
-        </span>
-        <span style={{ fontSize: 12, color: "#94a3b8" }}>{item.checkInDate} → {item.checkOutDate}</span>
-      </div>
-      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-        <span style={{ fontWeight: 700, color: "#9a7d24", fontSize: 13 }}>{formatCurrencyVnd(item.totalPrice || 0)}</span>
-        <StatusBadge value={item.status} />
+      {/* Tables */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+        <div className="card" style={{ padding: '20px', backgroundColor: 'white', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-soft)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+            <h3 style={{ marginTop: 0, color: 'var(--color-primary-deep)' }}>Nhân sự đang trực</h3>
+            <button style={{ background: 'transparent', border: '1px solid var(--color-gold)', color: 'var(--color-gold-deep)', borderRadius: '4px', cursor: 'pointer', padding: '4px 10px' }}>Phân công ca</button>
+          </div>
+          <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '10px' }}>
+            <tbody>
+              {['Trần Thị B (Lễ tân)', 'Lê Văn C (Dọn phòng)', 'Phạm Thị D (Nhà hàng)'].map(staff => (
+                <tr key={staff} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                  <td style={{ padding: '12px 0' }}><span style={{ color: 'green', marginRight: '8px' }}>●</span> {staff}</td>
+                  <td style={{ textAlign: 'right' }}>Ca Sáng (06:00 - 14:00)</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="card" style={{ padding: '20px', backgroundColor: 'white', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-soft)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+            <h3 style={{ marginTop: 0, color: 'var(--color-primary-deep)' }}>Cảnh báo Tồn kho</h3>
+            <button style={{ background: 'var(--color-gold)', border: 'none', color: 'var(--color-primary-deep)', fontWeight: 'bold', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer' }}>+ Cập nhật</button>
+          </div>
+          <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '10px' }}>
+            <tbody>
+              {[
+                { item: 'Nước suối Dasani', q: 12, unit: 'chai' },
+                { item: 'Sữa tắm', q: 5, unit: 'lít' },
+                { item: 'Cafe hòa tan', q: 20, unit: 'gói' }
+              ].map(row => (
+                <tr key={row.item} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                  <td style={{ padding: '12px 0' }}>{row.item}</td>
+                  <td style={{ textAlign: 'right', color: 'var(--color-danger)', fontWeight: 'bold' }}>{row.q} {row.unit}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
