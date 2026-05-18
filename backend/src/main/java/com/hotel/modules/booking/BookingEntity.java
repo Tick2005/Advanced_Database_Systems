@@ -16,7 +16,6 @@ import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
-import jakarta.persistence.Version;
 
 @Entity
 @Table(name = "bookings")
@@ -54,11 +53,8 @@ public class BookingEntity {
 	@Column(name = "status")
 	private BookingStatus status;
 
-	@Column(name = "hold_expires_at")
-	private LocalDateTime holdExpiresAt;
-
-	@Column(name = "payment_due_at")
-	private LocalDateTime paymentDueAt;
+	@Column(name = "rate")
+	private BigDecimal rate;
 
 	@Column(name = "cancel_reason")
 	private String cancelReason;
@@ -68,10 +64,6 @@ public class BookingEntity {
 
 	@Column(name = "updated_at")
 	private LocalDateTime updatedAt;
-
-	@Version
-	@Column(name = "version")
-	private Long version;
 
 	public UUID getId() {
 		return id;
@@ -153,20 +145,12 @@ public class BookingEntity {
 		this.status = status;
 	}
 
-	public LocalDateTime getHoldExpiresAt() {
-		return holdExpiresAt;
+	public BigDecimal getRate() {
+		return rate;
 	}
 
-	public void setHoldExpiresAt(LocalDateTime holdExpiresAt) {
-		this.holdExpiresAt = holdExpiresAt;
-	}
-
-	public LocalDateTime getPaymentDueAt() {
-		return paymentDueAt;
-	}
-
-	public void setPaymentDueAt(LocalDateTime paymentDueAt) {
-		this.paymentDueAt = paymentDueAt;
+	public void setRate(BigDecimal rate) {
+		this.rate = rate;
 	}
 
 	public String getCancelReason() {
@@ -191,13 +175,6 @@ public class BookingEntity {
 
 	public void setUpdatedAt(LocalDateTime updatedAt) {
 		this.updatedAt = updatedAt;
-	}
-	public Long getVersion() {
-		return version;
-	}
-
-	public void setVersion(Long version) {
-		this.version = version;
 	}
 }
 

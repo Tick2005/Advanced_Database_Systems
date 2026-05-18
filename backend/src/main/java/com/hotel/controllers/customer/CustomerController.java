@@ -148,6 +148,8 @@ public class CustomerController {
 		return ApiResponse.ok("Customer settings updated", customerSettingsService.updateByUserId(requireCurrentUserId(), payload));
 	}
 
+
+
 	private String requireCurrentUserId() {
 		CurrentUser currentUser = securityUtils.getCurrentUser();
 		if (currentUser == null || currentUser.getUserId() == null || currentUser.getUserId().isBlank()) {

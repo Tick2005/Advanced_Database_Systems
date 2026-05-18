@@ -12,6 +12,7 @@ public class CustomerSettingsUpdateRequest {
 
     private boolean allowLocation;
     private boolean allowCamera;
+    private boolean locationPermissionShown;
 
     public String getTheme() {
         return theme;
@@ -43,5 +44,13 @@ public class CustomerSettingsUpdateRequest {
 
     public void setAllowCamera(boolean allowCamera) {
         this.allowCamera = allowCamera;
+    }
+
+    public boolean isLocationPermissionShown() {
+        return locationPermissionShown;
+    }
+
+    public void setLocationPermissionShown(boolean locationPermissionShown) {
+        this.locationPermissionShown = locationPermissionShown;
     }
 }

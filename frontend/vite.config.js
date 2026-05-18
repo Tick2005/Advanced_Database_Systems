@@ -3,7 +3,8 @@ import react from "@vitejs/plugin-react";
 
 export default defineConfig({
   plugins: [react()],
-  base: "./", // hoặc "" để dùng relative path khi deploy lên S3/CloudFront
+  // Relative asset URLs help avoid 404 on hashed CSS/JS after reload when the CDN path drifts.
+  base: "/",
   server: {
     port: 5173,
     host: "0.0.0.0",

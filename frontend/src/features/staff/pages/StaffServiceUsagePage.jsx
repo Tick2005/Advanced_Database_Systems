@@ -2,16 +2,14 @@ import { useEffect, useState } from "react";
 import { dashboardService } from "../../dashboard/dashboardService";
 import ToastMessage from "../../../components/common/ToastMessage";
 import StatusBadge from "../../../components/common/StatusBadge";
-import EmptyState from "../../../components/common/EmptyState";
 import { formatCurrencyVnd } from "../../../services/presenters";
 
 export default function StaffServiceUsagePage() {
   const [bookings, setBookings] = useState([]);
   const [services, setServices] = useState([]);
-  const [selectedBooking, setSelectedBooking] = useState(null);
-  const [selectedServiceId, setSelectedServiceId] = useState("");
+  const [selectedService, setSelectedService] = useState(null);
+  const [selectedBookingId, setSelectedBookingId] = useState("");
   const [qty, setQty] = useState(1);
-  const [activeStep, setActiveStep] = useState(0);
   const [adding, setAdding] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -29,22 +27,20 @@ export default function StaffServiceUsagePage() {
       .finally(() => setLoading(false));
   }, []);
 
-  const selectBooking = (booking) => {
-    setSelectedBooking(booking);
-    setSelectedServiceId("");
+  const openAddServiceModal = (service) => {
+    setSelectedService(service);
+    setSelectedBookingId(bookings.length === 1 ? bookings[0].id : "");
     setQty(1);
-    setActiveStep(1);
   };
 
   const addService = async () => {
-    if (!selectedBooking || !selectedServiceId) return;
+    if (!selectedBookingId || !selectedService) return;
     setAdding(true);
     setError("");
     try {
-      await dashboardService.addServiceToBooking(selectedBooking.id, selectedServiceId, qty);
-      setMessage(`Đã thêm dịch vụ vào booking ${selectedBooking.id?.slice(0, 8)}`);
-      setSelectedServiceId("");
-      setQty(1);
+      await dashboardService.addServiceToBooking(selectedBookingId, selectedService.id, qty);
+      setMessage(`Đã thêm ${qty} ${selectedService.name} vào booking #${selectedBookingId.split("-")[0]}`);
+      setSelectedService(null);
     } catch (err) {
       setError(err.message || "Không thể thêm dịch vụ");
     } finally {
@@ -52,19 +48,19 @@ export default function StaffServiceUsagePage() {
     }
   };
 
-  const selectedService = services.find((s) => s.id === selectedServiceId);
-
   return (
-    <section style={{ display: "grid", gap: 16 }}>
+    <section style={{ display: "grid", gap: 20 }}>
+      {/* Header Banner */}
       <div style={{
-        padding: "16px 20px", borderRadius: 14,
+        padding: "20px 24px", borderRadius: 16,
         background: "linear-gradient(135deg, #0d2238 0%, #1e3a5f 100%)",
-        color: "white", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8
+        color: "white", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12,
+        boxShadow: "0 10px 25px rgba(13, 34, 56, 0.2)"
       }}>
         <div>
-          <div style={{ fontSize: 12, opacity: 0.7, marginBottom: 4 }}>Dịch vụ phòng</div>
-          <div style={{ fontWeight: 800, fontSize: 20 }}>Dịch vụ Booking</div>
-          <div style={{ fontSize: 13, opacity: 0.75, marginTop: 2 }}>Thêm dịch vụ cho booking active hôm nay</div>
+          <div style={{ fontSize: 13, opacity: 0.8, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 6 }}>Upsell & Tiện ích</div>
+          <div style={{ fontWeight: 800, fontSize: 24, letterSpacing: "-0.02em" }}>Dịch vụ khách sạn</div>
+          <div style={{ fontSize: 14, opacity: 0.8, marginTop: 4 }}>Giới thiệu và đăng ký dịch vụ nhanh chóng cho khách lưu trú</div>
         </div>
       </div>
 
@@ -72,180 +68,144 @@ export default function StaffServiceUsagePage() {
       <ToastMessage type="error" message={error} onClose={() => setError("")} />
 
       {loading ? (
-        <div className="card" style={{ padding: 24, textAlign: "center", color: "#64748b" }}>Đang tải dữ liệu...</div>
+        <div className="card" style={{ padding: 40, textAlign: "center", color: "#64748b" }}>Đang tải dữ liệu...</div>
       ) : (
-        <div style={{ display: "grid", gap: 14 }}>
-          <div className="surface-panel" style={{ padding: 16, display: "grid", gap: 12 }}>
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              {[
-                { title: "1. Chọn booking", hint: "Chỉ hiện booking active" },
-                { title: "2. Chọn dịch vụ", hint: "Thêm dịch vụ cho booking đã chọn" }
-              ].map((step, index) => {
-                const isActive = activeStep === index;
-                const isDone = activeStep > index;
-                return (
-                  <button
-                    key={step.title}
-                    type="button"
-                    onClick={() => index === 0 ? setActiveStep(0) : selectedBooking && setActiveStep(1)}
-                    style={{
-                      border: "1px solid",
-                      borderColor: isActive ? "#c9a84c" : isDone ? "#0d2238" : "#e2e8f0",
-                      background: isActive ? "#fef7e7" : isDone ? "#0d2238" : "white",
-                      color: isDone ? "white" : "#0d2238",
-                      borderRadius: 999,
-                      padding: "10px 14px",
-                      textAlign: "left",
-                      cursor: "pointer",
-                      minWidth: 220
-                    }}
+        <>
+          {/* Services List - Upsell Display */}
+          <div>
+            <h3 style={{ margin: "0 0 16px 0", color: "#0d2238", fontSize: 18, display: "flex", alignItems: "center", gap: 8 }}>
+              ✨ Dịch vụ nổi bật
+            </h3>
+            
+            <div style={{ display: "grid", gap: 16, gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))" }}>
+              {services.map((s) => (
+                <article key={s.id} className="card" style={{ padding: 20, display: "flex", flexDirection: "column", gap: 12, transition: "transform 0.2s, box-shadow 0.2s" }} onMouseOver={(e) => { e.currentTarget.style.transform = "translateY(-4px)"; e.currentTarget.style.boxShadow = "0 12px 20px rgba(0,0,0,0.08)"; }} onMouseOut={(e) => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = "var(--shadow-card)"; }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
+                    <div>
+                      <h4 style={{ margin: 0, fontSize: 16, color: "#0f172a", fontWeight: 800 }}>{s.name}</h4>
+                      <div style={{ fontSize: 12, color: "#64748b", textTransform: "uppercase", fontWeight: 700, marginTop: 4 }}>{s.serviceMode || s.code}</div>
+                    </div>
+                    <div style={{ background: "#fef7e7", color: "#9a7d24", padding: "6px 10px", borderRadius: 8, fontWeight: 800, fontSize: 14 }}>
+                      {formatCurrencyVnd(s.price || 0)}
+                    </div>
+                  </div>
+                  
+                  <p style={{ margin: 0, fontSize: 13, color: "#475569", lineHeight: 1.5, flex: 1 }}>
+                    {s.description || "Chưa có mô tả chi tiết cho dịch vụ này. Vui lòng liên hệ lễ tân để biết thêm thông tin."}
+                  </p>
+                  
+                  <button 
+                    className="btn btn-gold" 
+                    style={{ width: "100%", padding: "10px", marginTop: "auto", display: "flex", justifyContent: "center", gap: 8, alignItems: "center" }}
+                    onClick={() => openAddServiceModal(s)}
                   >
-                    <div style={{ fontWeight: 800, fontSize: 13 }}>{step.title}</div>
-                    <div style={{ fontSize: 12, opacity: 0.75 }}>{step.hint}</div>
+                    <span>➕</span> Thêm cho khách
                   </button>
-                );
-              })}
+                </article>
+              ))}
+              
+              {services.length === 0 && (
+                <div className="card" style={{ padding: 40, textAlign: "center", color: "#94a3b8", gridColumn: "1 / -1" }}>
+                  Chưa có dịch vụ nào được cấu hình trong hệ thống.
+                </div>
+              )}
             </div>
           </div>
 
-          {activeStep === 0 && (
-            <div style={{ display: "grid", gap: 10 }}>
+          {/* Active Bookings Summary */}
+          <div className="card" style={{ padding: 20, marginTop: 10 }}>
+            <h3 style={{ margin: "0 0 16px 0", color: "#0d2238", fontSize: 16 }}>Khách đang lưu trú (Có thể thêm dịch vụ)</h3>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
               {bookings.length === 0 ? (
-                <EmptyState title="Không có booking active" description="Chỉ hiển thị booking CONFIRMED hoặc CHECKED_IN" />
+                 <div style={{ color: "#94a3b8", fontSize: 13 }}>Không có booking nào đang active (CONFIRMED hoặc CHECKED_IN).</div>
               ) : (
-                bookings.map((b) => (
-                  <button
-                    key={b.id}
-                    type="button"
-                    onClick={() => selectBooking(b)}
-                    style={{
-                      padding: 14, borderRadius: 12, textAlign: "left", cursor: "pointer",
-                      border: `2px solid ${selectedBooking?.id === b.id ? "#0d2238" : "#e2e8f0"}`,
-                      background: selectedBooking?.id === b.id ? "#0d2238" : "white"
-                    }}
-                  >
-                    <div style={{ fontWeight: 700, color: selectedBooking?.id === b.id ? "white" : "#0f172a", fontSize: 14 }}>
-                      {b.customerName || b.guestName || "Khách"} — Phòng {b.roomNumber || "?"}
-                    </div>
-                    <div style={{ fontSize: 12, color: selectedBooking?.id === b.id ? "rgba(255,255,255,0.7)" : "#64748b", marginTop: 4 }}>
-                      {b.checkInDate} → {b.checkOutDate} · <StatusBadge value={b.status} />
-                    </div>
-                  </button>
+                bookings.map(b => (
+                  <div key={b.id} style={{ padding: "8px 14px", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, fontSize: 13, display: "flex", gap: 10, alignItems: "center" }}>
+                    <span style={{ fontWeight: 700, color: "#0f172a" }}>Phòng {b.roomNumber || "?"}</span>
+                    <span style={{ color: "#64748b" }}>|</span>
+                    <span style={{ color: "#475569" }}>{b.customerName || b.guestName || "Khách"}</span>
+                  </div>
                 ))
               )}
             </div>
-          )}
-
-          {activeStep === 1 && (
-            <article className="card" style={{ padding: 18, display: "grid", gap: 14, alignContent: "start" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
-                <h3 style={{ margin: 0, fontSize: 14, color: "#475569" }}>2. Thêm dịch vụ</h3>
-                <button type="button" className="btn" style={{ border: "1px solid #cbd5e1", background: "white" }} onClick={() => setActiveStep(0)}>Quay lại chọn booking</button>
-              </div>
-
-              {!selectedBooking && (
-                <div style={{ padding: 16, textAlign: "center", color: "#94a3b8", background: "#f8fafc", borderRadius: 10 }}>
-                  ← Chọn booking để thêm dịch vụ
-                </div>
-              )}
-
-              {selectedBooking && (
-                <>
-                  <div style={{ padding: 12, borderRadius: 10, background: "#f0f9ff", border: "1px solid #bae6fd" }}>
-                    <div style={{ fontWeight: 700, fontSize: 13 }}>Booking đã chọn:</div>
-                    <div style={{ fontSize: 13, color: "#0284c7", marginTop: 2 }}>
-                      {selectedBooking.customerName || "Khách"} — Phòng {selectedBooking.roomNumber}
-                    </div>
-                  </div>
-
-                  <div>
-                    <label style={{ fontSize: 13, color: "#475569", display: "block", marginBottom: 6 }}>Chọn dịch vụ</label>
-                    <select
-                      value={selectedServiceId}
-                      onChange={(e) => setSelectedServiceId(e.target.value)}
-                      style={{ width: "100%", padding: "9px 12px", borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 14 }}
-                    >
-                      <option value="">-- Chọn dịch vụ --</option>
-                      {services.map((s) => (
-                        <option key={s.id} value={s.id}>
-                          {s.name} — {formatCurrencyVnd(s.price || 0)}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {selectedService && (
-                    <div style={{ padding: 12, borderRadius: 10, background: "#fefce8", border: "1px solid #fde68a", fontSize: 13 }}>
-                      <strong>{selectedService.name}</strong>
-                      <div style={{ color: "#64748b", marginTop: 2 }}>{selectedService.description}</div>
-                      <div style={{ fontWeight: 700, color: "#d97706", marginTop: 4 }}>{formatCurrencyVnd(selectedService.price || 0)} / lần</div>
-                    </div>
-                  )}
-
-                  <div>
-                    <label style={{ fontSize: 13, color: "#475569", display: "block", marginBottom: 6 }}>Số lượng</label>
-                    <input
-                      type="number" min={1} max={20} value={qty}
-                      onChange={(e) => setQty(Number(e.target.value) || 1)}
-                      style={{ width: "100%", padding: "9px 12px", borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 14 }}
-                    />
-                  </div>
-
-                  {selectedService && qty > 0 && (
-                    <div style={{ fontSize: 14, fontWeight: 700, color: "#0d2238" }}>
-                      Tổng: {formatCurrencyVnd((selectedService.price || 0) * qty)}
-                    </div>
-                  )}
-
-                  <button
-                    className="btn btn-gold"
-                    onClick={addService}
-                    disabled={!selectedServiceId || adding}
-                    style={{ width: "100%" }}
-                  >
-                    {adding ? "Đang thêm..." : "➕ Thêm dịch vụ vào booking"}
-                  </button>
-                </>
-              )}
-            </article>
-          )}
-
-          {activeStep === 1 && (
-            <article className="card" style={{ padding: 16 }}>
-              <h3 style={{ margin: "0 0 12px" }}>📋 Danh sách dịch vụ có sẵn</h3>
-              <div style={{ display: "grid", gap: 8, gridTemplateColumns: "repeat(auto-fill,minmax(220px,1fr))" }}>
-                {services.map((s) => (
-                  <div key={s.id} style={{ padding: 12, borderRadius: 10, border: "1px solid #e2e8f0", background: "#f8fafc", display: "grid", gap: 4 }}>
-                    <div style={{ fontWeight: 700, fontSize: 13, color: "#0d2238" }}>{s.name}</div>
-                    <div style={{ fontSize: 12, color: "#64748b" }}>{s.serviceMode || s.code}</div>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: "#9a7d24" }}>{formatCurrencyVnd(s.price || 0)}</div>
-                  </div>
-                ))}
-                {services.length === 0 && (
-                  <div style={{ color: "#94a3b8", fontSize: 13, gridColumn: "1 / -1" }}>Chưa có dịch vụ nào được cấu hình.</div>
-                )}
-              </div>
-            </article>
-          )}
-        </div>
+          </div>
+        </>
       )}
 
-      {/* Danh sách dịch vụ */}
-      <article className="card" style={{ padding: 16 }}>
-        <h3 style={{ margin: "0 0 12px" }}>📋 Danh sách dịch vụ có sẵn</h3>
-        <div style={{ display: "grid", gap: 8, gridTemplateColumns: "repeat(auto-fill,minmax(220px,1fr))" }}>
-          {services.map((s) => (
-            <div key={s.id} style={{ padding: 12, borderRadius: 10, border: "1px solid #e2e8f0", background: "#f8fafc", display: "grid", gap: 4 }}>
-              <div style={{ fontWeight: 700, fontSize: 13, color: "#0d2238" }}>{s.name}</div>
-              <div style={{ fontSize: 12, color: "#64748b" }}>{s.serviceMode || s.code}</div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: "#9a7d24" }}>{formatCurrencyVnd(s.price || 0)}</div>
+      {/* Add Service Modal */}
+      {selectedService && (
+        <div className="modal-overlay" style={{ display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, background: "rgba(15, 23, 42, 0.6)", backdropFilter: "blur(4px)" }}>
+          <div className="card modal-card" style={{ maxWidth: 480, width: "100%", padding: 24 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: 20, color: "#0d2238" }}>Đăng ký dịch vụ</h3>
+                <div style={{ fontSize: 13, color: "#64748b", marginTop: 4 }}>Thêm dịch vụ vào hóa đơn của khách</div>
+              </div>
+              <button 
+                onClick={() => setSelectedService(null)}
+                style={{ background: "none", border: "none", fontSize: 24, cursor: "pointer", color: "#94a3b8" }}
+              >
+                ×
+              </button>
             </div>
-          ))}
-          {services.length === 0 && (
-            <div style={{ color: "#94a3b8", fontSize: 13, gridColumn: "1 / -1" }}>Chưa có dịch vụ nào được cấu hình.</div>
-          )}
+            
+            <div style={{ background: "#fef7e7", padding: 16, borderRadius: 12, marginBottom: 20, border: "1px solid #fde68a" }}>
+              <div style={{ fontWeight: 800, fontSize: 16, color: "#9a7d24" }}>{selectedService.name}</div>
+              <div style={{ fontSize: 14, color: "#b45309", marginTop: 4, fontWeight: 700 }}>Đơn giá: {formatCurrencyVnd(selectedService.price || 0)}</div>
+            </div>
+
+            <div style={{ display: "grid", gap: 16 }}>
+              <div>
+                <label style={{ fontSize: 13, color: "#475569", fontWeight: 700, display: "block", marginBottom: 8 }}>
+                  1. Chọn phòng / Booking khách hàng
+                </label>
+                <select
+                  value={selectedBookingId}
+                  onChange={(e) => setSelectedBookingId(e.target.value)}
+                  style={{ width: "100%", padding: "10px 14px", borderRadius: 8, border: "1px solid #cbd5e1", fontSize: 14, background: "white" }}
+                >
+                  <option value="">-- Vui lòng chọn khách hàng --</option>
+                  {bookings.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      Phòng {b.roomNumber || "?"} — {b.customerName || b.guestName || "Khách"}
+                    </option>
+                  ))}
+                </select>
+                {bookings.length === 0 && (
+                  <div style={{ fontSize: 12, color: "#ef4444", marginTop: 6 }}>* Hiện không có khách nào đang lưu trú để thêm dịch vụ.</div>
+                )}
+              </div>
+
+              <div>
+                <label style={{ fontSize: 13, color: "#475569", fontWeight: 700, display: "block", marginBottom: 8 }}>
+                  2. Số lượng
+                </label>
+                <input
+                  type="number" min={1} max={20} value={qty}
+                  onChange={(e) => setQty(Number(e.target.value) || 1)}
+                  style={{ width: "100%", padding: "10px 14px", borderRadius: 8, border: "1px solid #cbd5e1", fontSize: 14 }}
+                />
+              </div>
+
+              <div style={{ padding: "16px 0", borderTop: "1px dashed #e2e8f0", marginTop: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ fontSize: 14, color: "#64748b", fontWeight: 600 }}>Tổng tiền:</span>
+                <span style={{ fontSize: 20, color: "#0d2238", fontWeight: 800 }}>
+                  {formatCurrencyVnd((selectedService.price || 0) * qty)}
+                </span>
+              </div>
+
+              <button
+                className="btn btn-gold"
+                onClick={addService}
+                disabled={!selectedBookingId || adding}
+                style={{ width: "100%", padding: "12px", fontSize: 15 }}
+              >
+                {adding ? "Đang xử lý..." : "Xác nhận thêm dịch vụ"}
+              </button>
+            </div>
+          </div>
         </div>
-      </article>
+      )}
     </section>
   );
 }

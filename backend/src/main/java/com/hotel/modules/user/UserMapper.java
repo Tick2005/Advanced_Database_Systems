@@ -15,6 +15,7 @@ public class UserMapper {
         response.setActive(user.isActive());
         response.setEmailVerified(user.isEmailVerified());
         response.setCreatedAt(user.getCreatedAt());
+        response.setUpdatedAt(user.getUpdatedAt());
         return response;
     }
 

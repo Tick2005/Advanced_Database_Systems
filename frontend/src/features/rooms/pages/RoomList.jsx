@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import RoomCard from "../RoomCard";
 import { roomService } from "../roomService";
 import { branchService } from "../../branches/branchService";
-import { serviceService } from "../../services/serviceService";
 import { feedbackService } from "../../feedback/feedbackService";
 import LoadingState from "../../../components/common/LoadingState";
 import ErrorState from "../../../components/common/ErrorState";
@@ -13,6 +12,8 @@ import { queryKeys } from "../../../services/queryKeys";
 import { useDebouncedValue } from "../../../hooks/useDebouncedValue";
 import { applyRoomFilters, sortRooms } from "../roomFilters";
 import { loadLocationFromStorage, sortRoomsByProximityAndRating } from "../../../services/geo";
+import { useCustomerSettings } from "../../../hooks/useCustomerSettings";
+import { useAuth } from "../../auth/useAuth";
 
 export default function RoomList({ customer = false }) {
   const [filters, setFilters] = useState({
@@ -22,12 +23,14 @@ export default function RoomList({ customer = false }) {
     minPrice: "",
     maxPrice: "",
     occupancy: "",
-    serviceId: ""
+    roomTypeName: "",  // filter theo tên loại phòng, gom nhóm đúng
   });
   const [sortBy, setSortBy] = useState("featured");
   const [page, setPage] = useState(1);
   const pageSize = 6;
   const [userLocation] = useState(() => loadLocationFromStorage());
+  const { isAuthenticated, role } = useAuth();
+  const { settings } = useCustomerSettings();
 
   const roomsQuery = useApiQuery({
     queryKey: queryKeys.rooms(),
@@ -41,15 +44,9 @@ export default function RoomList({ customer = false }) {
     staleTime: 60 * 1000
   });
 
-  const servicesQuery = useApiQuery({
-    queryKey: queryKeys.services,
-    queryFn: () => serviceService.getServices(),
-    staleTime: 60 * 1000
-  });
-
+  // Services are branch-specific — not loaded at list level (loaded in ServiceSelector per booking)
   const rooms = roomsQuery.data || [];
   const branches = branchesQuery.data || [];
-  const services = servicesQuery.data || [];
   const roomIds = useMemo(() => [...new Set(rooms.map((room) => room.id).filter(Boolean))], [rooms]);
   const roomFeedbackSummaryQ = useApiQuery({
     queryKey: ["room-list-feedback-summary", roomIds.join(",")],
@@ -84,10 +81,11 @@ export default function RoomList({ customer = false }) {
   const filtered = useMemo(() => {
     const nextRooms = applyRoomFilters(roomsWithFeedback, debouncedFilters);
     if (sortBy === "featured") {
-      return sortRoomsByProximityAndRating(nextRooms, branches, userLocation);
+      const allowLocation = isAuthenticated && role === "CUSTOMER" && Boolean(settings?.allowLocation);
+      return sortRoomsByProximityAndRating(nextRooms, branches, userLocation, allowLocation);
     }
     return sortRooms(nextRooms, sortBy);
-  }, [roomsWithFeedback, branches, userLocation, debouncedFilters, sortBy]);
+  }, [roomsWithFeedback, branches, userLocation, debouncedFilters, sortBy, isAuthenticated, role, settings]);
 
   const paginated = useMemo(() => {
     const start = (page - 1) * pageSize;
@@ -108,6 +106,23 @@ export default function RoomList({ customer = false }) {
 
   const uniqueCities = useMemo(() => [...new Set(rooms.map((room) => room.branchCity).filter(Boolean))], [rooms]);
   const uniqueStatuses = useMemo(() => [...new Set(rooms.map((room) => room.status).filter(Boolean))], [rooms]);
+  const uniqueRoomTypes = useMemo(() => {
+    // Gom nhóm theo tên loại phòng (Standard/Deluxe/Family...)
+    // Nhiều branch có thể có cùng tên loại phòng nhưng UUID khác nhau
+    // → dùng tên làm key, lưu tất cả UUID tương ứng để filter đúng
+    const byName = new Map();
+    rooms.forEach((room) => {
+      if (room.roomTypeName) {
+        if (!byName.has(room.roomTypeName)) {
+          byName.set(room.roomTypeName, []);
+        }
+        if (room.roomTypeId && !byName.get(room.roomTypeName).includes(room.roomTypeId)) {
+          byName.get(room.roomTypeName).push(room.roomTypeId);
+        }
+      }
+    });
+    return Array.from(byName.entries()).map(([name, ids]) => ({ name, ids }));
+  }, [rooms]);
 
   const onFilterChange = (field, value) => {
     setFilters((prev) => ({ ...prev, [field]: value }));
@@ -165,6 +180,13 @@ export default function RoomList({ customer = false }) {
           <div className="field">
             <label>Sức chứa tối thiểu</label>
             <input type="number" min={0} value={filters.occupancy} onChange={(event) => onFilterChange("occupancy", event.target.value)} />
+          </div>
+          <div className="field">
+            <label>Loại phòng</label>
+            <select value={filters.roomTypeName} onChange={(event) => onFilterChange("roomTypeName", event.target.value)}>
+              <option value="">Tất cả</option>
+              {uniqueRoomTypes.map((rt) => <option key={rt.name} value={rt.name}>{rt.name}</option>)}
+            </select>
           </div>
           
           <div className="field">

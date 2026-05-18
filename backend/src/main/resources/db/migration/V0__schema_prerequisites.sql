@@ -1,5 +1,7 @@
+-- V0: Schema Prerequisites - Define custom types and extensions
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
+-- Create all required ENUM types
 DO $$
 BEGIN
 	IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'user_role') THEN

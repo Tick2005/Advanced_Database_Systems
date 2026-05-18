@@ -8,7 +8,6 @@ const CUSTOMER_MENU = [
   { to: PATHS.CUSTOMER_BOOKINGS, label: "Booking của tôi", icon: "🧾" },
   { to: PATHS.CUSTOMER_PROFILE, label: "Hồ sơ", icon: "👤" },
   { to: PATHS.CUSTOMER_SETTINGS, label: "Cài đặt", icon: "⚙️" },
-  { to: PATHS.BRANCHES, label: "Chi nhánh", icon: "🏢" },
 ];
 
 // Uniform pill style for all nav/auth buttons
@@ -270,7 +269,6 @@ export default function PublicLayout() {
             <div style={{ fontWeight: 700, color: "#c9a84c", fontSize: 12, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 4 }}>Khám phá</div>
             {[
               { to: PATHS.ROOMS, label: "Tìm phòng" },
-              { to: PATHS.BRANCHES, label: "Chi nhánh" },
               { to: PATHS.CUSTOMER_BOOKINGS, label: "Booking của tôi" },
               { to: PATHS.CUSTOMER_SETTINGS, label: "Cài đặt" },
             ].map((l) => (

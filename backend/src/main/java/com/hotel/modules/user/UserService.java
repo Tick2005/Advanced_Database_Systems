@@ -44,6 +44,7 @@ public class UserService {
         return userRepository.findAllById(userIds).stream()
             .map(this::toUserResponseWithBranch)
             .filter(user -> user.getBranchId() != null && user.getBranchId().equals(branchId))
+            .filter(user -> Role.STAFF.name().equalsIgnoreCase(user.getRole()))
             .toList();
     }
 
@@ -141,6 +142,12 @@ public class UserService {
 
     private UserResponse toUserResponseWithBranch(UserEntity user) {
         UserResponse response = userMapper.toUserResponse(user);
+        
+        profileRepository.findByUserId(user.getId()).ifPresent(profile -> {
+            response.setFullName(profile.getFullName());
+            response.setPhone(profile.getPhone());
+        });
+
         userBranchAssignmentRepository.findByUserId(user.getId())
             .map(UserBranchAssignmentEntity::getBranchId)
             .map(java.util.UUID::toString)

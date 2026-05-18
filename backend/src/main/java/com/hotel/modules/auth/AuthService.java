@@ -11,10 +11,7 @@ import java.util.HexFormat;
 import java.util.Map;
 import java.util.UUID;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.hotel.common.constants.AppConstants;
 import com.hotel.common.enums.Role;
 import com.hotel.exception.BusinessException;
+import com.hotel.integrations.email.AuthEmailNotificationService;
 import com.hotel.integrations.email.EmailService;
 import com.hotel.integrations.email.EmailTemplateFactory;
 import com.hotel.modules.auth.dto.AuthResponse;
@@ -31,12 +29,11 @@ import com.hotel.modules.auth.dto.RegisterRequest;
 import com.hotel.modules.auth.dto.VerifyEmailRequest;
 import com.hotel.modules.user.ProfileEntity;
 import com.hotel.modules.user.UserEntity;
+import com.hotel.modules.user.settings.CustomerSettingsService;
 import com.hotel.security.JwtProvider;
 
 @Service
 public class AuthService {
-
-	private static final Logger LOGGER = LoggerFactory.getLogger(AuthService.class);
 
 	private final AuthRepository authRepository;
 	private final AuthMapper authMapper;
@@ -44,8 +41,10 @@ public class AuthService {
 	private final JwtProvider jwtProvider;
 	private final EmailTemplateFactory emailTemplateFactory;
 	private final EmailService emailService;
+	private final AuthEmailNotificationService authEmailNotificationService;
 	private final PasswordResetTokenRepository passwordResetTokenRepository;
 	private final LoginAttemptRepository loginAttemptRepository;
+	private final CustomerSettingsService customerSettingsService;
 	private final String verifyEmailBaseUrl;
 	private final String resetPasswordBaseUrl;
 	private final int resetPasswordExpireMinutes;
@@ -57,11 +56,13 @@ public class AuthService {
 		JwtProvider jwtProvider,
 		EmailTemplateFactory emailTemplateFactory,
 		EmailService emailService,
+		AuthEmailNotificationService authEmailNotificationService,
 		PasswordResetTokenRepository passwordResetTokenRepository,
 		LoginAttemptRepository loginAttemptRepository,
+		CustomerSettingsService customerSettingsService,
 		@Value("${app.auth.verify-email-base-url:https://luxstay.phanvanduong.site/verify-email}") String verifyEmailBaseUrl,
 		@Value("${app.auth.reset-password-base-url:https://luxstay.phanvanduong.site/reset-password}") String resetPasswordBaseUrl,
-		@Value("${app.auth.reset-password-expire-minutes:15}") int resetPasswordExpireMinutes
+		@Value("${app.auth.reset-password-expire-minutes:60}") int resetPasswordExpireMinutes
 	) {
 		this.authRepository = authRepository;
 		this.authMapper = authMapper;
@@ -69,15 +70,17 @@ public class AuthService {
 		this.jwtProvider = jwtProvider;
 		this.emailTemplateFactory = emailTemplateFactory;
 		this.emailService = emailService;
+		this.authEmailNotificationService = authEmailNotificationService;
 		this.passwordResetTokenRepository = passwordResetTokenRepository;
 		this.loginAttemptRepository = loginAttemptRepository;
+		this.customerSettingsService = customerSettingsService;
 		this.verifyEmailBaseUrl = verifyEmailBaseUrl;
 		this.resetPasswordBaseUrl = resetPasswordBaseUrl;
 		this.resetPasswordExpireMinutes = resetPasswordExpireMinutes;
 	}
 
 	@Transactional
-	public AuthResponse register(RegisterRequest request) {
+	public void register(RegisterRequest request) {
 		String email = normalizeEmail(request.getEmail());
 		if (authRepository.findUserByEmail(email).isPresent()) {
 			throw new BusinessException("Email already exists");
@@ -103,10 +106,12 @@ public class AuthService {
 		profile.setUpdatedAt(now);
 		authRepository.saveProfile(profile);
 
-		// Send email asynchronously - don't block registration response
-		sendVerificationEmail(savedUser, request.getFullName());
+		// Auto-create default settings for the new customer
+		customerSettingsService.getByUserId(savedUser.getId().toString());
 
-		return authMapper.toAuthResponse(savedUser, resolveBranchIdForToken(savedUser));
+		// Send verification email asynchronously — do not block registration response
+		String rawVerificationToken = jwtProvider.generateEmailVerificationToken(savedUser.getId().toString(), savedUser.getEmail());
+		authEmailNotificationService.sendVerificationEmail(savedUser, request.getFullName(), verifyEmailBaseUrl, rawVerificationToken);
 	}
 
 	@Transactional
@@ -277,26 +282,6 @@ public class AuthService {
 		return email.trim().toLowerCase();
 	}
 
-	@Async
-	private void sendVerificationEmail(UserEntity user, String fullName) {
-		String token = jwtProvider.generateEmailVerificationToken(user.getId().toString(), user.getEmail());
-		String verifyUrl = verifyEmailBaseUrl
-			+ "?email=" + urlEncode(user.getEmail())
-			+ "&token=" + urlEncode(token);
-
-		String html = emailTemplateFactory.render("mail-verify-account", Map.of(
-			"fullName", fullName == null || fullName.isBlank() ? "User" : fullName,
-			"verifyUrl", verifyUrl
-		));
-		if (!emailService.send(user.getEmail(), "Verify your account", html)) {
-			LOGGER.warn("Verification email could not be delivered to {}", user.getEmail());
-		}
-	}
-
-	private String urlEncode(String value) {
-		return URLEncoder.encode(value, StandardCharsets.UTF_8);
-	}
-
 	private String sha256(String value) {
 		try {
 			MessageDigest digest = MessageDigest.getInstance("SHA-256");
@@ -305,6 +290,10 @@ public class AuthService {
 		} catch (NoSuchAlgorithmException ex) {
 			throw new BusinessException("Unable to hash token");
 		}
+	}
+
+	private String urlEncode(String value) {
+		return URLEncoder.encode(value, StandardCharsets.UTF_8);
 	}
 
 	private String resolveBranchIdForToken(UserEntity user) {

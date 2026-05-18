@@ -2,6 +2,7 @@ import {
   LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from "recharts";
+import { formatCurrencyVnd, formatVndAmount } from "../../services/presenters";
 
 // ─── Revenue trend ──────────────────────────────────────────────────────────
 export function RevenueChart({ data = SAMPLE_REVENUE_DATA }) {
@@ -12,10 +13,10 @@ export function RevenueChart({ data = SAMPLE_REVENUE_DATA }) {
         <LineChart data={data}>
           <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
           <XAxis dataKey="month" stroke="#64748b" />
-          <YAxis stroke="#64748b" />
-          <Tooltip contentStyle={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 10 }} />
+          <YAxis stroke="#64748b" tickFormatter={(v) => formatVndAmount(v)} />
+          <Tooltip contentStyle={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 10 }} formatter={(v) => formatCurrencyVnd(v)} />
           <Legend />
-          <Line type="monotone" dataKey="revenue" stroke="#9a7d24" strokeWidth={2} name="Doanh thu (VND)" />
+          <Line type="monotone" dataKey="revenue" stroke="#9a7d24" strokeWidth={2} name="Doanh thu (đồng)" />
         </LineChart>
       </ResponsiveContainer>
     </div>
@@ -31,11 +32,11 @@ export function ProfitByBranchChart({ data = SAMPLE_BRANCH_DATA }) {
         <BarChart data={data}>
           <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
           <XAxis dataKey="branch" stroke="#64748b" />
-          <YAxis stroke="#64748b" />
-          <Tooltip contentStyle={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 10 }} />
+          <YAxis stroke="#64748b" tickFormatter={(v) => formatVndAmount(v)} />
+          <Tooltip contentStyle={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 10 }} formatter={(v) => formatCurrencyVnd(v)} />
           <Legend />
-          <Bar dataKey="profit" fill="#0d2238" name="Lợi nhuận (VND)" radius={[8, 8, 0, 0]} />
-          <Bar dataKey="revenue" fill="#9a7d24" name="Doanh thu (VND)" radius={[8, 8, 0, 0]} />
+          <Bar dataKey="profit" fill="#0d2238" name="Lợi nhuận (đồng)" radius={[8, 8, 0, 0]} />
+          <Bar dataKey="revenue" fill="#9a7d24" name="Doanh thu (đồng)" radius={[8, 8, 0, 0]} />
         </BarChart>
       </ResponsiveContainer>
     </div>

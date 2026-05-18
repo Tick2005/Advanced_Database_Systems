@@ -4,6 +4,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.CannotAcquireLockException;
 import org.springframework.dao.ConcurrencyFailureException;
 import org.springframework.dao.PessimisticLockingFailureException;
@@ -25,7 +26,7 @@ import com.hotel.modules.booking.dto.BookingResponse;
 import com.hotel.modules.booking.dto.BookingServiceResponse;
 import com.hotel.modules.booking.dto.BookingServiceUpdateRequest;
 import com.hotel.modules.room.RoomRepository;
-import com.hotel.modules.room.RoomService;
+import com.hotel.modules.service.ServiceRecord;
 import com.hotel.modules.service.ServiceRepository;
 
 @Service
@@ -37,7 +38,9 @@ public class BookingService {
 	private final RoomRepository roomRepository;
 	private final BookingServiceRepository bookingServiceRepository;
 	private final ServiceRepository serviceRepository;
-	private final RoomService roomService;
+
+	@Value("${app.booking.hold-minutes:15}")
+	private int bookingHoldMinutes;
 
 	public BookingService(
 		BookingRepository bookingRepository,
@@ -45,8 +48,7 @@ public class BookingService {
 		BookingValidator bookingValidator,
 		RoomRepository roomRepository,
 		BookingServiceRepository bookingServiceRepository,
-		ServiceRepository serviceRepository,
-		RoomService roomService
+		ServiceRepository serviceRepository
 	) {
 		this.bookingRepository = bookingRepository;
 		this.bookingMapper = bookingMapper;
@@ -54,7 +56,6 @@ public class BookingService {
 		this.roomRepository = roomRepository;
 		this.bookingServiceRepository = bookingServiceRepository;
 		this.serviceRepository = serviceRepository;
-		this.roomService = roomService;
 	}
 
 	@Transactional
@@ -71,6 +72,9 @@ public class BookingService {
 	public BookingResponse createBooking(BookingCreateRequest request) {
 		bookingValidator.validateCreateRequest(request);
 
+		// Tầng 1 — Pessimistic Locking tại application layer:
+		// SELECT ... FOR UPDATE lock room row trước khi đọc/ghi.
+		// Nếu transaction khác đang giữ lock → chờ hoặc timeout → @Retryable retry.
 		var room = roomRepository.findByIdForUpdate(UUID.fromString(request.getRoomId()))
 			.orElseThrow(() -> new NotFoundException("Room not found: " + request.getRoomId()));
 
@@ -78,19 +82,89 @@ public class BookingService {
 			throw new BusinessException("Room is not available for new booking");
 		}
 
-		// Concurrency check has been moved to Postgres DB exclusion constraint (no_overlapping_bookings)
-		// It will throw a DataIntegrityViolationException if there is an overlap.
+		// Tầng 2 — Pessimistic Locking tại DB layer (trigger fn_prevent_double_booking):
+		// BEFORE INSERT trigger dùng SELECT FOR UPDATE SKIP LOCKED để lock các booking
+		// active cùng phòng, kiểm tra overlap ngày. Nếu có overlap → RAISE EXCEPTION.
+		// Exception được unwrap thành BusinessException (HTTP 400) trong catch bên dưới.
 
 		BookingEntity entity = bookingMapper.fromCreateRequest(request);
 		entity.setStatus(BookingStatus.HOLD);
-		bookingRepository.save(entity);
 
-		room.setStatus(RoomStatus.HELD);
-		room.setCurrentBookingId(entity.getId());
-		room.setUpdatedAt(LocalDateTime.now());
-		roomRepository.save(room);
+		try {
+			bookingRepository.save(entity);
 
-		return bookingMapper.toResponse(entity);
+			room.setStatus(RoomStatus.HELD);
+			room.setCurrentBookingId(entity.getId());
+			room.setUpdatedAt(LocalDateTime.now());
+			roomRepository.save(room);
+
+			return bookingMapper.toResponse(entity);
+		} catch (RuntimeException ex) {
+			// Unwrap exception từ DB trigger (RAISE EXCEPTION với ERRCODE P0001)
+			// hoặc PL/pgSQL RAISE EXCEPTION thông thường → BusinessException (HTTP 400).
+			Throwable root = ex;
+			while (root.getCause() != null) root = root.getCause();
+			String msg = root.getMessage() == null ? ex.getMessage() : root.getMessage();
+			if (msg != null && (msg.toLowerCase().contains("not available for dates")
+					|| msg.toLowerCase().contains("overlapping active booking exists"))) {
+				throw new com.hotel.exception.BusinessException(msg);
+			}
+			throw ex;
+		}
+	}
+
+	/**
+	 * Walk-in booking: khách đến trực tiếp, thanh toán tại quầy.
+	 * Khác với online booking (HOLD → payment → CONFIRMED):
+	 *   - Booking tạo ra với status CONFIRMED ngay lập tức
+	 *   - Room chuyển sang OCCUPIED ngay (không qua HELD)
+	 *   - Không cần bước markPaid() vì đã thanh toán tại quầy
+	 */
+	@Transactional
+	@Retryable(
+		retryFor = {
+			CannotAcquireLockException.class,
+			PessimisticLockingFailureException.class,
+			ConcurrencyFailureException.class,
+			TransientDataAccessException.class
+		},
+		maxAttempts = 3,
+		backoff = @Backoff(delay = 120, multiplier = 2.0)
+	)
+	public BookingResponse createWalkInBooking(BookingCreateRequest request) {
+		bookingValidator.validateCreateRequest(request);
+
+		var room = roomRepository.findByIdForUpdate(UUID.fromString(request.getRoomId()))
+			.orElseThrow(() -> new NotFoundException("Room not found: " + request.getRoomId()));
+
+		if (room.getStatus() != RoomStatus.AVAILABLE) {
+			throw new BusinessException("Room is not available for new booking");
+		}
+
+		BookingEntity entity = bookingMapper.fromCreateRequest(request);
+		// Walk-in = thanh toán tại quầy → CONFIRMED ngay, không qua HOLD
+		entity.setStatus(BookingStatus.CONFIRMED);
+
+		try {
+			bookingRepository.save(entity);
+
+			// Room → OCCUPIED ngay (khách đã có mặt và thanh toán)
+			room.setStatus(RoomStatus.OCCUPIED);
+			room.setCurrentBookingId(entity.getId());
+			room.setUpdatedAt(LocalDateTime.now());
+			roomRepository.save(room);
+
+			return bookingMapper.toResponse(entity);
+		} catch (RuntimeException ex) {
+			Throwable root = ex;
+			while (root.getCause() != null) root = root.getCause();
+			String msg = root.getMessage() == null ? ex.getMessage() : root.getMessage();
+			if (msg != null && (msg.toLowerCase().contains("not available for dates")
+					|| msg.toLowerCase().contains("overlapping active booking exists"))) {
+				throw new com.hotel.exception.BusinessException(msg);
+			}
+			throw ex;
+		}
 	}
 
 	@Transactional(readOnly = true)
@@ -160,6 +234,22 @@ public class BookingService {
 			.toList();
 	}
 
+	/**
+	 * Lấy danh sách booking cần xử lý hôm nay cho staff:
+	 * - checkInDate <= today AND checkOutDate >= today
+	 * - status: CONFIRMED (chờ check-in) hoặc CHECKED_IN (chờ check-out)
+	 * - thuộc branch của staff
+	 */
+	@Transactional(readOnly = true)
+	public List<BookingResponse> findTodayActiveBookings(String branchId, java.time.LocalDate today) {
+		return bookingRepository.findAll(
+				BookingSpecifications.todayActiveByBranch(branchId, today),
+				Sort.by(Sort.Direction.ASC, "checkInDate")
+			).stream()
+			.map(bookingMapper::toResponse)
+			.toList();
+	}
+
 	@Transactional
 	@Retryable(
 		retryFor = {
@@ -183,8 +273,6 @@ public class BookingService {
 		}
 
 		entity.setStatus(BookingStatus.CONFIRMED);
-		entity.setHoldExpiresAt(null);
-		entity.setPaymentDueAt(null);
 		entity.setUpdatedAt(LocalDateTime.now());
 		bookingRepository.save(entity);
 
@@ -197,21 +285,37 @@ public class BookingService {
 		BookingEntity entity = bookingRepository.findById(UUID.fromString(bookingId))
 			.orElseThrow(() -> new NotFoundException("Booking not found: " + bookingId));
 
-		var service = serviceRepository.findByCode(request.getServiceCode())
-			.orElseThrow(() -> new NotFoundException("Service code not found: " + request.getServiceCode()));
+		// Lookup service: ưu tiên serviceId (UUID) nếu có, fallback sang serviceCode
+		ServiceRecord service;
+		if (request.getServiceId() != null && !request.getServiceId().isBlank()) {
+			service = serviceRepository.findById(request.getServiceId())
+				.orElseThrow(() -> new NotFoundException("Service not found: " + request.getServiceId()));
+		} else if (request.getServiceCode() != null && !request.getServiceCode().isBlank()) {
+			service = serviceRepository.findByCode(request.getServiceCode())
+				.orElseThrow(() -> new NotFoundException("Service code not found: " + request.getServiceCode()));
+		} else {
+			throw new com.hotel.exception.BusinessException("serviceId or serviceCode is required");
+		}
+
+		// Dùng giá thực tế từ request nếu có, fallback sang giá catalog của service
+		java.math.BigDecimal actualPrice = request.getActualPrice() != null
+			? request.getActualPrice()
+			: service.price();
 
 		BookingServiceEntity serviceEntity = new BookingServiceEntity();
 		serviceEntity.setId(UUID.randomUUID());
 		serviceEntity.setBookingId(entity.getId());
 		serviceEntity.setServiceId(service.id());
-		serviceEntity.setServiceCode(request.getServiceCode());
+		// serviceCode is @Transient — set it in-memory for the immediate response.
+		// On subsequent loads, resolve via serviceId → ServiceRepository.
+		serviceEntity.setServiceCode(service.code());
 		serviceEntity.setQuantity(request.getQuantity());
-		serviceEntity.setActualPrice(request.getActualPrice());
+		serviceEntity.setActualPrice(actualPrice);
 		bookingServiceRepository.save(serviceEntity);
 
 		BookingServiceResponse response = new BookingServiceResponse();
 		response.setBookingId(entity.getId().toString());
-		response.setServiceCode(serviceEntity.getServiceCode());
+		response.setServiceCode(service.code());
 		response.setQuantity(serviceEntity.getQuantity());
 		return response;
 	}
@@ -244,7 +348,9 @@ public class BookingService {
 		entity.setUpdatedAt(LocalDateTime.now());
 		bookingRepository.save(entity);
 
-		occupyRoomForBooking(entity);
+		// Room đã OCCUPIED từ markPaid() — chỉ cần đảm bảo currentBookingId đúng.
+		// Không gọi occupyRoomForBooking() lại để tránh redundant write.
+		// Trigger fn_enforce_room_status_consistency sẽ validate nếu có sai lệch.
 		return buildActionResponse(entity.getId().toString(), "checkin", entity.getStatus().name());
 	}
 
@@ -280,12 +386,42 @@ public class BookingService {
 		return buildActionResponse(entity.getId().toString(), "checkout", entity.getStatus().name());
 	}
 
+	/**
+	 * Huỷ booking khi thanh toán VNPay thất bại.
+	 * Chỉ huỷ nếu booking đang ở trạng thái HOLD hoặc PENDING_PAYMENT.
+	 * Giải phóng phòng về AVAILABLE.
+	 */
+	@Transactional
+	public void cancelBookingOnPaymentFailure(String bookingId) {
+		BookingEntity entity = bookingRepository.findByIdForUpdate(UUID.fromString(bookingId))
+			.orElseThrow(() -> new NotFoundException("Booking not found: " + bookingId));
+
+		// Chỉ huỷ nếu chưa ở trạng thái terminal
+		if (entity.getStatus() == BookingStatus.CONFIRMED
+			|| entity.getStatus() == BookingStatus.CHECKED_IN
+			|| entity.getStatus() == BookingStatus.CHECKED_OUT
+			|| entity.getStatus() == BookingStatus.CANCELLED
+			|| entity.getStatus() == BookingStatus.EXPIRED) {
+			// Nếu đã EXPIRED, scheduler đã release room rồi — không cần làm gì thêm
+			return;
+		}
+
+		entity.setStatus(BookingStatus.CANCELLED);
+		entity.setCancelReason("Payment failed via VNPay");
+		entity.setUpdatedAt(LocalDateTime.now());
+		bookingRepository.save(entity);
+
+		releaseRoomFromBooking(entity);
+	}
+
 	@Transactional
 	public void expireOverdueHoldBookings() {
-		LocalDateTime now = LocalDateTime.now();
-		for (BookingEntity booking : bookingRepository.findByStatusAndHoldExpiresAtBefore(BookingStatus.HOLD, now)) {
+		// Dùng created_at + 15 phút làm ngưỡng EXPIRED — không cần cột payment_due_at
+		LocalDateTime expireThreshold = LocalDateTime.now().minusMinutes(bookingHoldMinutes);
+		List<BookingStatus> statuses = List.of(BookingStatus.HOLD, BookingStatus.PENDING_PAYMENT);
+		for (BookingEntity booking : bookingRepository.findByStatusInAndCreatedAtBefore(statuses, expireThreshold)) {
 			booking.setStatus(BookingStatus.EXPIRED);
-			booking.setUpdatedAt(now);
+			booking.setUpdatedAt(LocalDateTime.now());
 			bookingRepository.save(booking);
 			releaseRoomFromBooking(booking);
 		}

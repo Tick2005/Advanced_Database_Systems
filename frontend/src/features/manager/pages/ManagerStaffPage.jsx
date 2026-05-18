@@ -31,20 +31,26 @@ export default function ManagerStaffPage() {
     loadStaff();
   }, []);
 
+  // Show all staff members assigned to this manager's branch
+  const staffOnly = useMemo(
+    () => staff.filter((item) => String(item.role || "").toUpperCase() === "STAFF"),
+    [staff]
+  );
+
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase();
-    if (!needle) return staff;
-    return staff.filter((item) => {
+    if (!needle) return staffOnly;
+    return staffOnly.filter((item) => {
       return [item.email, item.fullName, item.role, item.branchId].some((value) => String(value || "").toLowerCase().includes(needle));
     });
-  }, [staff, query]);
+  }, [staffOnly, query]);
 
   const summary = useMemo(() => ({
-    total: staff.length,
-    active: staff.filter((item) => item.active).length,
-    inactive: staff.filter((item) => !item.active).length,
-    verified: staff.filter((item) => item.emailVerified).length
-  }), [staff]);
+    total: staffOnly.length,
+    active: staffOnly.filter((item) => item.active).length,
+    inactive: staffOnly.filter((item) => !item.active).length,
+    verified: staffOnly.filter((item) => item.emailVerified).length
+  }), [staffOnly]);
 
   const toggleActive = async (row) => {
     setUpdatingId(row.id);
@@ -52,8 +58,11 @@ export default function ManagerStaffPage() {
     setError("");
     try {
       await dashboardService.updateManagerStaffActive(row.id, !row.active);
+      // Optimistic update: cập nhật trực tiếp state thay vì reload toàn bộ
+      setStaff((prev) =>
+        prev.map((s) => s.id === row.id ? { ...s, active: !row.active } : s)
+      );
       setMessage(`${row.email} đã được ${row.active ? "vô hiệu hóa" : "kích hoạt"}`);
-      await loadStaff();
     } catch (err) {
       setError(err.message || "Không thể cập nhật trạng thái staff");
     } finally {

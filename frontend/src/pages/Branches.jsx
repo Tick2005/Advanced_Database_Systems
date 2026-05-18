@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { branchService } from "../features/branches/branchService";
+import BranchMapPanel from "../components/common/BranchMapPanel";
 
 // Static advantages for hotel branches
 const BRANCH_ADVANTAGES = {
@@ -78,44 +79,10 @@ export default function Branches() {
         <p>Chọn một chi nhánh để xem bản đồ thật và thông tin chi tiết.</p>
       </div>
       {error && <div style={{ padding: "12px 14px", background: "#fee2e2", color: "#b91c1c", borderRadius: 10, marginBottom: 12 }}>{error}</div>}
-      <div style={{ display: "grid", gap: 16, gridTemplateColumns: "repeat(auto-fit,minmax(320px,1fr))" }}>
-        <aside className="card-elevated" style={{ padding: 14, display: "grid", gap: 10, alignContent: "start" }}>
-          <div style={{ fontSize: 12, color: "#64748b", fontWeight: 700, letterSpacing: "0.08em" }}>DANH SÁCH CHI NHÁNH</div>
-          {branches.map((branch) => {
-            const active = selectedBranch?.id === branch.id;
-            return (
-              <button
-                key={branch.id}
-                type="button"
-                onClick={() => setSelectedBranchId(branch.id)}
-                style={{
-                  textAlign: "left",
-                  display: "grid",
-                  gap: 2,
-                  padding: "10px 12px",
-                  borderRadius: 10,
-                  border: active ? "1px solid #c9a84c" : "1px solid #e2e8f0",
-                  background: active ? "#fffaf0" : "#fff",
-                  cursor: "pointer"
-                }}
-              >
-                <span style={{ fontWeight: 600, color: "#0d2238" }}>{branch.name}</span>
-                <span style={{ fontSize: 12, color: "#64748b" }}>{branch.city}</span>
-              </button>
-            );
-          })}
-        </aside>
+      <div style={{ display: "grid", gap: 16 }}>
+        <BranchMapPanel branches={branches} selectedBranchId={selectedBranchId} onSelect={setSelectedBranchId} />
 
         <article className="card-elevated" style={{ padding: 12, display: "grid", gap: 12 }}>
-          <div className="card" style={{ overflow: "hidden", minHeight: 300 }}>
-            <iframe
-              title={`branch-map-${selectedBranch?.id || "default"}`}
-              src={mapSrc}
-              style={{ border: 0, width: "100%", height: "100%", minHeight: 300 }}
-              loading="lazy"
-            />
-          </div>
-
           <div style={{ display: "grid", gap: 10, padding: "0 4px 6px" }}>
             <div>
               <div style={{ fontSize: 19, fontWeight: 700, color: "#0d2238" }}>{selectedBranch?.name || "Chi nhánh"}</div>

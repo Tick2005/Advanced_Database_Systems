@@ -70,10 +70,36 @@ public class GlobalExceptionHandler {
 		return build(HttpStatus.BAD_REQUEST, "INVALID_ARGUMENT", "Invalid request data", null);
 	}
 
+	@ExceptionHandler(IllegalStateException.class)
+	public ResponseEntity<ErrorResponse> handleIllegalState(IllegalStateException ex) {
+		log.warn("Illegal state: {}", ex.getMessage());
+		return build(HttpStatus.CONFLICT, "ILLEGAL_STATE", ex.getMessage(), null);
+	}
+
 	@ExceptionHandler(Exception.class)
 	public ResponseEntity<ErrorResponse> handleUnknown(Exception ex) {
+		// Broken pipe / client abort — browser closed connection before response was sent.
+		// This is not a server bug; log at DEBUG to avoid noise.
+		if (isBrokenPipe(ex)) {
+			log.debug("Client disconnected before response was sent (broken pipe): {}", ex.getMessage());
+			return build(HttpStatus.INTERNAL_SERVER_ERROR, "CLIENT_ABORT", "Client disconnected", null);
+		}
 		log.error("Unhandled server error", ex);
 		return build(HttpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "Unexpected server error", null);
+	}
+
+	/** Returns true for broken-pipe / client-abort exceptions that are not real server errors. */
+	private boolean isBrokenPipe(Throwable ex) {
+		Throwable t = ex;
+		while (t != null) {
+			String msg = t.getMessage();
+			String name = t.getClass().getSimpleName();
+			if ("ClientAbortException".equals(name)) return true;
+			if ("AsyncRequestNotUsableException".equals(name)) return true;
+			if (msg != null && (msg.contains("Broken pipe") || msg.contains("broken pipe") || msg.contains("Connection reset by peer"))) return true;
+			t = t.getCause();
+		}
+		return false;
 	}
 
 	private ResponseEntity<ErrorResponse> build(HttpStatus status, String code, String message, Map<String, String> fieldErrors) {

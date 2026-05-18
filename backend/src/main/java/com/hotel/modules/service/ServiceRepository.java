@@ -50,6 +50,7 @@ public class ServiceRepository {
             SELECT id, branch_id, code, name, description, thumbnail_url, price, service_mode, is_active
             FROM services
             WHERE code = ?
+              AND is_active = TRUE
             ORDER BY created_at DESC
             LIMIT 1
             """;

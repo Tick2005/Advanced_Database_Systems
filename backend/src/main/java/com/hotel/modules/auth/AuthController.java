@@ -31,8 +31,9 @@ public class AuthController {
 	}
 
 	@PostMapping("/register")
-	public ApiResponse<AuthResponse> register(@Valid @RequestBody RegisterRequest request) {
-		return ApiResponse.ok("Register successfully", authService.register(request));
+	public ApiResponse<AuthActionResponse> register(@Valid @RequestBody RegisterRequest request) {
+		authService.register(request);
+		return ApiResponse.ok("Register successfully. Please check your email to activate your account.", new AuthActionResponse(true));
 	}
 
 	@PostMapping("/login")

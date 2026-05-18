@@ -26,7 +26,8 @@ export default function VerifyEmail() {
       try {
         // Call backend to verify email
         const result = await authService.verifyEmail({ email, token });
-        if (result) {
+        const ok = result?.success === true;
+        if (ok) {
           setStatus("success");
           setMessage("Email verified successfully! Redirecting to login...");
           logout();

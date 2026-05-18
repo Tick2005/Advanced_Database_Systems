@@ -16,6 +16,11 @@ public class BookingValidator {
 		if (request.getTotalPrice() == null) {
 			throw new BusinessException("totalPrice is required");
 		}
+		// Cho phép checkInDate = hôm nay (walk-in và online booking cùng ngày).
+		// Chỉ reject nếu checkInDate < hôm nay (thực sự trong quá khứ).
+		if (request.getCheckInDate().isBefore(java.time.LocalDate.now(java.time.ZoneId.of("Asia/Ho_Chi_Minh")))) {
+			throw new BusinessException("checkInDate must not be in the past");
+		}
 		if (request.getCheckOutDate().isBefore(request.getCheckInDate()) || request.getCheckOutDate().isEqual(request.getCheckInDate())) {
 			throw new BusinessException("checkOutDate must be after checkInDate");
 		}
@@ -25,8 +30,12 @@ public class BookingValidator {
 	}
 
 	public void ensureCancellable(BookingEntity entity) {
-		if (entity.getStatus() == BookingStatus.CANCELLED || entity.getStatus() == BookingStatus.EXPIRED) {
+		BookingStatus status = entity.getStatus();
+		if (status == BookingStatus.CANCELLED || status == BookingStatus.EXPIRED) {
 			throw new BusinessException("Booking already closed");
+		}
+		if (status == BookingStatus.CHECKED_IN || status == BookingStatus.CHECKED_OUT) {
+			throw new BusinessException("Cannot cancel a booking that is already checked-in or checked-out");
 		}
 	}
 }

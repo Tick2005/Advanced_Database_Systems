@@ -61,7 +61,7 @@ export default function OwnerBranchesPage() {
   };
 
   const save = async () => {
-    if (!can(ACTIONS.BRANCH_CREATE)) { setError("Bạn không có quyền"); return; }
+    if (!can(editingId ? ACTIONS.BRANCH_UPDATE : ACTIONS.BRANCH_CREATE)) { setError("Bạn không có quyền"); return; }
     const existingCodes = rows.filter((r) => r.id !== editingId).map((r) => String(r.code || "").trim().toUpperCase());
     const nextErrors = validateBranchForm(form, existingCodes);
     setFieldErrors(nextErrors);
@@ -87,6 +87,22 @@ export default function OwnerBranchesPage() {
     }
   };
 
+  const handleDelete = async (id) => {
+    if (!can(ACTIONS.BRANCH_DELETE)) { setError("Bạn không có quyền xóa"); return; }
+    if (!window.confirm("Bạn có chắc chắn muốn xóa chi nhánh này không? Hành động này không thể hoàn tác!")) return;
+    setSaving(true);
+    try {
+      await dashboardService.deleteOwnerBranch(id);
+      setMessage("Đã xóa chi nhánh");
+      track("branch_deleted", { id });
+      fetchData();
+    } catch (err) {
+      setError(err.message || "Không thể xóa chi nhánh");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <section style={{ display: "grid", gap: 16 }}>
       <div style={{
@@ -97,8 +113,15 @@ export default function OwnerBranchesPage() {
         <div>
           <div style={{ fontSize: 12, opacity: 0.7, marginBottom: 4 }}>Chi nhánh hệ thống</div>
           <div style={{ fontWeight: 800, fontSize: 20 }}>Quản lý Chi Nhánh</div>
-          <div style={{ fontSize: 13, opacity: 0.75, marginTop: 2 }}>{rows.length} chi nhánh đang hoạt động</div>
         </div>
+        <button
+          className="btn btn-primary"
+          style={{ padding: "10px 16px", borderRadius: 8, fontSize: 14, fontWeight: 700 }}
+          onClick={openCreate}
+          disabled={!can(ACTIONS.BRANCH_CREATE)}
+        >
+          ➕ Thêm chi nhánh
+        </button>
       </div>
 
       <ToastMessage type="success" message={message} onClose={() => setMessage("")} />
@@ -180,6 +203,13 @@ export default function OwnerBranchesPage() {
                 >
                   ✏️ Chỉnh sửa
                 </button>
+                <button
+                  className="btn"
+                  style={{ flex: 1, border: "1px solid #fecaca", background: "#fff1f2", color: "#b91c1c", padding: "8px 12px", fontSize: 13, fontWeight: 600, borderRadius: 8 }}
+                  onClick={() => handleDelete(branch.id)}
+                >
+                  🗑️ Xóa
+                </button>
               </div>
             </div>
           </article>
@@ -244,7 +274,7 @@ export default function OwnerBranchesPage() {
 
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
               <button className="btn" style={{ border: "1px solid #e2e8f0", background: "white" }} onClick={() => setOpenModal(false)}>Huỷ</button>
-              <button className="btn btn-primary" onClick={save} disabled={saving || !can(ACTIONS.BRANCH_CREATE)}>
+              <button className="btn btn-primary" onClick={save} disabled={saving || (editingId ? !can(ACTIONS.BRANCH_UPDATE) : !can(ACTIONS.BRANCH_CREATE))}>
                 {saving ? "Đang lưu..." : (editingId ? "Lưu cập nhật" : "Tạo chi nhánh")}
               </button>
             </div>

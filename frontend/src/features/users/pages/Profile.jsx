@@ -12,7 +12,6 @@ import ToastMessage from "../../../components/common/ToastMessage";
 const QUICK_LINKS = [
   { icon: "🛏️", label: "Tìm phòng", to: PATHS.ROOMS, desc: "Xem phòng còn trống" },
   { icon: "🧾", label: "Booking của tôi", to: PATHS.CUSTOMER_BOOKINGS, desc: "Lịch sử đặt phòng" },
-  { icon: "🏢", label: "Chi nhánh", to: PATHS.BRANCHES, desc: "Xem tất cả địa điểm" },
   { icon: "🛎️", label: "Dịch vụ khách sạn", to: PATHS.ROOMS, desc: "Spa, bữa sáng, tour..." },
   { icon: "⚙️", label: "Cài đặt", to: PATHS.CUSTOMER_SETTINGS, desc: "Theme, vị trí, camera" },
 ];
@@ -23,7 +22,7 @@ export default function Profile() {
   const videoRef = useRef(null);
   const streamRef = useRef(null);
   const navigate = useNavigate();
-  const { settings } = useCustomerSettings();
+  const { settings, loading: settingsLoading, updateSettings } = useCustomerSettings();
   const [avatarPreview, setAvatarPreview] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState("");
@@ -174,7 +173,6 @@ export default function Profile() {
       setMessage("Đã cập nhật ảnh đại diện thành công");
       await profileQuery.refetch();
       setAvatarMenuOpen(false);
-      setShowCameraModal(false);
     } catch (err) {
       setError(err.message || "Không thể cập nhật ảnh đại diện");
     } finally {
@@ -182,10 +180,17 @@ export default function Profile() {
     }
   };
 
-  const handleCameraClick = async () => {
+  const handleCameraClick = async (forceAllowed = false) => {
     setError("");
+    setVideoReady(false);
 
-    if (!settings.allowCamera) {
+    // Wait for settings to load before checking permissions
+    if (settingsLoading) {
+      setError("Đang tải cài đặt. Vui lòng chờ một chút.");
+      return;
+    }
+
+    if (!settings?.allowCamera && !forceAllowed) {
       setShowCameraPermissionModal(true);
       return;
     }
@@ -196,14 +201,38 @@ export default function Profile() {
     }
 
     try {
-      // Open an in-app camera modal and start preview
+      // Open an in-app camera modal first so the <video> element mounts and
+      // `videoRef` becomes available. Some browsers render the modal asynchronously
+      // and assigning srcObject before the element exists causes the preview to
+      // never attach, leaving the UI stuck on the loading overlay.
+      setShowCameraModal(true);
+
+      // Request the stream and attach after a short tick to allow the video node
+      // to be mounted and the ref populated. 50ms is typically enough.
       const stream = await navigator.mediaDevices.getUserMedia({ video: true });
       streamRef.current = stream;
+
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
       if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        try { await videoRef.current.play(); } catch (e) {}
+        try {
+          videoRef.current.srcObject = stream;
+          // Don't reset videoReady here - let the onLoadedMetadata/onPlay handlers set it
+          try { await videoRef.current.play(); } catch (e) {}
+        } catch (attachErr) {
+          // If attaching fails, still show modal and rely on user to retry
+          console.warn('Failed to attach MediaStream to video element', attachErr);
+        }
+
+        // Safety fallback: if video events don't fire within 2 seconds, force ready
+        // This handles edge cases on certain browsers/OS combinations
+        setTimeout(() => {
+          if (!videoReady && videoRef.current?.srcObject) {
+            setVideoReady(true);
+          }
+        }, 2000);
       }
-      setShowCameraModal(true);
+      // modal already shown above
     } catch (err) {
       if (err?.name === "NotAllowedError") {
         setError("Bạn đã từ chối quyền truy cập camera");
@@ -226,7 +255,7 @@ export default function Profile() {
     setShowCameraModal(false);
   };
 
-  const captureFromCamera = () => {
+  const captureFromCamera = async () => {
     try {
       const video = videoRef.current;
       if (!video) {
@@ -269,7 +298,7 @@ export default function Profile() {
         return;
       }
 
-      uploadAvatarFromDataUrl(dataUrl);
+      await uploadAvatarFromDataUrl(dataUrl);
       closeCameraModal();
     } catch (err) {
       setError(err?.message || 'Không thể chụp ảnh từ camera');
@@ -355,6 +384,7 @@ export default function Profile() {
                       <video 
                         ref={videoRef} 
                         onLoadedMetadata={() => setVideoReady(true)}
+                        onCanPlay={() => setVideoReady(true)}
                         onPlay={() => setVideoReady(true)}
                         style={{ width: '100%', height: '100%', background: '#000', objectFit: 'contain' }} 
                         autoPlay 
@@ -602,10 +632,10 @@ export default function Profile() {
           
           <div style={{ display: "grid", gap: 16, marginBottom: 20 }}>
             <p style={{ margin: 0, color: "#475569", fontSize: 14, lineHeight: 1.6 }}>
-              Quyền truy cập camera hiện đang bị tắt trong cài đặt. Để chụp ảnh từ camera, vui lòng bật quyền này.
+              Quyền truy cập camera hiện đang chưa được cấp phép. Bạn có muốn cấp quyền sử dụng camera để chụp ảnh đại diện không?
             </p>
             <div style={{ padding: 14, background: "#fef3c7", border: "1px solid #fcd34d", borderRadius: 12, color: "#92400e", fontSize: 13 }}>
-              ⚠️ Bạn có thể bật lại quyền camera bất cứ lúc nào trong phần <strong>Cài đặt</strong>.
+              ⚠️ Bạn cũng có thể quản lý các quyền này trong phần <strong>Cài đặt</strong> của ứng dụng.
             </div>
           </div>
 
@@ -615,17 +645,24 @@ export default function Profile() {
               onClick={() => setShowCameraPermissionModal(false)}
               style={{ flex: 1, padding: "11px", borderRadius: 99, border: "1px solid #e2e8f0", background: "white", fontWeight: 600, cursor: "pointer", color: "#0d2238" }}
             >
-              Hủy
+              Từ chối
             </button>
             <button
               type="button"
-              onClick={() => {
-                setShowCameraPermissionModal(false);
-                navigate(PATHS.CUSTOMER_SETTINGS);
+              onClick={async () => {
+                try {
+                  await updateSettings({ allowCamera: true });
+                  setShowCameraPermissionModal(false);
+                  setTimeout(() => {
+                    handleCameraClick(true);
+                  }, 100);
+                } catch (e) {
+                  setError("Không thể cấp quyền");
+                }
               }}
               style={{ flex: 1.5, padding: "11px", borderRadius: 99, background: "linear-gradient(135deg,#c9a84c,#9a7d24)", color: "white", fontWeight: 700, border: "none", cursor: "pointer" }}
             >
-              ⚙️ Đi tới Cài đặt
+              📷 Cho phép truy cập
             </button>
           </div>
         </div>

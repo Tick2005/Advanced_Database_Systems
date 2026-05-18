@@ -9,6 +9,8 @@ export const ACTIONS = {
   PRICING_REQUEST_APPROVE: "PRICING_REQUEST_APPROVE",
   PRICING_REQUEST_REJECT: "PRICING_REQUEST_REJECT",
   BRANCH_CREATE: "BRANCH_CREATE",
+  BRANCH_UPDATE: "BRANCH_UPDATE",
+  BRANCH_DELETE: "BRANCH_DELETE",
   USER_ROLE_UPDATE: "USER_ROLE_UPDATE"
 };
 
@@ -41,6 +43,10 @@ export function canPerformAction(role, action, context = {}) {
     case ACTIONS.PRICING_REQUEST_APPROVE:
     case ACTIONS.PRICING_REQUEST_REJECT:
       return isOwner(role) && context.status === "PENDING";
+
+    case ACTIONS.BRANCH_UPDATE:
+    case ACTIONS.BRANCH_DELETE:
+      return isOwner(role);
 
     case ACTIONS.USER_ROLE_UPDATE:
       return isOwner(role)

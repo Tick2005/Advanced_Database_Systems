@@ -17,19 +17,20 @@ public class CustomerSettingsService {
     }
 
     public CustomerSettingsResponse getByUserId(String userId) {
-        CustomerSettingsDocument document = customerSettingsRepository.findByUserId(userId)
+        CustomerSettingsDocument document = customerSettingsRepository.findByUserId(java.util.UUID.fromString(userId))
             .orElseGet(() -> createDefaultSettings(userId));
         return toResponse(document);
     }
 
     public CustomerSettingsResponse updateByUserId(String userId, CustomerSettingsUpdateRequest request) {
-        CustomerSettingsDocument document = customerSettingsRepository.findByUserId(userId)
+        CustomerSettingsDocument document = customerSettingsRepository.findByUserId(java.util.UUID.fromString(userId))
             .orElseGet(() -> createDefaultSettings(userId));
 
         document.setTheme(normalizeTheme(request.getTheme()));
         document.setFontScale(normalizeFontScale(request.getFontScale()));
         document.setAllowLocation(request.isAllowLocation());
         document.setAllowCamera(request.isAllowCamera());
+        document.setLocationPermissionShown(request.isLocationPermissionShown());
         document.setUpdatedAt(Instant.now());
 
         return toResponse(customerSettingsRepository.save(document));
@@ -37,11 +38,13 @@ public class CustomerSettingsService {
 
     private CustomerSettingsDocument createDefaultSettings(String userId) {
         CustomerSettingsDocument document = new CustomerSettingsDocument();
-        document.setUserId(userId);
+        document.setId(java.util.UUID.randomUUID());
+        document.setUserId(java.util.UUID.fromString(userId));
         document.setTheme("light");
         document.setFontScale("normal");
-        document.setAllowLocation(true);
-        document.setAllowCamera(true);
+        document.setAllowLocation(false);
+        document.setAllowCamera(false);
+        document.setLocationPermissionShown(false);
         Instant now = Instant.now();
         document.setCreatedAt(now);
         document.setUpdatedAt(now);
@@ -54,6 +57,7 @@ public class CustomerSettingsService {
         response.setFontScale(document.getFontScale() == null ? "normal" : document.getFontScale());
         response.setAllowLocation(document.isAllowLocation());
         response.setAllowCamera(document.isAllowCamera());
+        response.setLocationPermissionShown(document.isLocationPermissionShown());
         return response;
     }
 
@@ -71,4 +75,5 @@ public class CustomerSettingsService {
         }
         return "normal";
     }
+
 }

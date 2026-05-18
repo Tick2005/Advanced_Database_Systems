@@ -2,6 +2,7 @@ package com.hotel.modules.auth.dto;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 public class RegisterRequest {
@@ -11,7 +12,8 @@ public class RegisterRequest {
 	private String email;
 
 	@NotBlank
-	@Size(min = 6, max = 64)
+	@Size(min = 8, max = 64)
+	@Pattern(regexp = "^(?=.*[A-Za-z])(?=.*\\d).+$", message = "Mật khẩu phải chứa ít nhất một chữ cái và một chữ số")
 	private String password;
 
 	@NotBlank

@@ -9,9 +9,11 @@ import { usePermissions } from "../../../hooks/usePermissions";
 import { ACTIONS } from "../../../services/permissions";
 import { validateRoomForm } from "../../dashboard/domainValidators";
 import { useTracking } from "../../../hooks/useTracking";
-import { formatCurrencyVnd } from "../../../services/presenters";
 
-const INITIAL_FORM = { roomTypeId: "", roomNumber: "", floor: 1, maxOccupancy: 2, rate: 0, status: "AVAILABLE", notes: "" };
+const INITIAL_FORM = { roomTypeId: "", quantity: 1, floor: 1, status: "AVAILABLE", notes: "", imageUrls: "",
+  // room type fields (chỉ dùng khi edit)
+  roomTypeName: "", roomTypeDescription: "", roomTypeBasePrice: "", roomTypeCapacity: "", roomTypeBedType: ""
+};
 const PAGE_SIZE = 10;
 
 const STATUS_OPTIONS = [
@@ -38,6 +40,10 @@ export default function ManagerRoomsPage() {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
 
+  const loadRoomTypes = useCallback(() => {
+    dashboardService.getRoomTypes().then((rt) => setRoomTypes(rt || [])).catch(() => {});
+  }, []);
+
   const loadRooms = useCallback((id) => {
     if (!id) return;
     dashboardService.getManagerRoomsByBranch(id).then((data) => {
@@ -52,10 +58,10 @@ export default function ManagerRoomsPage() {
       setBranch(first);
       if (first?.id) {
         loadRooms(first.id);
-        dashboardService.getRoomTypes().then((rt) => setRoomTypes(rt || [])).catch(() => {});
+        loadRoomTypes();
       }
     }).catch((err) => setError(err.message || "Không thể tải chi nhánh"));
-  }, [loadRooms]);
+  }, [loadRooms, loadRoomTypes]);
 
   const filtered = useMemo(() => rooms.filter((item) => {
     const matchQuery = !query || item.roomNumber?.toLowerCase().includes(query.toLowerCase()) || item.roomTypeName?.toLowerCase().includes(query.toLowerCase());
@@ -77,10 +83,37 @@ export default function ManagerRoomsPage() {
   const openEdit = useCallback((row) => {
     if (!can(ACTIONS.ROOM_EDIT)) { setError("Bạn không có quyền sửa phòng"); return; }
     setEditing(row);
-    setForm({ roomTypeId: row.roomTypeId || "", roomNumber: row.roomNumber || "", floor: row.floor || 1, maxOccupancy: row.maxOccupancy || 2, rate: row.rate || 0, status: row.status || "AVAILABLE", notes: row.notes || "" });
+    setForm({
+      roomTypeId: row.roomTypeId || "",
+      roomNumber: row.roomNumber || "",
+      floor: row.floor || 1,
+      status: row.status || "AVAILABLE",
+      rate: row.rate != null ? Number(row.rate) : 0,
+      maxOccupancy: row.maxOccupancy || 1,
+      notes: row.notes || "",
+      imageUrls: (row.imageUrls || []).join("\n"),
+      // Thông tin room type — load từ roomTypes list
+      roomTypeName: row.roomTypeName || "",
+      roomTypeDescription: row.description || "",
+      roomTypeBasePrice: row.rate != null ? Number(row.rate) : 0,
+      roomTypeCapacity: row.maxOccupancy || 1,
+      roomTypeBedType: "",
+    });
+    // Load thêm chi tiết room type nếu có
+    const rt = roomTypes.find((r) => r.id === row.roomTypeId);
+    if (rt) {
+      setForm((prev) => ({
+        ...prev,
+        roomTypeName: rt.name || "",
+        roomTypeDescription: rt.description || "",
+        roomTypeBasePrice: rt.basePrice != null ? Number(rt.basePrice) : prev.roomTypeBasePrice,
+        roomTypeCapacity: rt.capacity || prev.roomTypeCapacity,
+        roomTypeBedType: rt.bedType || rt.bed_type || "",
+      }));
+    }
     setFieldErrors({});
     setOpenModal(true);
-  }, [can]);
+  }, [can, roomTypes]);
 
   const setField = useCallback((k, v) => setForm((prev) => ({ ...prev, [k]: v })), []);
 
@@ -91,24 +124,41 @@ export default function ManagerRoomsPage() {
     setSaving(true);
     try {
       if (editing) {
+        // 1. Cập nhật thông tin room (rate, maxOccupancy, status, notes)
         await dashboardService.updateManagerRoom(editing.id, {
-          maxOccupancy: Number(form.maxOccupancy || 1),
-          rate: Number(form.rate || 0),
+          rate: form.rate ? Number(form.rate) : undefined,
+          maxOccupancy: form.maxOccupancy ? Number(form.maxOccupancy) : undefined,
+          status: form.status,
           notes: form.notes,
-          status: form.status
         });
-        setMessage("Đã cập nhật phòng");
+
+        // 2. Cập nhật thông tin room type nếu có thay đổi
+        if (editing.roomTypeId) {
+          const rtPayload = {};
+          if (form.roomTypeName?.trim()) rtPayload.name = form.roomTypeName.trim();
+          if (form.roomTypeDescription !== undefined) rtPayload.description = form.roomTypeDescription;
+          if (form.roomTypeBasePrice) rtPayload.basePrice = Number(form.roomTypeBasePrice);
+          if (form.roomTypeCapacity) rtPayload.capacity = Number(form.roomTypeCapacity);
+          if (form.roomTypeBedType !== undefined) rtPayload.bedType = form.roomTypeBedType;
+          if (Object.keys(rtPayload).length > 0) {
+            await dashboardService.updateManagerRoomType(editing.roomTypeId, rtPayload);
+          }
+        }
+
+        setMessage("Đã cập nhật phòng và loại phòng");
         track("room_updated", { roomId: editing.id, status: form.status });
       } else {
+        const imageUrlList = form.imageUrls
+          ? form.imageUrls.split("\n").map((u) => u.trim()).filter(Boolean)
+          : [];
         await dashboardService.createManagerRoom({
           roomTypeId: form.roomTypeId,
           branchId: branch?.id || "",
-          roomNumber: form.roomNumber,
+          quantity: Number(form.quantity || 1),
           floor: Number(form.floor || 1),
-          maxOccupancy: Number(form.maxOccupancy || 1),
-          rate: Number(form.rate || 0),
           status: form.status,
-          notes: form.notes
+          notes: form.notes,
+          imageUrls: imageUrlList,
         });
         setMessage("Đã tạo phòng mới");
         track("room_created", { roomNumber: form.roomNumber, branchId: branch?.id });
@@ -116,12 +166,13 @@ export default function ManagerRoomsPage() {
       setOpenModal(false);
       setFieldErrors({});
       loadRooms(branch?.id || "");
+      loadRoomTypes();
     } catch (err) {
       setError(err.message || "Không thể lưu phòng");
     } finally {
       setSaving(false);
     }
-  }, [editing, form, branch, loadRooms, track]);
+  }, [editing, form, branch, loadRooms, loadRoomTypes, track]);
 
   const handleQuery = useCallback((value) => {
     setQuery(value);
@@ -138,8 +189,7 @@ export default function ManagerRoomsPage() {
       <PageHeader branch={branch} />
       <ToastMessage type="success" message={message} onClose={() => setMessage("")} />
       <ToastMessage type="error" message={error} onClose={() => setError("")} />
-      <ActionButtons branch={branch} can={can} onCreate={openCreate} onRefresh={() => loadRooms(branch?.id || "")} />
-      <FilterSection query={query} onQuery={handleQuery} statusFilter={statusFilter} onStatusFilter={handleStatusFilter} />
+      <ToolbarSection branch={branch} can={can} onCreate={openCreate} query={query} onQuery={handleQuery} statusFilter={statusFilter} onStatusFilter={handleStatusFilter} />
       <StatusStats rooms={rooms} />
       <RoomTable paginated={paginated} can={can} onEdit={openEdit} />
       <PaginationBar page={page} totalPages={totalPages} onChange={setPage} />
@@ -161,35 +211,19 @@ function PageHeader({ branch }) {
   );
 }
 
-// Subcomponent: Action Buttons
-function ActionButtons({ branch, can, onCreate, onRefresh }) {
+// Subcomponent: Toolbar (search + filter + add button in one row)
+function ToolbarSection({ can, onCreate, query, onQuery, statusFilter, onStatusFilter }) {
   return (
     <div style={dashboardStyles.summaryCard}>
-      <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-        <button className="btn btn-primary" onClick={onCreate} disabled={!can("ROOM_CREATE")}>
-          ➕ Thêm phòng mới
-        </button>
-        <button className="btn btn-gold" onClick={() => alert("Tính năng xuất Excel đang phát triển")}>
-          📤 Xuất danh sách
-        </button>
-        <button className="btn" style={{ border: "1px solid #e2e8f0", background: "white" }} onClick={onRefresh}>
-          🔄 Làm mới
-        </button>
-      </div>
-    </div>
-  );
-}
-
-// Subcomponent: Filter Section
-function FilterSection({ query, onQuery, statusFilter, onStatusFilter }) {
-  return (
-    <div style={dashboardStyles.summaryCard}>
-      <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
         <input placeholder="🔍 Tìm theo số phòng / loại phòng" value={query} onChange={(e) => onQuery(e.target.value)} style={{ flex: 1, minWidth: 200, ...dashboardStyles.formInput }} />
         <select value={statusFilter} onChange={(e) => onStatusFilter(e.target.value)} style={dashboardStyles.formInput}>
           <option value="ALL">Tất cả trạng thái</option>
           {STATUS_OPTIONS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
         </select>
+        <button className="btn btn-primary" onClick={onCreate} disabled={!can("ROOM_CREATE")}>
+          ➕ Thêm phòng mới
+        </button>
       </div>
     </div>
   );
@@ -218,7 +252,7 @@ function RoomTable({ paginated, can, onEdit }) {
       <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
         <thead>
           <tr style={{ background: "#f8fafc", borderBottom: "2px solid #e2e8f0" }}>
-            {["Số phòng", "Loại phòng", "Đánh giá", "Tầng", "Sức chứa", "Giá/đêm", "Trạng thái", ""].map((h) => (
+            {["Số phòng", "Loại phòng", "Tầng", "Trạng thái", ""].map((h) => (
               <th key={h} style={{ padding: "10px 12px", textAlign: "left", fontSize: 12, color: "#64748b", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", whiteSpace: "nowrap" }}>{h}</th>
             ))}
           </tr>
@@ -228,7 +262,7 @@ function RoomTable({ paginated, can, onEdit }) {
             <RoomTableRow key={row.id} row={row} can={can} onEdit={onEdit} />
           ))}
           {paginated.length === 0 && (
-            <tr><td colSpan={8} style={{ padding: 24, textAlign: "center", color: "#94a3b8" }}>Không có phòng nào.</td></tr>
+            <tr><td colSpan={5} style={{ padding: 24, textAlign: "center", color: "#94a3b8" }}>Không có phòng nào.</td></tr>
           )}
         </tbody>
       </table>
@@ -242,18 +276,7 @@ function RoomTableRow({ row, can, onEdit }) {
     <tr style={{ borderBottom: "1px solid #f1f5f9" }}>
       <td style={{ padding: "10px 12px", fontWeight: 700 }}>Phòng {row.roomNumber}</td>
       <td style={{ padding: "10px 12px", color: "#475569" }}>{row.roomTypeName}</td>
-      <td style={{ padding: "10px 12px", color: "#0d2238", fontWeight: 700 }}>
-        {row.averageRating != null ? (
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ color: '#f59e0b' }}>★</span>
-            <span style={{ fontWeight: 700 }}>{Number(row.averageRating).toFixed(1)}</span>
-            {row.feedbackCount != null && <span style={{ color: '#64748b', fontSize: 12 }}>({row.feedbackCount})</span>}
-          </span>
-        ) : (<span style={{ color: '#94a3b8' }}>—</span>)}
-      </td>
       <td style={{ padding: "10px 12px", color: "#64748b" }}>{row.floor}</td>
-      <td style={{ padding: "10px 12px", color: "#64748b" }}>{row.maxOccupancy} người</td>
-      <td style={{ padding: "10px 12px", fontWeight: 700, color: "#9a7d24" }}>{formatCurrencyVnd(row.rate || 0)}</td>
       <td style={{ padding: "10px 12px" }}><StatusBadge value={row.status} /></td>
       <td style={{ padding: "10px 12px" }}>
         <button className="btn" style={{ border: "1px solid #cbd5e1", background: "white", padding: "6px 12px", fontSize: 13 }} onClick={() => onEdit(row)} disabled={!can("ROOM_EDIT")}>
@@ -286,8 +309,8 @@ function CreateEditRoomModal({ editing, form, setField, fieldErrors, saving, bra
                 </select>
               </FormField>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                <FormField label="SỐ PHÒNG" error={fieldErrors.roomNumber}>
-                  <input placeholder="101" value={form.roomNumber} onChange={(e) => setField("roomNumber", e.target.value)} style={dashboardStyles.formInput} />
+                <FormField label="SỐ LƯỢNG PHÒNG">
+                  <input type="number" min={1} value={form.quantity} onChange={(e) => setField("quantity", Number(e.target.value || 1))} style={dashboardStyles.formInput} />
                 </FormField>
                 <FormField label="TẦNG">
                   <input type="number" min={1} value={form.floor} onChange={(e) => setField("floor", Number(e.target.value || 1))} style={dashboardStyles.formInput} />
@@ -295,22 +318,61 @@ function CreateEditRoomModal({ editing, form, setField, fieldErrors, saving, bra
               </div>
             </>
           )}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-            <FormField label="SỨC CHỨA" error={fieldErrors.maxOccupancy}>
-              <input type="number" min={1} value={form.maxOccupancy} onChange={(e) => setField("maxOccupancy", Number(e.target.value || 1))} style={dashboardStyles.formInput} />
-            </FormField>
-            <FormField label="GIÁ / ĐÊM" error={fieldErrors.rate}>
-              <input type="number" min={0} value={form.rate} onChange={(e) => setField("rate", Number(e.target.value || 0))} style={dashboardStyles.formInput} />
-            </FormField>
-          </div>
+          {editing && (
+            <>
+              <div style={{ padding: "8px 12px", borderRadius: 8, background: "#f0fdf4", border: "1px solid #bbf7d0", fontSize: 12, color: "#166534" }}>
+                ℹ️ Thay đổi <strong>Giá cơ bản loại phòng</strong> sẽ cập nhật giá tất cả phòng cùng loại (trừ phòng đang có khách).
+              </div>
+              {/* Thông tin room type */}
+              <div style={{ borderTop: "1px solid #e2e8f0", paddingTop: 10 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "#64748b", textTransform: "uppercase", marginBottom: 8 }}>Thông tin loại phòng</div>
+                <div style={{ display: "grid", gap: 8 }}>
+                  <FormField label="TÊN LOẠI PHÒNG">
+                    <input value={form.roomTypeName} onChange={(e) => setField("roomTypeName", e.target.value)} style={dashboardStyles.formInput} placeholder="VD: Deluxe Room" />
+                  </FormField>
+                  <FormField label="MÔ TẢ">
+                    <textarea rows={2} value={form.roomTypeDescription} onChange={(e) => setField("roomTypeDescription", e.target.value)} style={{ ...dashboardStyles.formInput, resize: "vertical" }} placeholder="Mô tả ngắn về loại phòng..." />
+                  </FormField>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                    <FormField label="GIÁ CƠ BẢN (đ/đêm)" error={fieldErrors.roomTypeBasePrice}>
+                      <input type="number" min={0} value={form.roomTypeBasePrice} onChange={(e) => setField("roomTypeBasePrice", Number(e.target.value || 0))} style={dashboardStyles.formInput} />
+                    </FormField>
+                    <FormField label="SỨC CHỨA LOẠI PHÒNG">
+                      <input type="number" min={1} max={20} value={form.roomTypeCapacity} onChange={(e) => setField("roomTypeCapacity", Number(e.target.value || 1))} style={dashboardStyles.formInput} />
+                    </FormField>
+                  </div>
+                  <FormField label="LOẠI GIƯỜNG">
+                    <input value={form.roomTypeBedType} onChange={(e) => setField("roomTypeBedType", e.target.value)} style={dashboardStyles.formInput} placeholder="VD: KING, QUEEN, DOUBLE + SINGLE" />
+                  </FormField>
+                </div>
+              </div>
+              {/* Thông tin phòng cụ thể */}
+              <div style={{ borderTop: "1px solid #e2e8f0", paddingTop: 10 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "#64748b", textTransform: "uppercase", marginBottom: 8 }}>Thông tin phòng này</div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                  <FormField label="GIÁ PHÒNG NÀY (đ/đêm)" error={fieldErrors.rate}>
+                    <input type="number" min={0} value={form.rate} onChange={(e) => setField("rate", Number(e.target.value || 0))} style={dashboardStyles.formInput} />
+                  </FormField>
+                  <FormField label="SỨC CHỨA" error={fieldErrors.maxOccupancy}>
+                    <input type="number" min={1} max={20} value={form.maxOccupancy} onChange={(e) => setField("maxOccupancy", Number(e.target.value || 1))} style={dashboardStyles.formInput} />
+                  </FormField>
+                </div>
+              </div>
+            </>
+          )}
           <FormField label="TRẠNG THÁI">
             <select value={form.status} onChange={(e) => setField("status", e.target.value)} style={dashboardStyles.formInput}>
               {STATUS_OPTIONS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
             </select>
           </FormField>
           <FormField label="GHI CHÚ">
-            <textarea placeholder="Ghi chú thêm về phòng..." rows={2} value={form.notes} onChange={(e) => setField("notes", e.target.value)} style={{ ...dashboardStyles.formInput, resize: "vertical" }} />
+            <textarea placeholder="Ghi chú về phòng..." rows={2} value={form.notes} onChange={(e) => setField("notes", e.target.value)} style={{ ...dashboardStyles.formInput, resize: "vertical" }} />
           </FormField>
+          {!editing && (
+            <FormField label="HÌNH ẢNH (mỗi URL một dòng)">
+              <textarea placeholder={"https://example.com/img1.jpg\nhttps://example.com/img2.jpg"} rows={3} value={form.imageUrls} onChange={(e) => setField("imageUrls", e.target.value)} style={{ ...dashboardStyles.formInput, resize: "vertical", fontFamily: "monospace", fontSize: 12 }} />
+            </FormField>
+          )}
         </div>
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
           <button className="btn" style={{ border: "1px solid #e2e8f0", background: "white" }} onClick={onClose}>Huỷ</button>

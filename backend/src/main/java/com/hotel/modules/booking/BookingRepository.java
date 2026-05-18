@@ -23,7 +23,7 @@ public interface BookingRepository extends JpaRepository<BookingEntity, UUID>, J
 
     List<BookingEntity> findByCustomerIdOrderByCreatedAtDesc(UUID customerId);
 
-    List<BookingEntity> findByStatusAndHoldExpiresAtBefore(BookingStatus status, LocalDateTime dateTime);
+    List<BookingEntity> findByStatusInAndCreatedAtBefore(List<BookingStatus> statuses, LocalDateTime dateTime);
 
     @Query("""
         SELECT CASE WHEN COUNT(b) > 0 THEN true ELSE false END

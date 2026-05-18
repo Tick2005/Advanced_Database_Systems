@@ -75,7 +75,7 @@ export default function Settings() {
   const { settings, loading: settingsLoading, updateSettings } = useCustomerSettings();
   const [profileLoading, setProfileLoading] = useState(true);
   const [profileLanguage, setProfileLanguage] = useState("vi");
-  const [form, setForm] = useState({ theme: "light", fontScale: "normal", preferredLanguage: "vi", allowLocation: true, allowCamera: true });
+  const [form, setForm] = useState({ theme: "light", fontScale: "normal", allowLocation: false, allowCamera: false });
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -102,14 +102,11 @@ export default function Settings() {
     setProfileLoading(true);
     userService.getProfile()
       .then((profile) => {
-        const nextLanguage = profile?.preferredLanguage || "vi";
-        setProfileLanguage(nextLanguage);
         setForm({
           theme: settings.theme || "light",
           fontScale: settings.fontScale || "normal",
-          preferredLanguage: nextLanguage,
-          allowLocation: settings.allowLocation !== false,
-          allowCamera: settings.allowCamera !== false,
+          allowLocation: settings.allowLocation === true,
+          allowCamera: settings.allowCamera === true,
         });
         setDirty(false);
       })
@@ -119,42 +116,44 @@ export default function Settings() {
 
   const onChange = useCallback((field, value) => {
     setForm((prev) => ({ ...prev, [field]: value }));
-    if (field === "preferredLanguage") {
-      setDirty(value !== profileLanguage);
-    }
     setMessage("");
-  }, [profileLanguage]);
-
-  const updateDeviceSetting = useCallback(async (field, value) => {
-    const previousValue = form[field];
-    setForm((prev) => ({ ...prev, [field]: value }));
-    setError("");
-    try {
-      const updated = await updateSettings({ [field]: value });
-      if (field === "allowLocation" && !updated.allowLocation) {
-        localStorage.removeItem("user_location");
-        try {
-          window.dispatchEvent(new CustomEvent("user_location_updated", { detail: null }));
-        } catch (eventError) {
-          // Ignore cross-component event issues.
+    if (field === "theme" || field === "fontScale" || field === "allowLocation" || field === "allowCamera") {
+      // When enabling camera, also request browser permission so the camera
+      // loads instantly when the user opens their profile.
+      if (field === "allowCamera" && value === true) {
+        // Only request browser permission if it hasn't been granted yet.
+        // If already granted, no need to prompt again.
+        if (browserCameraStatus !== "granted") {
+          navigator?.mediaDevices?.getUserMedia({ video: true })
+            .then((stream) => {
+              stream.getTracks().forEach((t) => t.stop());
+              try {
+                window.dispatchEvent(new CustomEvent("customer_camera_permission_updated", {
+                  detail: { allowCamera: true }
+                }));
+              } catch (_) {}
+            })
+            .catch(() => {
+              // Browser denied — still save the setting so user can retry later
+            });
         }
       }
-      setMessage("Đã cập nhật cài đặt.");
-      return updated;
-    } catch (err) {
-      setForm((prev) => ({ ...prev, [field]: previousValue }));
-      setError(err?.message || "Không thể cập nhật cài đặt.");
-      throw err;
+      void updateSettings({ [field]: value });
     }
-  }, [form, updateSettings]);
+    if (field === "preferredLanguage") {
+      setProfileLanguage(value);
+      setDirty(true);
+      setError("");
+    }
+  }, [updateSettings]);
 
   useEffect(() => {
     setForm((prev) => ({
       ...prev,
       theme: settings.theme || "light",
       fontScale: settings.fontScale || "normal",
-      allowLocation: settings.allowLocation !== false,
-      allowCamera: settings.allowCamera !== false,
+      allowLocation: settings.allowLocation === true,
+      allowCamera: settings.allowCamera === true,
     }));
   }, [settings.theme, settings.fontScale, settings.allowLocation, settings.allowCamera]);
 
@@ -164,10 +163,9 @@ export default function Settings() {
     setError("");
     setMessage("");
     try {
-      await userService.updateProfile({ preferredLanguage: form.preferredLanguage });
-      setProfileLanguage(form.preferredLanguage);
+      // No language field to save anymore - language is managed via profile
       setDirty(false);
-      setMessage("Đã lưu ngôn ngữ hiển thị.");
+      setMessage("Cài đặt đã được lưu.");
     } catch (err) {
       setError(err?.message || "Cập nhật thất bại. Vui lòng thử lại.");
     } finally {
@@ -198,23 +196,18 @@ export default function Settings() {
         {/* GIAO DIỆN */}
         <div style={{ display: "grid", gap: 12 }}>
           <SectionLabel>Giao diện</SectionLabel>
-          <FieldRow label="Chế độ hiển thị">
-            <select value={form.theme} onChange={(e) => onChange("theme", e.target.value)}>
-              <option value="light">☀️ Sáng</option>
-              <option value="dark">🌙 Tối</option>
-            </select>
-          </FieldRow>
+          <ToggleRow
+            title="Chế độ tối"
+            description="Bật giao diện tối để giảm chói và đồng bộ với phong cách dashboard."
+            checked={form.theme === "dark"}
+            onToggle={() => onChange("theme", form.theme === "dark" ? "light" : "dark")}
+            badge={form.theme === "dark" ? { label: "Tối", bg: "#1e293b", color: "#fff" } : { label: "Sáng", bg: "#f1f5f9", color: "#64748b" }}
+          />
           <FieldRow label="Cỡ chữ">
-            <select value={form.fontScale} onChange={(e) => updateDeviceSetting("fontScale", e.target.value)}>
+            <select value={form.fontScale} onChange={(e) => onChange("fontScale", e.target.value)}>
               <option value="compact">Nhỏ</option>
               <option value="normal">Vừa (mặc định)</option>
               <option value="large">Lớn</option>
-            </select>
-          </FieldRow>
-          <FieldRow label="Ngôn ngữ ưu tiên">
-            <select value={form.preferredLanguage} onChange={(e) => onChange("preferredLanguage", e.target.value)}>
-              <option value="vi">🇻🇳 Tiếng Việt</option>
-              <option value="en">🇬🇧 English</option>
             </select>
           </FieldRow>
         </div>
@@ -226,14 +219,14 @@ export default function Settings() {
             title="Cho phép lấy vị trí"
             description="Dùng GPS để gợi ý chi nhánh gần nhất và phòng phù hợp."
             checked={form.allowLocation}
-            onToggle={() => updateDeviceSetting("allowLocation", !form.allowLocation)}
+            onToggle={() => onChange("allowLocation", !form.allowLocation)}
             badge={form.allowLocation ? { label: "Bật", bg: "#dcfce7", color: "#166534" } : { label: "Tắt", bg: "#f1f5f9", color: "#64748b" }}
           />
           <ToggleRow
             title="Cho phép truy cập camera"
             description="Dùng camera để chụp ảnh đại diện hoặc xác thực hình ảnh."
             checked={form.allowCamera}
-            onToggle={() => updateDeviceSetting("allowCamera", !form.allowCamera)}
+            onToggle={() => onChange("allowCamera", !form.allowCamera)}
             badge={form.allowCamera ? { label: "Bật", bg: "#dcfce7", color: "#166534" } : { label: "Tắt", bg: "#f1f5f9", color: "#64748b" }}
           />
           {form.allowCamera && <CameraStatusCard browserStatus={browserCameraStatus} />}
@@ -248,8 +241,8 @@ export default function Settings() {
         {message && <div style={{ padding: "12px 14px", background: "#dcfce7", color: "#166534", borderRadius: 10, fontSize: 14 }}>✅ {message}</div>}
 
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 4 }}>
-          <button className="btn btn-gold" disabled={saving || !dirty} style={{ opacity: saving || !dirty ? 0.6 : 1, cursor: saving || !dirty ? "not-allowed" : "pointer" }}>
-            {saving ? "⏳ Đang lưu..." : "💾 Lưu ngôn ngữ"}
+          <button className="btn pill pill-soft" disabled={saving} style={{ opacity: saving ? 0.6 : 1, cursor: saving ? "not-allowed" : "pointer" }}>
+            {saving ? "⏳ Đang lưu..." : "💾 Lưu"}
           </button>
           <Link className="btn pill pill-soft" to={PATHS.CUSTOMER_PROFILE}>👤 Hồ sơ cá nhân</Link>
           <Link className="btn pill pill-soft" to={PATHS.CUSTOMER_SETTINGS_ADVANCED}>🔐 Bảo mật</Link>

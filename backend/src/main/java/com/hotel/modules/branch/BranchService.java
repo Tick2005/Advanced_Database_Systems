@@ -75,4 +75,15 @@ public class BranchService {
 
         return branchMapper.toResponse(branchRepository.save(entity));
     }
+
+    @SuppressWarnings("null")
+    @Transactional
+    public boolean deleteBranch(String id) {
+        BranchEntity entity = branchRepository.findById(UUID.fromString(id))
+            .orElseThrow(() -> new NotFoundException("Branch not found: " + id));
+        // Soft-delete: set active=false to preserve referential integrity with bookings/rooms
+        entity.setActive(false);
+        branchRepository.save(entity);
+        return true;
+    }
 }

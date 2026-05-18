@@ -1,10 +1,10 @@
 package com.hotel.modules.room.dto;
 
+import java.math.BigDecimal;
+import java.util.List;
+
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
-
-import java.math.BigDecimal;
 
 public class RoomCreateRequest {
 
@@ -14,14 +14,19 @@ public class RoomCreateRequest {
 	@NotBlank
 	private String branchId;
 
-	@NotBlank
+	// Optional: when creating a single room, manager may provide an explicit number
 	private String roomNumber;
 
-	@NotNull
+	// Optional: create multiple rooms at once
 	@Min(1)
-	private Integer maxOccupancy;
+	private Integer quantity;
 
-	@NotNull
+	// Optional fields; when absent will default to room type values
+	private Integer floor;
+	private String status;
+	private String description;
+	private List<String> imageUrls;
+	private Integer maxOccupancy;
 	private BigDecimal rate;
 
 	public String getRoomTypeId() {
@@ -46,6 +51,46 @@ public class RoomCreateRequest {
 
 	public void setRoomNumber(String roomNumber) {
 		this.roomNumber = roomNumber;
+	}
+
+	public Integer getQuantity() {
+		return quantity;
+	}
+
+	public void setQuantity(Integer quantity) {
+		this.quantity = quantity;
+	}
+
+	public Integer getFloor() {
+		return floor;
+	}
+
+	public void setFloor(Integer floor) {
+		this.floor = floor;
+	}
+
+	public String getStatus() {
+		return status;
+	}
+
+	public void setStatus(String status) {
+		this.status = status;
+	}
+
+	public String getDescription() {
+		return description;
+	}
+
+	public void setDescription(String description) {
+		this.description = description;
+	}
+
+	public List<String> getImageUrls() {
+		return imageUrls;
+	}
+
+	public void setImageUrls(List<String> imageUrls) {
+		this.imageUrls = imageUrls;
 	}
 
 	public Integer getMaxOccupancy() {

@@ -21,11 +21,23 @@ public class FeedbackDocument {
     @Field("room_id")
     private String roomId;
 
+    @Field("customer_name")
+    private String customerName;
+
+    @Field("avatar_url")
+    private String avatarUrl;
+
     private Integer rating;
     private String content;
 
     @Field("manager_reply")
     private String managerReply;
+
+    @Field("is_reported")
+    private Boolean isReported;
+
+    @Field("report_reason")
+    private String reportReason;
 
     @Field("created_at")
     private Instant createdAt;
@@ -65,6 +77,22 @@ public class FeedbackDocument {
         this.roomId = roomId;
     }
 
+    public String getCustomerName() {
+        return customerName;
+    }
+
+    public void setCustomerName(String customerName) {
+        this.customerName = customerName;
+    }
+
+    public String getAvatarUrl() {
+        return avatarUrl;
+    }
+
+    public void setAvatarUrl(String avatarUrl) {
+        this.avatarUrl = avatarUrl;
+    }
+
     public Integer getRating() {
         return rating;
     }
@@ -87,6 +115,22 @@ public class FeedbackDocument {
 
     public void setManagerReply(String managerReply) {
         this.managerReply = managerReply;
+    }
+
+    public Boolean getIsReported() {
+        return isReported;
+    }
+
+    public void setIsReported(Boolean isReported) {
+        this.isReported = isReported;
+    }
+
+    public String getReportReason() {
+        return reportReason;
+    }
+
+    public void setReportReason(String reportReason) {
+        this.reportReason = reportReason;
     }
 
     public Instant getCreatedAt() {

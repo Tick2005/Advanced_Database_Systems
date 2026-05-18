@@ -1,11 +1,11 @@
 /**
  * ManagerServicesPage.jsx
- * Commit: fix(manager): ManagerServicesPage – dịch toàn bộ text, chuẩn UI nhất quán với các trang Manager khác
+ * Services chỉ load theo branch của manager đang đăng nhập (từ token).
+ * Không cho chọn branch tùy ý — manager chỉ quản lý branch của mình.
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { dashboardService } from "../../dashboard/dashboardService";
-import { branchService } from "../../branches/branchService";
 import DataTable from "../../../components/common/DataTable";
 import ToastMessage from "../../../components/common/ToastMessage";
 import { usePermissions } from "../../../hooks/usePermissions";
@@ -14,6 +14,7 @@ import { validateServiceForm } from "../../dashboard/domainValidators";
 import { validateSelectedImageFile } from "../../../services/uploadGuard";
 import UploadGuardHint from "../../../components/common/UploadGuardHint";
 import { useTracking } from "../../../hooks/useTracking";
+import { formatCurrencyVnd } from "../../../services/presenters";
 
 const MODE_OPTIONS = [
   { value: "ALL",      label: "Tất cả chế độ" },
@@ -28,8 +29,8 @@ export default function ManagerServicesPage() {
   const { can } = usePermissions();
   const track = useTracking("manager-services");
 
-  const [branches, setBranches] = useState([]);
-  const [branchId, setBranchId] = useState("");
+  // Branch của manager lấy từ token (GET /api/manager/branch)
+  const [branch, setBranch] = useState(null);
   const [services, setServices] = useState([]);
   const [query, setQuery] = useState("");
   const [modeFilter, setModeFilter] = useState("ALL");
@@ -42,21 +43,22 @@ export default function ManagerServicesPage() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
+  // Load branch info từ token một lần duy nhất
   useEffect(() => {
-    branchService.getBranches().then((data) => {
-      setBranches(data || []);
-      setBranchId(data?.[0]?.id || "");
-    }).catch(() => setError("Không thể tải danh sách chi nhánh."));
+    dashboardService.getManagerBranchInfo()
+      .then((data) => setBranch(data || null))
+      .catch(() => setError("Không thể tải thông tin chi nhánh."));
   }, []);
 
-  const fetchData = (id) => {
-    if (!id) return;
-    dashboardService.getManagerServicesByBranch(id)
+  // Load services khi đã có branch — dùng useCallback để tránh stale closure
+  const fetchData = useCallback(() => {
+    if (!branch?.id) return;
+    dashboardService.getManagerServicesByBranch()
       .then((data) => { setServices(data || []); setError(""); })
       .catch((err) => setError(err.message || "Không thể tải danh sách dịch vụ."));
-  };
+  }, [branch?.id]);
 
-  useEffect(() => { fetchData(branchId); }, [branchId]);
+  useEffect(() => { fetchData(); }, [fetchData]);
 
   const filtered = services.filter((item) => {
     const matchQuery = !query
@@ -98,19 +100,29 @@ export default function ManagerServicesPage() {
     setSaving(true);
     try {
       if (editing) {
-        await dashboardService.updateManagerService(editing.id, { name: form.name, description: form.description, thumbnailUrl: form.thumbnailUrl, price: Number(form.price || 0), serviceMode: form.serviceMode });
+        await dashboardService.updateManagerService(editing.id, {
+          name: form.name,
+          description: form.description,
+          thumbnailUrl: form.thumbnailUrl,
+          price: Number(form.price || 0),
+          serviceMode: form.serviceMode,
+        });
         setMessage("Đã cập nhật dịch vụ thành công.");
-        track("service_updated", { serviceId: editing.id, branchId });
+        track("service_updated", { serviceId: editing.id, branchId: branch?.id });
       } else {
-        await dashboardService.createManagerService({ ...form, branchId, price: Number(form.price || 0) });
+        await dashboardService.createManagerService({
+          ...form,
+          branchId: branch?.id,
+          price: Number(form.price || 0),
+        });
         setMessage("Đã tạo dịch vụ mới thành công.");
-        track("service_created", { code: form.code, branchId });
+        track("service_created", { code: form.code, branchId: branch?.id });
       }
       closeModal();
-      fetchData(branchId);
+      fetchData();
     } catch (err) {
       setError(err.message || "Không thể lưu dịch vụ. Vui lòng thử lại.");
-      track("service_save_failed", { branchId, reason: err.message || "unknown" });
+      track("service_save_failed", { branchId: branch?.id, reason: err.message || "unknown" });
     } finally {
       setSaving(false);
     }
@@ -126,9 +138,6 @@ export default function ManagerServicesPage() {
     setMessage("Ảnh hợp lệ. Hệ thống dùng URL thumbnail từ backend – bạn có thể paste URL để lưu.");
   };
 
-  const formatPrice = (val) =>
-    typeof val === "number" ? val.toLocaleString("vi-VN") + " ₫" : val;
-
   return (
     <section style={{ display: "grid", gap: 16 }}>
       {/* Header */}
@@ -136,7 +145,11 @@ export default function ManagerServicesPage() {
         <div>
           <div style={{ fontSize: 12, opacity: 0.7, marginBottom: 4 }}>Dịch vụ phòng</div>
           <div style={{ fontWeight: 800, fontSize: 20 }}>Quản lý Dịch vụ</div>
-          <div style={{ fontSize: 13, opacity: 0.75, marginTop: 2 }}>Tạo và cấu hình dịch vụ tại chi nhánh</div>
+          {branch && (
+            <div style={{ fontSize: 13, opacity: 0.75, marginTop: 2 }}>
+              {branch.name} — {branch.city}
+            </div>
+          )}
         </div>
       </div>
 
@@ -146,9 +159,6 @@ export default function ManagerServicesPage() {
       {/* Toolbar */}
       <div className="card" style={{ padding: 14, display: "grid", gap: 10 }}>
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
-          <select value={branchId} onChange={(e) => setBranchId(e.target.value)} style={{ minWidth: 200 }}>
-            {branches.map((b) => <option key={b.id} value={b.id}>{b.name} – {b.city}</option>)}
-          </select>
           <input
             placeholder="🔍 Tìm theo mã / tên dịch vụ"
             value={query}
@@ -173,7 +183,7 @@ export default function ManagerServicesPage() {
         columns={[
           { key: "code",        label: "Mã dịch vụ" },
           { key: "name",        label: "Tên dịch vụ" },
-          { key: "price",       label: "Đơn giá", render: (row) => <span className="mono">{formatPrice(row.price)}</span> },
+          { key: "price",       label: "Đơn giá", render: (row) => <span className="mono">{formatCurrencyVnd(row.price)}</span> },
           { key: "serviceMode", label: "Chế độ" },
           {
             key: "thumbnailUrl", label: "Ảnh",
@@ -200,6 +210,12 @@ export default function ManagerServicesPage() {
               <button type="button" onClick={closeModal} style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", color: "#64748b" }}>✕</button>
             </div>
 
+            {branch && (
+              <div style={{ padding: "8px 12px", borderRadius: 8, background: "#f0f9ff", border: "1px solid #bae6fd", fontSize: 13, marginBottom: 12 }}>
+                🏢 Chi nhánh: <strong>{branch.name}</strong>
+              </div>
+            )}
+
             <div className="form-grid">
               {!editing && (
                 <>
@@ -212,10 +228,8 @@ export default function ManagerServicesPage() {
               {fieldErrors.name && <small style={{ color: "#b91c1c", gridColumn: "1 / -1" }}>{fieldErrors.name}</small>}
 
               <input placeholder="Mô tả ngắn" value={form.description} onChange={(e) => setField("description", e.target.value)} />
-              {fieldErrors.description && <small style={{ color: "#b91c1c", gridColumn: "1 / -1" }}>{fieldErrors.description}</small>}
 
               <input placeholder="URL hình ảnh (thumbnail)" value={form.thumbnailUrl} onChange={(e) => { setField("thumbnailUrl", e.target.value); setThumbnailPreview(e.target.value); }} />
-              {fieldErrors.thumbnailUrl && <small style={{ color: "#b91c1c", gridColumn: "1 / -1" }}>{fieldErrors.thumbnailUrl}</small>}
 
               <div style={{ gridColumn: "1 / -1" }}>
                 <label style={{ fontSize: 12, color: "#64748b", display: "block", marginBottom: 4 }}>Hoặc chọn ảnh từ máy tính:</label>
@@ -229,7 +243,7 @@ export default function ManagerServicesPage() {
                 </div>
               )}
 
-              <input type="number" min={0} placeholder="Đơn giá (VND)" value={form.price} onChange={(e) => setField("price", Number(e.target.value || 0))} />
+              <input type="number" min={0} placeholder="Đơn giá (đồng)" value={form.price} onChange={(e) => setField("price", Number(e.target.value || 0))} />
               {fieldErrors.price && <small style={{ color: "#b91c1c", gridColumn: "1 / -1" }}>{fieldErrors.price}</small>}
 
               <select value={form.serviceMode} onChange={(e) => setField("serviceMode", e.target.value)}>

@@ -1,7 +1,7 @@
 import { Link, useLocation } from "react-router-dom";
 import { useEffect } from "react";
 import { PATHS } from "../../../routes/pathConstants";
-import { clearPaymentResult, loadPaymentResult } from "../paymentResultStore";
+import { loadPaymentResult } from "../paymentResultStore";
 import { useBookingFunnelStep } from "../../../hooks/useBookingFunnelStep";
 import { trackEvent } from "../../../services/tracking";
 
@@ -16,10 +16,6 @@ export default function PaymentFailedPage() {
       responseCode: result.responseCode || "UNKNOWN",
       message: result.message || null
     });
-
-    return () => {
-      clearPaymentResult();
-    };
   }, [result.responseCode, result.message]);
 
   return (
@@ -78,8 +74,8 @@ export default function PaymentFailedPage() {
           <Link className="btn btn-primary" to={PATHS.CUSTOMER_BOOKINGS}>
             📋 Quay lại lịch sử booking
           </Link>
-          <Link className="btn" style={{ border: "1px solid #cbd5e1", background: "white", color: "#0d2238" }} to={PATHS.CUSTOMER_BOOKING_PAYMENT}>
-            🔄 Thử thanh toán lại
+          <Link className="btn" style={{ border: "1px solid #cbd5e1", background: "white", color: "#0d2238" }} to={PATHS.CUSTOMER_BOOKINGS}>
+            🔄 Thử thanh toán lại (trong lịch sử)
           </Link>
         </div>
 

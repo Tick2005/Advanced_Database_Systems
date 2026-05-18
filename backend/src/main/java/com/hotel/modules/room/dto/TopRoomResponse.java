@@ -18,6 +18,7 @@ public class TopRoomResponse {
 	private BigDecimal rate;
 	private int maxOccupancy;
 	private double averageRating;
+	private Double score;
 	private Double distanceKm;  // Nullable - only populated when location provided
 
 	public TopRoomResponse() {}
@@ -27,10 +28,12 @@ public class TopRoomResponse {
 			String roomTypeId, String roomTypeName,
 			String branchId, String branchName, String branchCity,
 			Double branchLatitude, Double branchLongitude,
+			Double score,
 			Double distanceKm) {
 		this.id = id;
 		this.roomNumber = roomNumber;
 		this.averageRating = averageRating;
+		this.score = score;
 		this.rate = rate;
 		this.status = status;
 		this.maxOccupancy = maxOccupancy;
@@ -42,6 +45,15 @@ public class TopRoomResponse {
 		this.branchLatitude = branchLatitude;
 		this.branchLongitude = branchLongitude;
 		this.distanceKm = distanceKm;
+	}
+
+	public TopRoomResponse(String id, String roomNumber, Double averageRating,
+			BigDecimal rate, String status, Integer maxOccupancy,
+			String roomTypeId, String roomTypeName,
+			String branchId, String branchName, String branchCity,
+			Double branchLatitude, Double branchLongitude,
+			Double distanceKm) {
+		this(id, roomNumber, averageRating, rate, status, maxOccupancy, roomTypeId, roomTypeName, branchId, branchName, branchCity, branchLatitude, branchLongitude, null, distanceKm);
 	}
 
 	public String getId() {
@@ -162,5 +174,13 @@ public class TopRoomResponse {
 
 	public void setDistanceKm(Double distanceKm) {
 		this.distanceKm = distanceKm;
+	}
+
+	public Double getScore() {
+		return score;
+	}
+
+	public void setScore(Double score) {
+		this.score = score;
 	}
 }

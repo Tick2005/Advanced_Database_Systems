@@ -12,6 +12,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -20,6 +22,8 @@ import java.util.Map;
 public class VNPayService {
 
     private static final DateTimeFormatter VNP_DATE_FORMAT = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
+    // VNPay luôn trả về thời gian theo múi giờ Việt Nam (UTC+7)
+    private static final ZoneId VNP_ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
 
     private final VNPayClient vnPayClient;
     private final PaymentService paymentService;
@@ -100,15 +104,27 @@ public class VNPayService {
         }
 
         PaymentStatus paymentStatus = PaymentStatus.FAILED;
-        String message;
+        String message = "Payment failed";
 
         if (!valid) {
             message = "Invalid VNPay signature";
+            // Cố gắng update payment sang FAILED ngay cả khi signature không hợp lệ
+            // để tránh payment bị kẹt ở PENDING mãi mãi
+            if (transactionRef != null && !transactionRef.isBlank()) {
+                try {
+                    PaymentEntity updated = paymentService.updateByVnPayResult(transactionRef, false, null);
+                    paymentStatus = updated.getStatus();
+                } catch (Exception ex) {
+                    // Không tìm thấy payment hoặc lỗi khác — giữ FAILED mặc định
+                }
+            }
         } else {
             boolean success = "00".equals(responseCode) && "00".equals(transactionStatus);
             LocalDateTime paidAt = null;
             if (payDateRaw != null && !payDateRaw.isBlank()) {
-                paidAt = LocalDateTime.parse(payDateRaw, VNP_DATE_FORMAT);
+                // vnp_PayDate là giờ Việt Nam (UTC+7) — parse với ZoneId rồi convert sang LocalDateTime
+                // để lưu nhất quán với JVM timezone (Asia/Ho_Chi_Minh)
+                paidAt = LocalDateTime.parse(payDateRaw, VNP_DATE_FORMAT.withZone(VNP_ZONE));
             }
             PaymentEntity updated = paymentService.updateByVnPayResult(transactionRef, success, paidAt);
             paymentStatus = updated.getStatus();

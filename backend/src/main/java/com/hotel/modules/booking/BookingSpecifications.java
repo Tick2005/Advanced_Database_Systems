@@ -14,6 +14,23 @@ public final class BookingSpecifications {
     private BookingSpecifications() {
     }
 
+    /**
+     * Booking cần xử lý hôm nay: đang active (checkIn <= today <= checkOut)
+     * với status CONFIRMED hoặc CHECKED_IN, thuộc branch của staff.
+     */
+    public static Specification<BookingEntity> todayActiveByBranch(String branchId, LocalDate today) {
+        return (root, query, cb) -> {
+            List<jakarta.persistence.criteria.Predicate> predicates = new ArrayList<>();
+            predicates.add(cb.equal(root.get("branchId"), UUID.fromString(branchId)));
+            predicates.add(cb.lessThanOrEqualTo(root.get("checkInDate"), today));
+            predicates.add(cb.greaterThanOrEqualTo(root.get("checkOutDate"), today));
+            predicates.add(root.get("status").in(
+                List.of(BookingStatus.CONFIRMED, BookingStatus.CHECKED_IN)
+            ));
+            return cb.and(predicates.toArray(jakarta.persistence.criteria.Predicate[]::new));
+        };
+    }
+
     public static Specification<BookingEntity> byFilter(BookingFilterRequest filter) {
         return (root, query, cb) -> {
             List<jakarta.persistence.criteria.Predicate> predicates = new ArrayList<>();
@@ -33,13 +50,20 @@ public final class BookingSpecifications {
             }
 
             LocalDate fromDate = filter.getFromDate();
-            if (fromDate != null) {
-                predicates.add(cb.greaterThanOrEqualTo(root.get("checkInDate"), fromDate));
-            }
-
             LocalDate toDate = filter.getToDate();
-            if (toDate != null) {
-                predicates.add(cb.lessThanOrEqualTo(root.get("checkOutDate"), toDate));
+
+            if (fromDate != null && toDate != null && fromDate.equals(toDate)) {
+                // "Today" query: lấy booking đang active trong ngày đó
+                // checkInDate <= date AND checkOutDate >= date
+                predicates.add(cb.lessThanOrEqualTo(root.get("checkInDate"), fromDate));
+                predicates.add(cb.greaterThanOrEqualTo(root.get("checkOutDate"), toDate));
+            } else {
+                if (fromDate != null) {
+                    predicates.add(cb.greaterThanOrEqualTo(root.get("checkInDate"), fromDate));
+                }
+                if (toDate != null) {
+                    predicates.add(cb.lessThanOrEqualTo(root.get("checkOutDate"), toDate));
+                }
             }
 
             return cb.and(predicates.toArray(jakarta.persistence.criteria.Predicate[]::new));

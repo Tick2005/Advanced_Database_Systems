@@ -13,8 +13,9 @@ const LS_KEYS = {
 const DEFAULT_SETTINGS = {
   theme: "light",
   fontScale: "normal",
-  allowLocation: true,
-  allowCamera: true,
+  allowLocation: false,
+  allowCamera: false,
+  locationPermissionShown: false,
 };
 
 function normalizeSettings(input) {
@@ -24,8 +25,9 @@ function normalizeSettings(input) {
   return {
     theme,
     fontScale,
-    allowLocation: source.allowLocation !== false,
-    allowCamera: source.allowCamera !== false,
+    allowLocation: source.allowLocation === true,
+    allowCamera: source.allowCamera === true,
+    locationPermissionShown: source.locationPermissionShown === true,
   };
 }
 
@@ -33,8 +35,8 @@ function readLocalSettings() {
   return normalizeSettings({
     theme: localStorage.getItem(LS_KEYS.theme) || DEFAULT_SETTINGS.theme,
     fontScale: localStorage.getItem(LS_KEYS.fontScale) || DEFAULT_SETTINGS.fontScale,
-    allowLocation: localStorage.getItem(LS_KEYS.allowLocation) !== "false",
-    allowCamera: localStorage.getItem(LS_KEYS.allowCamera) !== "false",
+    allowLocation: localStorage.getItem(LS_KEYS.allowLocation) === "true",
+    allowCamera: localStorage.getItem(LS_KEYS.allowCamera) === "true",
   });
 }
 
@@ -58,12 +60,16 @@ function sameSettings(prev, next) {
     prev.theme === next.theme &&
     prev.fontScale === next.fontScale &&
     prev.allowLocation === next.allowLocation &&
-    prev.allowCamera === next.allowCamera
+    prev.allowCamera === next.allowCamera &&
+    prev.locationPermissionShown === next.locationPermissionShown
   );
 }
 
 export function useCustomerSettings() {
-  const { isAuthenticated, auth } = useAuth();
+  const { isAuthenticated, auth, role } = useAuth();
+  // Only CUSTOMER role has access to /api/customer/settings.
+  // Staff, Manager, Owner must use local settings only to avoid 403.
+  const isCustomer = isAuthenticated && role === "CUSTOMER";
   const [settings, setSettings] = useState(() => readLocalSettings());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -117,7 +123,7 @@ export function useCustomerSettings() {
   }, []);
 
   useEffect(() => {
-    if (!isAuthenticated) {
+    if (!isCustomer) {
       setSettings(readLocalSettings());
       setLoading(false);
       return;
@@ -162,11 +168,20 @@ export function useCustomerSettings() {
     return () => {
       mounted = false;
     };
-  }, [isAuthenticated, auth?.email]);
+  // Re-run when auth state or role changes (isCustomer captures both)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isCustomer, auth?.email]);
 
   const updateSettings = useCallback(
     async (updates) => {
       const nextLocal = normalizeSettings({ ...settings, ...updates });
+
+      // Non-customer roles (staff/manager/owner) have no /api/customer/settings access
+      if (!isCustomer) {
+        setSettings(nextLocal);
+        writeLocalSettings(nextLocal, true);
+        return nextLocal;
+      }
 
       if (!isAuthenticated) {
         setSettings(nextLocal);
@@ -175,16 +190,32 @@ export function useCustomerSettings() {
       }
 
       try {
-        const updated = normalizeSettings(await userService.updateSettings(nextLocal));
+        // Send full settings payload including locationPermissionShown so the
+        // backend can persist it correctly.
+        const payload = {
+          theme: nextLocal.theme,
+          fontScale: nextLocal.fontScale,
+          allowLocation: nextLocal.allowLocation,
+          allowCamera: nextLocal.allowCamera,
+          locationPermissionShown: nextLocal.locationPermissionShown,
+        };
+        const updated = normalizeSettings(await userService.updateSettings(payload));
         setSettings(updated);
         writeLocalSettings(updated, false);
+        try {
+          window.dispatchEvent(new CustomEvent("customer_camera_permission_updated", {
+            detail: { allowCamera: updated.allowCamera, sourceId: instanceIdRef.current }
+          }));
+        } catch (eventError) {
+          // Ignore cross-component event issues.
+        }
         return updated;
       } catch (err) {
         setError(err);
         throw err;
       }
     },
-    [isAuthenticated, settings]
+    [isAuthenticated, isCustomer, settings]
   );
 
   const refetch = useCallback(() => {
