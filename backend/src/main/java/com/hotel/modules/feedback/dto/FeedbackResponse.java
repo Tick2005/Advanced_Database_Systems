@@ -16,6 +16,8 @@ public class FeedbackResponse {
     private String roomName;
     private String branchName;
     private String avatarUrl;
+    private Boolean isReported;
+    private String reportReason;
 
     public String getId() {
         return id;
@@ -103,6 +105,22 @@ public class FeedbackResponse {
 
     public void setBranchName(String branchName) {
         this.branchName = branchName;
+    }
+
+    public Boolean getIsReported() {
+        return isReported;
+    }
+
+    public void setIsReported(Boolean isReported) {
+        this.isReported = isReported;
+    }
+
+    public String getReportReason() {
+        return reportReason;
+    }
+
+    public void setReportReason(String reportReason) {
+        this.reportReason = reportReason;
     }
 
     public String getAvatarUrl() {

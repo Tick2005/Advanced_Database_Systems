@@ -14,8 +14,11 @@ export const PATHS = {
   CUSTOMER_ROOM_DETAIL: "/customer/rooms/:id",
   CUSTOMER_BOOKING_CREATE: "/customer/booking/create",
   CUSTOMER_BOOKING_REVIEW: "/customer/booking/review",
-  CUSTOMER_BOOKING_PAYMENT: "/customer/booking/payment",
   CUSTOMER_BOOKING_RESULT: "/customer/booking/result",
+  /** Kết quả thanh toán (public — không cần đăng nhập sau redirect VNPay) */
+  PAYMENT_SUCCESS: "/payment/result/success",
+  PAYMENT_FAILED: "/payment/result/failed",
+  /** Đường dẫn cũ — vẫn render cùng trang kết quả */
   CUSTOMER_BOOKING_SUCCESS: "/customer/booking/result/success",
   CUSTOMER_BOOKING_FAILED: "/customer/booking/result/failed",
   CUSTOMER_BOOKINGS: "/customer/bookings",
@@ -25,7 +28,6 @@ export const PATHS = {
   CUSTOMER_SETTINGS: "/customer/settings",
   CUSTOMER_SETTINGS_ADVANCED: "/customer/settings/advanced",
   CUSTOMER_FEEDBACK_CREATE: "/customer/bookings/feedbacks/create",
-  CUSTOMER_FEEDBACKS: "/customer/bookings/feedbacks",
 
   STAFF: "/staff",
   STAFF_BOOKINGS_TODAY: "/staff/bookings/today",
@@ -46,10 +48,11 @@ export const PATHS = {
   MANAGER_PRICING_REQUESTS: "/manager/pricing-requests",
 
   OWNER: "/owner",
-  OWNER_BRANCHES: "/owner/branches",
   OWNER_BOOKINGS: "/owner/bookings",
+  OWNER_BRANCHES: "/owner/branches",
   OWNER_PRICING: "/owner/pricing",
   OWNER_PRICING_REQUESTS: "/owner/pricing-requests",
+  OWNER_ROOM_TYPES: "/owner/room-types",
   OWNER_USERS: "/owner/users",
 
   FORBIDDEN: "/forbidden"

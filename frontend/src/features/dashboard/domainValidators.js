@@ -29,14 +29,31 @@ export function validateRoomForm(form, { isCreate = false } = {}) {
     errors.floor = "Tang phai lon hon hoac bang 1";
   }
 
-  const occupancy = Number(form.maxOccupancy || 0);
-  if (occupancy < 1 || occupancy > 20) {
-    errors.maxOccupancy = "Suc chua phai trong khoang 1-20";
-  }
+  // Khi edit, maxOccupancy và rate là optional — chỉ validate khi isCreate hoặc khi có giá trị
+  if (isCreate) {
+    const occupancy = Number(form.maxOccupancy || 0);
+    if (occupancy < 1 || occupancy > 20) {
+      errors.maxOccupancy = "Suc chua phai trong khoang 1-20";
+    }
 
-  const rate = Number(form.rate || 0);
-  if (rate <= 0) {
-    errors.rate = "Gia phong phai lon hon 0";
+    const rate = Number(form.rate || 0);
+    if (rate <= 0) {
+      errors.rate = "Gia phong phai lon hon 0";
+    }
+  } else {
+    // Khi edit: chỉ validate nếu người dùng đã nhập giá trị
+    if (form.maxOccupancy !== undefined && form.maxOccupancy !== "" && form.maxOccupancy !== null) {
+      const occupancy = Number(form.maxOccupancy);
+      if (occupancy < 1 || occupancy > 20) {
+        errors.maxOccupancy = "Suc chua phai trong khoang 1-20";
+      }
+    }
+    if (form.rate !== undefined && form.rate !== "" && form.rate !== null) {
+      const rate = Number(form.rate);
+      if (rate <= 0) {
+        errors.rate = "Gia phong phai lon hon 0";
+      }
+    }
   }
 
   if (form.status && !ROOM_STATUSES.includes(form.status)) {
@@ -101,9 +118,15 @@ export function validatePricingForm(form) {
     errors.dateRange = "Ngay ket thuc phai sau ngay bat dau";
   }
 
+  // discountPercent truyền vào đây là giá trị cuối (âm = tăng giá, dương = giảm giá)
+  // Form lưu abs value + surchargeMode, nhưng save() đã convert trước khi validate
+  // Nên ở đây chỉ cần check abs value != 0 và trong range
   const discount = Number(form.discountPercent || 0);
-  if (discount <= 0 || discount > 90) {
-    errors.discountPercent = "Discount phai trong khoang 1-90";
+  const absDiscount = Math.abs(discount);
+  if (absDiscount === 0) {
+    errors.discountPercent = "Phan tram dieu chinh gia khong duoc bang 0";
+  } else if (absDiscount > 100) {
+    errors.discountPercent = "Phan tram dieu chinh gia toi da 100%";
   }
 
   if (String(form.notes || "").length > 500) {

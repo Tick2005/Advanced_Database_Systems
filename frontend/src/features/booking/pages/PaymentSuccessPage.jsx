@@ -1,7 +1,7 @@
 import { Link, useLocation } from "react-router-dom";
 import { useEffect } from "react";
 import { PATHS } from "../../../routes/pathConstants";
-import { clearPaymentResult, loadPaymentResult } from "../paymentResultStore";
+import { loadPaymentResult } from "../paymentResultStore";
 import { useBookingFunnelStep } from "../../../hooks/useBookingFunnelStep";
 import { trackEvent } from "../../../services/tracking";
 import { formatCurrencyVnd } from "../../../services/presenters";
@@ -17,10 +17,6 @@ export default function PaymentSuccessPage() {
       responseCode: result.responseCode || "00",
       transactionRef: result.transactionRef || null
     });
-
-    return () => {
-      clearPaymentResult();
-    };
   }, [result.responseCode, result.transactionRef]);
 
   return (

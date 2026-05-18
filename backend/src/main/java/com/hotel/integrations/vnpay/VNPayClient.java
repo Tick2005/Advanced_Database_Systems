@@ -1,18 +1,19 @@
 package com.hotel.integrations.vnpay;
 
-import com.hotel.exception.BusinessException;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component;
-
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
-import java.util.LinkedHashMap;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
+
+import com.hotel.exception.BusinessException;
 
 @Component
 public class VNPayClient {
@@ -29,7 +30,7 @@ public class VNPayClient {
         @Value("${app.payment.vnpay.hash-secret:vnpay-demo-secret}") String hashSecret,
         @Value("${app.payment.vnpay.pay-url:https://sandbox.vnpayment.vn/paymentv2/vpcpay.html}") String payUrl,
         @Value("${app.payment.vnpay.tmn-code:DEMOV210}") String tmnCode,
-        @Value("${app.payment.vnpay.return-url:https://luxstay.phanvanduong.site/payment/vnpay-return}") String returnUrl
+        @Value("${app.payment.vnpay.return-url:http://localhost/payment/vnpay-return}") String returnUrl
     ) {
         this.hashSecret = hashSecret;
         this.payUrl = payUrl;
@@ -100,12 +101,11 @@ public class VNPayClient {
     }
 
     private String toQueryString(Map<String, String> params, boolean encodeForHash) {
+        // VNPay 2.1.0: both the hash data and the query string use URL-encoded key=value pairs.
+        // The encodeForHash flag is kept for clarity / future differentiation but both paths
+        // intentionally produce the same encoding as required by the VNPay specification.
         return params.entrySet().stream()
-            .map(e -> {
-                String key = urlEncode(e.getKey());
-                String value = encodeForHash ? urlEncode(e.getValue()) : urlEncode(e.getValue());
-                return key + "=" + value;
-            })
+            .map(e -> urlEncode(e.getKey()) + "=" + urlEncode(e.getValue()))
             .collect(Collectors.joining("&"));
     }
 

@@ -1,6 +1,7 @@
 package com.hotel.modules.room;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 import jakarta.persistence.Column;
@@ -15,14 +16,18 @@ public class RoomTypeEntity {
 	@Id
 	private UUID id;
 
-	@Column(name = "branch_id")
+	@Column(name = "branch_id", updatable = false)
 	private UUID branchId;
 
-	@Column(name = "code")
+	@Column(name = "code", updatable = false)
 	private String code;
 
 	@Column(name = "name")
 	private String name;
+
+	// slug: NOT NULL UNIQUE — generated on create, never updated
+	@Column(name = "slug", updatable = false)
+	private String slug;
 
 	@Column(name = "description")
 	private String description;
@@ -33,82 +38,64 @@ public class RoomTypeEntity {
 	@Column(name = "capacity")
 	private int capacity;
 
+	@Column(name = "bed_type")
+	private String bedType;
+
 	@Column(name = "is_active")
 	private boolean active;
 
 	@Column(name = "average_rating")
 	private Double averageRating;
 
-	public UUID getId() {
-		return id;
-	}
+	@Column(name = "review_count")
+	private Integer reviewCount;
 
-	public void setId(UUID id) {
-		this.id = id;
-	}
+	@Column(name = "created_at")
+	private LocalDateTime createdAt;
 
-	public UUID getBranchId() {
-		return branchId;
-	}
+	@Column(name = "updated_at")
+	private LocalDateTime updatedAt;
 
-	public void setBranchId(UUID branchId) {
-		this.branchId = branchId;
-	}
+	public UUID getId() { return id; }
+	public void setId(UUID id) { this.id = id; }
 
-	public String getCode() {
-		return code;
-	}
+	public UUID getBranchId() { return branchId; }
+	public void setBranchId(UUID branchId) { this.branchId = branchId; }
 
-	public void setCode(String code) {
-		this.code = code;
-	}
+	public String getCode() { return code; }
+	public void setCode(String code) { this.code = code; }
 
-	public String getName() {
-		return name;
-	}
+	public String getName() { return name; }
+	public void setName(String name) { this.name = name; }
 
-	public void setName(String name) {
-		this.name = name;
-	}
+	public String getSlug() { return slug; }
+	public void setSlug(String slug) { this.slug = slug; }
 
-	public String getDescription() {
-		return description;
-	}
+	public String getDescription() { return description; }
+	public void setDescription(String description) { this.description = description; }
 
-	public void setDescription(String description) {
-		this.description = description;
-	}
+	public BigDecimal getBasePrice() { return basePrice; }
+	public void setBasePrice(BigDecimal basePrice) { this.basePrice = basePrice; }
 
-	public BigDecimal getBasePrice() {
-		return basePrice;
-	}
+	public int getCapacity() { return capacity; }
+	public void setCapacity(int capacity) { this.capacity = capacity; }
 
-	public void setBasePrice(BigDecimal basePrice) {
-		this.basePrice = basePrice;
-	}
+	public String getBedType() { return bedType; }
+	public void setBedType(String bedType) { this.bedType = bedType; }
 
-	public int getCapacity() {
-		return capacity;
-	}
+	public boolean isActive() { return active; }
+	public void setActive(boolean active) { this.active = active; }
 
-	public void setCapacity(int capacity) {
-		this.capacity = capacity;
-	}
+	public Double getAverageRating() { return averageRating; }
+	public void setAverageRating(Double averageRating) { this.averageRating = averageRating; }
 
-	public boolean isActive() {
-		return active;
-	}
+	public Integer getReviewCount() { return reviewCount; }
+	public void setReviewCount(Integer reviewCount) { this.reviewCount = reviewCount; }
 
-	public void setActive(boolean active) {
-		this.active = active;
-	}
+	public LocalDateTime getCreatedAt() { return createdAt; }
+	public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
 
-	public Double getAverageRating() {
-		return averageRating;
-	}
-
-	public void setAverageRating(Double averageRating) {
-		this.averageRating = averageRating;
-	}
+	public LocalDateTime getUpdatedAt() { return updatedAt; }
+	public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
 }
 

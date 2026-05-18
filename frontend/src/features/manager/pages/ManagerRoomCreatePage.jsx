@@ -93,7 +93,7 @@ export default function ManagerRoomCreatePage() {
               {fieldErrors.maxOccupancy && <small style={{ color: "#b91c1c", marginTop: 4, display: "block" }}>❌ {fieldErrors.maxOccupancy}</small>}
             </div>
             <div className="field">
-              <label style={{ fontWeight: 700, fontSize: 13, color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em" }}>Giá (VND) *</label>
+              <label style={{ fontWeight: 700, fontSize: 13, color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em" }}>Giá (đồng) *</label>
               <input type="number" min={0} value={form.rate} onChange={(event) => setForm((prev) => ({ ...prev, rate: Number(event.target.value || 0) }))} style={{ padding: "9px 12px", borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 14, width: "100%", boxSizing: "border-box" }} />
               {fieldErrors.rate && <small style={{ color: "#b91c1c", marginTop: 4, display: "block" }}>❌ {fieldErrors.rate}</small>}
             </div>

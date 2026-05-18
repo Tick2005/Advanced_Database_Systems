@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { authService } from "../authService";
 import { useAuth } from "../useAuth";
+import { userService } from "../../users/userService";
 import { PATHS } from "../../../routes/pathConstants";
 
 function defaultRedirectByRole(role) {
@@ -48,6 +49,23 @@ export default function Signin() {
     try {
       const auth = await authService.login({ email, password });
       login(auth);
+      // Load settings from MongoDB immediately after login so the entire
+      // customer flow (top rooms, camera, theme) has the correct values.
+      // We call userService directly because the hook's isAuthenticated flag
+      // may not have updated yet (React state is async).
+      if (auth.role === "CUSTOMER") {
+        try {
+          const settingsData = await userService.getSettings();
+          if (settingsData) {
+            // Dispatch event so useCustomerSettings picks it up
+            window.dispatchEvent(new CustomEvent("user_settings_updated", {
+              detail: { settings: settingsData }
+            }));
+          }
+        } catch (_) {
+          // Non-fatal — settings will be loaded lazily on next render
+        }
+      }
       const query = new URLSearchParams(location.search);
       const redirect = query.get("redirect");
       const nextPath = isRedirectAllowedForRole(auth.role, redirect)
@@ -55,7 +73,13 @@ export default function Signin() {
         : defaultRedirectByRole(auth.role);
       navigate(nextPath, { replace: true });
     } catch (err) {
-      setError(err.message || "Email hoac mat khau khong dung");
+      // Provide a clear message when the account hasn't been activated yet
+      const raw = err.message || "";
+      if (raw.toLowerCase().includes("inactive") || raw.toLowerCase().includes("not active")) {
+        setError("Tài khoản chưa được kích hoạt. Vui lòng kiểm tra email và nhấn link xác minh.");
+      } else {
+        setError(raw || "Email hoặc mật khẩu không đúng");
+      }
     } finally {
       setLoading(false);
     }

@@ -22,6 +22,7 @@ import com.hotel.modules.booking.dto.BookingFilterRequest;
 import com.hotel.modules.booking.dto.BookingResponse;
 import com.hotel.modules.feedback.FeedbackService;
 import com.hotel.modules.feedback.dto.FeedbackReplyRequest;
+import com.hotel.modules.feedback.dto.FeedbackReportRequest;
 import com.hotel.modules.feedback.dto.FeedbackResponse;
 import com.hotel.modules.pricing.request.PricingRequestService;
 import com.hotel.modules.pricing.request.dto.PricingRequestCreateRequest;
@@ -52,6 +53,7 @@ public class ManagerController {
 	private final ServiceService serviceService;
 	private final UserService userService;
 	private final SecurityUtils securityUtils;
+	private final com.hotel.modules.branch.BranchRepository branchRepository;
 
 	public ManagerController(
         RoomService roomService,
@@ -60,7 +62,8 @@ public class ManagerController {
 		FeedbackService feedbackService,
 		ServiceService serviceService,
 		UserService userService,
-		SecurityUtils securityUtils
+		SecurityUtils securityUtils,
+		com.hotel.modules.branch.BranchRepository branchRepository
     ) {
 		this.roomService = roomService;
 		this.bookingService = bookingService;
@@ -69,11 +72,34 @@ public class ManagerController {
 		this.serviceService = serviceService;
 		this.userService = userService;
 		this.securityUtils = securityUtils;
+		this.branchRepository = branchRepository;
 	}
 
 	@PostMapping("/pricing-requests")
 	public ApiResponse<PricingRequestResponse> createPricingRequest(@Valid @RequestBody PricingRequestCreateRequest payload) {
 		return ApiResponse.ok("Pricing request created", pricingRequestService.create(payload));
+	}
+
+	/**
+	 * GET /api/manager/branch
+	 * Returns the branch info for the currently authenticated manager.
+	 */
+	@GetMapping("/branch")
+	public ApiResponse<com.hotel.modules.branch.dto.BranchResponse> getMyBranch() {
+		String branchId = requireBranchIdFromToken();
+		return branchRepository.findById(java.util.UUID.fromString(branchId))
+			.map(b -> {
+				com.hotel.modules.branch.dto.BranchResponse r = new com.hotel.modules.branch.dto.BranchResponse();
+				r.setId(b.getId().toString());
+				r.setName(b.getName());
+				r.setCity(b.getCity());
+				r.setAddress(b.getAddress());
+				r.setPhone(b.getPhone());
+				r.setEmail(b.getEmail());
+				r.setActive(b.isActive());
+				return ApiResponse.ok("Manager branch", r);
+			})
+			.orElseThrow(() -> new com.hotel.exception.NotFoundException("Branch not found: " + branchId));
 	}
 
 	@GetMapping("/pricing-requests")
@@ -118,8 +144,15 @@ public class ManagerController {
 		return ApiResponse.ok("Feedback replied", feedbackService.reply(payload));
 	}
 
+	@PostMapping("/feedbacks/report")
+	public ApiResponse<FeedbackResponse> reportFeedback(@Valid @RequestBody FeedbackReportRequest payload) {
+		return ApiResponse.ok("Feedback reported", feedbackService.report(payload));
+	}
+
 	@GetMapping("/services")
-	public ApiResponse<List<ServiceResponse>> getServicesByBranch(@org.springframework.web.bind.annotation.RequestParam String branchId) {
+	public ApiResponse<List<ServiceResponse>> getServicesByBranch() {
+		// Chỉ trả về services của branch manager đang đăng nhập
+		String branchId = requireBranchIdFromToken();
 		return ApiResponse.ok("Service list", serviceService.getByBranch(branchId));
 	}
 
@@ -129,8 +162,13 @@ public class ManagerController {
 	}
 
 	@PutMapping("/staff/{id}/active")
-	public ApiResponse<UserResponse> updateStaffActive(@PathVariable String id, @RequestBody Map<String, Boolean> payload) {
-		boolean active = payload != null && Boolean.TRUE.equals(payload.get("active"));
+	public ApiResponse<UserResponse> updateStaffActive(
+			@PathVariable String id,
+			@RequestBody Map<String, Object> payload) {
+		// Đọc giá trị "active" từ payload, mặc định false nếu không có
+		Object val = payload != null ? payload.get("active") : null;
+		boolean active = Boolean.TRUE.equals(val)
+			|| "true".equalsIgnoreCase(String.valueOf(val));
 		return ApiResponse.ok("Staff updated", userService.updateActive(id, active));
 	}
 

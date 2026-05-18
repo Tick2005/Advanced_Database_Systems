@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { serviceService } from "../services/serviceService";
+import { formatCurrencyVnd } from "../../services/presenters";
 
 export default function ServiceSelector({ branchId, onServicesChange = () => {} }) {
   const [services, setServices] = useState([]);
@@ -70,7 +71,7 @@ export default function ServiceSelector({ branchId, onServicesChange = () => {} 
               <div style={{ fontSize: 13, color: "#64748b" }}>{service.description}</div>
             </div>
             <div style={{ fontWeight: 700, color: "#9a7d24", whiteSpace: "nowrap" }}>
-              +{(service.price / 1000).toFixed(0)}k
+              +{formatCurrencyVnd(service.price)}
             </div>
           </label>
         ))}
@@ -79,7 +80,7 @@ export default function ServiceSelector({ branchId, onServicesChange = () => {} 
       {selectedTotal > 0 && (
         <div style={{ padding: "12px 14px", background: "#f0f4ff", borderRadius: 10, display: "flex", justifyContent: "space-between" }}>
           <span style={{ color: "#64748b" }}>Tổng dịch vụ:</span>
-          <span style={{ fontWeight: 700, color: "#9a7d24" }}>{(selectedTotal / 1000000).toFixed(1)}M ₫</span>
+          <span style={{ fontWeight: 700, color: "#9a7d24" }}>{formatCurrencyVnd(selectedTotal)}</span>
         </div>
       )}
     </div>

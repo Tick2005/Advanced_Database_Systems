@@ -1,65 +1,94 @@
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { roomService } from '../../features/rooms/roomService';
+import { useCustomerSettings } from '../../hooks/useCustomerSettings';
+import { useAuth } from '../../features/auth/useAuth';
+import { loadLocationFromStorage } from '../../services/geo';
 
-const mockRooms = [
-  {
-    id: 1,
-    name: "Ocean View Suite Penthouse",
-    hotel: "Da Nang Center Hotel",
-    location: "Da Nang, Vietnam",
-    rating: 4.9,
-    reviews: 120,
-    price: "4.500.000đ",
-    image: "https://images.pexels.com/photos/261102/pexels-photo-261102.jpeg?auto=compress&cs=tinysrgb&w=800",
-    isBestSeller: true
-  },
-  {
-    id: 2,
-    name: "Premium Deluxe City View",
-    hotel: "HCM Riverside Hotel",
-    location: "Ho Chi Minh City",
-    rating: 4.8,
-    reviews: 85,
-    price: "2.100.000đ",
-    image: "https://images.pexels.com/photos/164595/pexels-photo-164595.jpeg?auto=compress&cs=tinysrgb&w=800",
-    isBestSeller: false
-  },
-  {
-    id: 3,
-    name: "Family Connecting Room",
-    hotel: "Da Nang Center Hotel",
-    location: "Da Nang, Vietnam",
-    rating: 4.7,
-    reviews: 230,
-    price: "3.200.000đ",
-    image: "https://images.pexels.com/photos/271624/pexels-photo-271624.jpeg?auto=compress&cs=tinysrgb&w=800",
-    isBestSeller: true
-  },
-  {
-    id: 4,
-    name: "Executive River Suite",
-    hotel: "HCM Riverside Hotel",
-    location: "Ho Chi Minh City",
-    rating: 4.9,
-    reviews: 50,
-    price: "3.800.000đ",
-    image: "https://images.pexels.com/photos/261395/pexels-photo-261395.jpeg?auto=compress&cs=tinysrgb&w=800",
-    isBestSeller: false
-  }
-];
+const FALLBACK_IMAGE = "https://images.pexels.com/photos/271624/pexels-photo-271624.jpeg?auto=compress&cs=tinysrgb&w=800";
 
 export default function TopRooms() {
+  const { isAuthenticated, role } = useAuth();
+  const { settings, loading: settingsLoading } = useCustomerSettings();
+  const [userLocation, setUserLocation] = useState(() => loadLocationFromStorage());
+  const [rooms, setRooms] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  const canUseLocation = useMemo(() => {
+    if (settingsLoading) return false;
+    return Boolean(isAuthenticated && role === "CUSTOMER" && settings.allowLocation && userLocation?.latitude && userLocation?.longitude);
+  }, [settingsLoading, isAuthenticated, role, settings.allowLocation, userLocation]);
+
+  useEffect(() => {
+    const handleLocationUpdate = (event) => {
+      setUserLocation(event?.detail || loadLocationFromStorage());
+    };
+
+    window.addEventListener("user_location_updated", handleLocationUpdate);
+    return () => window.removeEventListener("user_location_updated", handleLocationUpdate);
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+    setLoading(true);
+    setError("");
+
+    roomService.getTopRooms({
+      latitude: canUseLocation ? userLocation.latitude : undefined,
+      longitude: canUseLocation ? userLocation.longitude : undefined,
+      limit: 4,
+    })
+      .then((data) => {
+        if (!mounted) return;
+        setRooms(Array.isArray(data) ? data : []);
+      })
+      .catch((err) => {
+        if (!mounted) return;
+        setError(err?.message || "Không thể tải phòng nổi bật.");
+      })
+      .finally(() => {
+        if (mounted) setLoading(false);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [canUseLocation, userLocation?.latitude, userLocation?.longitude]);
+
+  const renderedRooms = useMemo(() => rooms.map((room, index) => ({
+    id: room.roomId || room.id,
+    name: room.roomTypeName ? `${room.roomTypeName} ${room.roomNumber}` : room.roomNumber,
+    hotel: room.branchName,
+    location: room.branchCity,
+    rating: Number(room.averageRating || 0).toFixed(1),
+    reviews: room.reviewCount || 0,
+    price: `${Number(room.rate || 0).toLocaleString("vi-VN")}đ`,
+    image: room.imageUrl || FALLBACK_IMAGE,
+    isBestSeller: index === 0,
+  })), [rooms]);
+
   return (
     <section style={{ padding: '80px 20px', backgroundColor: 'var(--color-paper)' }}>
       <div style={{ maxWidth: 'var(--page-max)', margin: '0 auto' }}>
         <div style={{ textAlign: 'center', marginBottom: '50px' }}>
           <h2 style={{ fontSize: '36px', color: 'var(--color-primary)', margin: '0 0 15px 0' }}>Phòng Nổi Bật</h2>
           <p style={{ color: 'var(--color-muted)', fontSize: '18px', maxWidth: '600px', margin: '0 auto' }}>
-            Trải nghiệm không gian nghỉ dưỡng đẳng cấp được yêu thích nhất bởi khách hàng của LuxStay.
+            Trải nghiệm không gian nghỉ dưỡng đẳng cấp được sắp xếp theo đánh giá và vị trí thực tế của bạn.
           </p>
         </div>
 
+        {error && (
+          <div style={{ marginBottom: '20px', padding: '12px 16px', borderRadius: 12, background: '#fee2e2', color: '#b91c1c' }}>
+            {error}
+          </div>
+        )}
+
+        {loading && (
+          <div style={{ padding: 24, textAlign: 'center', color: 'var(--color-muted)' }}>Đang tải phòng nổi bật...</div>
+        )}
+
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '30px' }}>
-          {mockRooms.map(room => (
+          {renderedRooms.map(room => (
             <div key={room.id} className="card" style={{ overflow: 'hidden', display: 'flex', flexDirection: 'column', transition: 'box-shadow 0.3s' }}>
               <div style={{ position: 'relative', height: '220px' }}>
                 <img src={room.image} alt={room.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />

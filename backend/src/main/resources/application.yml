@@ -68,7 +68,7 @@ app:
     vnpay:
       tmn-code: ${VNPAY_TMN_CODE:DEMOV210}
       pay-url: ${VNPAY_PAY_URL:https://sandbox.vnpayment.vn/paymentv2/vpcpay.html}
-      return-url: ${VNPAY_RETURN_URL:https://luxstay.phanvanduong.site/payment/vnpay-return}
+      return-url: ${VNPAY_RETURN_URL:http://localhost/payment/vnpay-return}
       hash-secret: ${VNPAY_HASH_SECRET:vnpay-demo-secret}
   mail:
     from: ${MAIL_FROM:${MAIL_USERNAME:huynopro1801@gmail.com}}

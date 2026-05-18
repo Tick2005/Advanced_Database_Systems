@@ -1,12 +1,10 @@
 package com.hotel.modules.payment;
 
-import com.hotel.common.enums.PaymentStatus;
-import com.hotel.exception.BusinessException;
-import com.hotel.exception.NotFoundException;
-import com.hotel.modules.booking.BookingRepository;
-import com.hotel.modules.booking.BookingService;
-import com.hotel.modules.payment.dto.PaymentCreateRequest;
-import com.hotel.modules.payment.dto.PaymentResponse;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.UUID;
+
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.CannotAcquireLockException;
 import org.springframework.dao.ConcurrencyFailureException;
 import org.springframework.dao.PessimisticLockingFailureException;
@@ -17,9 +15,13 @@ import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
-import java.util.UUID;
+import com.hotel.common.enums.PaymentStatus;
+import com.hotel.exception.BusinessException;
+import com.hotel.exception.NotFoundException;
+import com.hotel.modules.booking.BookingRepository;
+import com.hotel.modules.booking.BookingService;
+import com.hotel.modules.payment.dto.PaymentCreateRequest;
+import com.hotel.modules.payment.dto.PaymentResponse;
 
 import jakarta.persistence.EntityManager;
 
@@ -31,19 +33,22 @@ public class PaymentService {
 	private final BookingService bookingService;
 	private final JdbcTemplate jdbcTemplate;
 	private final EntityManager entityManager;
+	private final int bookingHoldMinutes;
 
 	public PaymentService(
 		PaymentRepository paymentRepository,
 		BookingRepository bookingRepository,
 		BookingService bookingService,
 		JdbcTemplate jdbcTemplate,
-		EntityManager entityManager
+		EntityManager entityManager,
+		@Value("${app.booking.hold-minutes:15}") int bookingHoldMinutes
 	) {
 		this.paymentRepository = paymentRepository;
 		this.bookingRepository = bookingRepository;
 		this.bookingService = bookingService;
 		this.jdbcTemplate = jdbcTemplate;
 		this.entityManager = entityManager;
+		this.bookingHoldMinutes = Math.max(5, bookingHoldMinutes);
 	}
 
 	@Transactional
@@ -90,6 +95,8 @@ public class PaymentService {
 	@Transactional
 	public PaymentResponse createPaymentForCustomer(PaymentCreateRequest request, String customerId) {
 		bookingService.ensureCustomerOwnsBooking(request.getBookingId(), customerId);
+		// Delegate to the retryable method — called from outside its own transaction
+		// so @Retryable can start a fresh transaction on each attempt.
 		return createPayment(request);
 	}
 
@@ -108,10 +115,20 @@ public class PaymentService {
 		if (currency != null && !currency.trim().equalsIgnoreCase("VND")) {
 			throw new BusinessException("Chỉ hỗ trợ thanh toán bằng tiền tệ VNĐ (VND)");
 		}
-		
+
 		UUID bookingUuid = UUID.fromString(bookingId);
 		var booking = bookingRepository.findByIdForUpdate(bookingUuid)
 			.orElseThrow(() -> new NotFoundException("Booking not found: " + bookingId));
+
+		// Chuyển booking sang PENDING_PAYMENT để tránh bị scheduler expire trong khi đang thanh toán
+		// Chỉ chuyển nếu đang ở HOLD (lần đầu) hoặc PENDING_PAYMENT (retry)
+		if (booking.getStatus() == com.hotel.common.enums.BookingStatus.HOLD) {
+			booking.setStatus(com.hotel.common.enums.BookingStatus.PENDING_PAYMENT);
+		} else if (booking.getStatus() != com.hotel.common.enums.BookingStatus.PENDING_PAYMENT) {
+			throw new BusinessException("Booking is not in a payable state: " + booking.getStatus());
+		}
+		booking.setUpdatedAt(LocalDateTime.now());
+		bookingRepository.save(booking);
 
 		// Validate that the payment amount is at least the base booking total price (VAT & services added on frontend)
 		if (amount == null || amount.compareTo(booking.getTotalPrice()) < 0) {
@@ -127,11 +144,19 @@ public class PaymentService {
 				throw new IllegalStateException("Booking already paid: " + bookingId);
 			}
 			if (existing.getStatus() == PaymentStatus.PENDING) {
-				return existing;
+				// Sinh transactionRef mới vì transactionRef cũ đã hết hạn trên VNPay (30 phút).
+				// Không reuse transactionRef cũ — VNPay sẽ từ chối giao dịch đã expire.
+				existing.setTransactionRef(generateTransactionRef("VNPAY"));
+				existing.setAmount(amount);
+				existing.setCurrency(currency == null || currency.isBlank() ? "VND" : currency);
+				existing.setUpdatedAt(LocalDateTime.now());
+				return paymentRepository.save(existing);
 			}
+			// FAILED hoặc trạng thái khác → tạo lại payment mới bên dưới
 		}
 
-		PaymentEntity entity = existing == null ? new PaymentEntity() : existing;
+		// Tạo mới hoặc reuse entity cũ (FAILED) — không thể INSERT mới vì booking_id UNIQUE
+		PaymentEntity entity = (existing != null) ? existing : new PaymentEntity();
 		if (entity.getId() == null) {
 			entity.setId(UUID.randomUUID());
 			entity.setCreatedAt(LocalDateTime.now());
@@ -149,6 +174,7 @@ public class PaymentService {
 
 	@Transactional
 	public PaymentEntity createVnPayPendingPaymentForCustomer(String bookingId, String customerId, BigDecimal amount, String currency) {
+		// Ownership check runs in its own read-only transaction before the retryable write.
 		bookingService.ensureCustomerOwnsBooking(bookingId, customerId);
 		return createVnPayPendingPayment(bookingId, amount, currency);
 	}
@@ -186,15 +212,23 @@ public class PaymentService {
 			if (entity.getAmount() == null) {
 				entity.setAmount(BigDecimal.ZERO);
 			}
+			entity.setUpdatedAt(LocalDateTime.now());
+			paymentRepository.save(entity);
+			// Huỷ booking và giải phóng phòng khi thanh toán thất bại
+			cancelBookingOnPaymentFailure(entity.getBookingId());
 		}
 		PaymentEntity saved;
 		if (success) {
+			// The DB function fn_confirm_room_booking updates the payment row directly via SQL.
+			// Flush and clear the first-level cache so the subsequent find() reads the
+			// committed state written by the function, not the stale Hibernate snapshot.
+			entityManager.flush();
 			entityManager.clear();
-			saved = paymentRepository.findByBookingId(entity.getBookingId())
-				.orElseThrow(() -> new NotFoundException("Payment not found for booking: " + entity.getBookingId()));
+			saved = paymentRepository.findById(entity.getId())
+				.orElseThrow(() -> new NotFoundException("Payment not found after confirmation: " + entity.getId()));
 		} else {
-			entity.setUpdatedAt(LocalDateTime.now());
-			saved = paymentRepository.save(entity);
+			saved = paymentRepository.findById(entity.getId())
+				.orElse(entity);
 		}
 		return saved;
 	}
@@ -211,6 +245,16 @@ public class PaymentService {
 			resolvedCurrency,
 			"{}"
 		);
+	}
+
+	private void cancelBookingOnPaymentFailure(UUID bookingId) {
+		try {
+			bookingService.cancelBookingOnPaymentFailure(bookingId.toString());
+		} catch (Exception ex) {
+			// Log nhưng không throw — payment đã được update FAILED, booking sẽ bị expire bởi scheduler
+			org.slf4j.LoggerFactory.getLogger(PaymentService.class)
+				.warn("[PaymentService] Could not cancel booking {} after payment failure: {}", bookingId, ex.getMessage());
+		}
 	}
 
 	private void populateSuccessfulPayment(PaymentEntity entity, String provider, BigDecimal amount, String currency) {

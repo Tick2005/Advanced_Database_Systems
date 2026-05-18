@@ -1,10 +1,13 @@
 package com.hotel.modules.user.settings;
 
 import java.util.Optional;
+import java.util.UUID;
 
-import org.springframework.data.mongodb.repository.MongoRepository;
+import org.springframework.data.jpa.repository.JpaRepository;
 
-public interface CustomerSettingsRepository extends MongoRepository<CustomerSettingsDocument, String> {
+public interface CustomerSettingsRepository extends JpaRepository<CustomerSettingsDocument, UUID> {
 
-    Optional<CustomerSettingsDocument> findByUserId(String userId);
+    Optional<CustomerSettingsDocument> findByUserId(UUID userId);
+
+    long deleteByUserId(UUID userId);
 }

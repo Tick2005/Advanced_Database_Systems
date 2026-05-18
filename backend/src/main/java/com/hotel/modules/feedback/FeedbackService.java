@@ -22,6 +22,7 @@ import com.hotel.modules.branch.BranchEntity;
 import com.hotel.modules.branch.BranchRepository;
 import com.hotel.modules.feedback.dto.FeedbackCreateRequest;
 import com.hotel.modules.feedback.dto.FeedbackReplyRequest;
+import com.hotel.modules.feedback.dto.FeedbackReportRequest;
 import com.hotel.modules.feedback.dto.FeedbackResponse;
 import com.hotel.modules.feedback.dto.RoomFeedbackSummaryResponse;
 import com.hotel.modules.room.RoomEntity;
@@ -99,16 +100,25 @@ public class FeedbackService {
     }
 
     public List<FeedbackResponse> getByRoom(String roomId) {
-        return feedbackRepository.findByRoomIdOrderByCreatedAtDesc(roomId).stream().map(this::toResponse).toList();
+        return feedbackRepository.findByRoomIdOrderByCreatedAtDesc(roomId).stream()
+            .filter(doc -> !Boolean.TRUE.equals(doc.getIsReported()))
+            .map(this::toResponse).toList();
     }
 
     public List<FeedbackResponse> getByUser(String userId) {
-        return feedbackRepository.findByUserIdOrderByCreatedAtDesc(userId).stream().map(this::toResponse).toList();
+        return feedbackRepository.findByUserIdOrderByCreatedAtDesc(userId).stream()
+            .filter(doc -> !Boolean.TRUE.equals(doc.getIsReported()))
+            .map(this::toResponse)
+            .toList();
     }
 
     public List<FeedbackResponse> getTopFeedbacks(int limit) {
         int resolvedLimit = Math.max(1, Math.min(limit, 50));
-        List<FeedbackDocument> docs = feedbackRepository.findAllByOrderByRatingDescCreatedAtDesc(PageRequest.of(0, resolvedLimit));
+        List<FeedbackDocument> docs = feedbackRepository.findAllByOrderByRatingDescCreatedAtDesc(PageRequest.of(0, Math.max(limit * 2, 50)))
+            .stream()
+            .filter(doc -> !Boolean.TRUE.equals(doc.getIsReported()))
+            .limit(resolvedLimit)
+            .toList();
         return enrichResponses(docs);
     }
 
@@ -131,6 +141,7 @@ public class FeedbackService {
         org.springframework.data.mongodb.core.aggregation.MatchOperation match =
             org.springframework.data.mongodb.core.aggregation.Aggregation.match(
                 org.springframework.data.mongodb.core.query.Criteria.where("room_id").in(cleanRoomIds)
+                    .and("is_reported").ne(true)
             );
 
         org.springframework.data.mongodb.core.aggregation.GroupOperation group =
@@ -167,6 +178,25 @@ public class FeedbackService {
         return toResponse(feedbackRepository.save(document));
     }
 
+    public FeedbackResponse report(FeedbackReportRequest request) {
+        if (request.getFeedbackId() == null || request.getFeedbackId().isBlank()) {
+            throw new BusinessException("Feedback ID không được để trống");
+        }
+        if (request.getReason() == null || request.getReason().isBlank()) {
+            throw new BusinessException("Lý do báo cáo không được để trống");
+        }
+        FeedbackDocument document = feedbackRepository.findById(request.getFeedbackId())
+            .orElseThrow(() -> new NotFoundException("Feedback not found: " + request.getFeedbackId()));
+        // Prevent duplicate reporting
+        if (Boolean.TRUE.equals(document.getIsReported())) {
+            throw new BusinessException("Feedback này đã được báo cáo trước đó");
+        }
+        document.setIsReported(true);
+        document.setReportReason(request.getReason());
+        document.setUpdatedAt(Instant.now());
+        return toResponse(feedbackRepository.save(document));
+    }
+
 
 
     public Map<String, Double> getAverageRatingsByRoom() {
@@ -175,6 +205,7 @@ public class FeedbackService {
         org.springframework.data.mongodb.core.aggregation.MatchOperation match =
             org.springframework.data.mongodb.core.aggregation.Aggregation.match(
                 org.springframework.data.mongodb.core.query.Criteria.where("room_id").exists(true).ne("")
+                    .and("is_reported").ne(true)
             );
 
         org.springframework.data.mongodb.core.aggregation.GroupOperation group =
@@ -215,6 +246,8 @@ public class FeedbackService {
         response.setRating(Objects.requireNonNullElse(document.getRating(), 0));
         response.setContent(document.getContent());
         response.setManagerReply(document.getManagerReply());
+        response.setIsReported(document.getIsReported());
+        response.setReportReason(document.getReportReason());
         response.setCreatedAt(document.getCreatedAt());
         return response;
     }

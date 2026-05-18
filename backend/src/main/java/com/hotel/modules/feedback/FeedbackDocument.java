@@ -33,6 +33,12 @@ public class FeedbackDocument {
     @Field("manager_reply")
     private String managerReply;
 
+    @Field("is_reported")
+    private Boolean isReported;
+
+    @Field("report_reason")
+    private String reportReason;
+
     @Field("created_at")
     private Instant createdAt;
 
@@ -109,6 +115,22 @@ public class FeedbackDocument {
 
     public void setManagerReply(String managerReply) {
         this.managerReply = managerReply;
+    }
+
+    public Boolean getIsReported() {
+        return isReported;
+    }
+
+    public void setIsReported(Boolean isReported) {
+        this.isReported = isReported;
+    }
+
+    public String getReportReason() {
+        return reportReason;
+    }
+
+    public void setReportReason(String reportReason) {
+        this.reportReason = reportReason;
     }
 
     public Instant getCreatedAt() {

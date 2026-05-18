@@ -167,6 +167,18 @@ export default function OwnerPricingRequestsPage() {
               </div>
             )}
 
+            {row.reason && (
+              <div style={{ padding: "8px 16px", borderBottom: "1px solid #f1f5f9", fontSize: 13, color: "#334155", background: "#fafafa" }}>
+                <span style={{ fontWeight: 700, color: "#0d2238" }}>Lý do đề xuất: </span>{row.reason}
+              </div>
+            )}
+
+            {row.reviewNote && (
+              <div style={{ padding: "6px 16px", background: "#f0fdf4", fontSize: 12, color: "#15803d" }}>
+                💬 Ghi chú duyệt: <strong>{row.reviewNote}</strong>
+              </div>
+            )}
+
             {row.delegatedTo && (
               <div style={{ padding: "6px 16px", background: "#dbeafe", fontSize: 12, color: "#1e40af" }}>
                 🤝 Đã uỷ quyền cho: <strong>{row.delegatedTo}</strong>

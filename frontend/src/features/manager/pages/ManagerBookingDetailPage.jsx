@@ -20,11 +20,11 @@ export default function ManagerBookingDetailPage() {
   return (
     <section className="container page-shell" style={{ display: "grid", gap: 14, maxWidth: 800 }}>
       <div className="page-heading" style={{ marginBottom: 0 }}>
-        <div>
-          <h1>📋 Chi tiết booking</h1>
-          <p>Xem toàn bộ thông tin đặt phòng, khách hàng, và tình trạng thanh toán.</p>
-        </div>
-      </div>
+            <div>
+              <h1>📋 Chi tiết booking</h1>
+              <p>Xem toàn bộ thông tin đặt phòng và khách hàng.</p>
+            </div>
+          </div>
       
       {loading ? (
         <article className="card" style={{ padding: 24, textAlign: "center", color: "#64748b" }}>Đang tải...</article>
@@ -60,7 +60,6 @@ export default function ManagerBookingDetailPage() {
                 <DetailItem label="Check-in" value={booking.checkInDate || "—"} />
                 <DetailItem label="Check-out" value={booking.checkOutDate || "—"} />
                 <DetailItem label="Tổng tiền" value={formatCurrencyVnd(booking.totalPrice || 0)} bold />
-                <DetailItem label="Thanh toán" value={booking.paymentStatus || "—"} />
                 {booking.notes && <DetailItem label="Ghi chú" value={booking.notes} fullWidth />}
               </DetailGrid>
             </article>

@@ -7,6 +7,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,24 +33,28 @@ public class RoomService {
 	private final BranchRepository branchRepository;
 	private final FeedbackService feedbackService;
 	private final RoomMapper roomMapper;
+	private final JdbcTemplate jdbcTemplate;
 
 	public RoomService(
 		RoomRepository roomRepository,
 		RoomTypeRepository roomTypeRepository,
 		BranchRepository branchRepository,
 		FeedbackService feedbackService,
-		RoomMapper roomMapper
+		RoomMapper roomMapper,
+		JdbcTemplate jdbcTemplate
 	) {
 		this.roomRepository = roomRepository;
 		this.roomTypeRepository = roomTypeRepository;
 		this.branchRepository = branchRepository;
 		this.feedbackService = feedbackService;
 		this.roomMapper = roomMapper;
+		this.jdbcTemplate = jdbcTemplate;
 	}
 
 	@Transactional(readOnly = true)
 	public List<RoomResponse> getRooms(RoomSearchFilter filter) {
 		UUID roomTypeId = filter == null || filter.getRoomTypeId() == null ? null : UUID.fromString(filter.getRoomTypeId());
+		String roomTypeName = filter == null ? null : filter.getRoomTypeName();
 		RoomStatus status = filter == null || filter.getStatus() == null ? null : parseStatus(filter.getStatus());
 		UUID branchId = filter == null || filter.getBranchId() == null ? null : UUID.fromString(filter.getBranchId());
 		Double minRating = filter == null ? null : filter.getMinRating();
@@ -57,8 +62,8 @@ public class RoomService {
 		var maxPrice = filter == null ? null : filter.getMaxPrice();
 
 		List<RoomEntity> rooms = status == null
-			? roomRepository.findBySearchCriteriaWithoutStatus(roomTypeId, minPrice, maxPrice, branchId, minRating)
-			: roomRepository.findBySearchCriteria(roomTypeId, status, minPrice, maxPrice, branchId, minRating);
+			? roomRepository.findBySearchCriteriaWithoutStatus(roomTypeId, roomTypeName, minPrice, maxPrice, branchId, minRating)
+			: roomRepository.findBySearchCriteria(roomTypeId, roomTypeName, status, minPrice, maxPrice, branchId, minRating);
 
 		Map<UUID, RoomTypeEntity> roomTypeById = roomTypeRepository.findByIdIn(
 			rooms.stream().map(RoomEntity::getRoomTypeId).distinct().toList()
@@ -120,22 +125,54 @@ public class RoomService {
 			throw new BusinessException("roomType does not belong to the requested branch");
 		}
 
-		RoomEntity room = new RoomEntity();
-		room.setId(UUID.randomUUID());
-		room.setRoomTypeId(roomType.getId());
-		room.setBranchId(roomType.getBranchId().toString());
-		room.setRoomNumber(request.getRoomNumber());
-		room.setMaxOccupancy(request.getMaxOccupancy());
-		room.setRate(request.getRate());
-		room.setStatus(RoomStatus.AVAILABLE);
+		int quantity = request.getQuantity() == null || request.getQuantity() < 1 ? 1 : request.getQuantity();
+		java.math.BigDecimal rate = request.getRate() == null ? roomType.getBasePrice() : request.getRate();
+		int maxOccupancy = request.getMaxOccupancy() == null ? roomType.getCapacity() : request.getMaxOccupancy();
+		String statusStr = request.getStatus() == null ? "AVAILABLE" : request.getStatus();
 		LocalDateTime now = LocalDateTime.now();
-		room.setCreatedAt(now);
-		room.setUpdatedAt(now);
 
-		roomRepository.save(room);
+		Integer maxExisting = roomRepository.findMaxNumericRoomNumberByRoomType(roomType.getId());
+		int nextStart = (maxExisting == null ? 100 : (maxExisting + 1));
+
+		RoomEntity firstCreated = null;
+		for (int i = 0; i < quantity; i++) {
+			RoomEntity room = new RoomEntity();
+			room.setId(UUID.randomUUID());
+			room.setRoomTypeId(roomType.getId());
+			room.setBranchId(roomType.getBranchId().toString());
+			String roomNumber = request.getRoomNumber();
+			if (quantity > 1 || roomNumber == null || roomNumber.isBlank()) {
+				roomNumber = String.valueOf(nextStart + i);
+			}
+			room.setRoomNumber(roomNumber);
+			room.setMaxOccupancy(maxOccupancy);
+			room.setRate(rate);
+			room.setStatus(parseStatus(statusStr));
+			room.setCreatedAt(now);
+			room.setUpdatedAt(now);
+			roomRepository.save(room);
+
+			// persist images if provided
+			if (request.getImageUrls() != null && !request.getImageUrls().isEmpty()) {
+				int idx = 0;
+				for (String url : request.getImageUrls()) {
+					if (url == null || url.isBlank()) continue;
+					java.util.UUID imgId = java.util.UUID.randomUUID();
+					boolean isCover = idx == 0;
+					jdbcTemplate.update(
+						"INSERT INTO room_images (id, room_id, image_url, alt_text, is_cover, sort_order, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, now(), now())",
+						imgId, room.getId(), url.trim(), null, isCover, idx
+					);
+					idx++;
+				}
+			}
+
+			if (firstCreated == null) firstCreated = room;
+		}
+
 		BranchEntity branch = branchRepository.findById(roomType.getBranchId())
 			.orElseThrow(() -> new NotFoundException("Branch not found: " + roomType.getBranchId()));
-		return roomMapper.toResponse(room, roomType, branch.getCity(), null);
+		return roomMapper.toResponse(firstCreated, roomType, branch.getCity(), null);
 	}
 
 	@Transactional
@@ -150,6 +187,9 @@ public class RoomService {
 		if (request.getStatus() != null && !request.getStatus().isBlank()) {
 			room.setStatus(parseStatus(request.getStatus()));
 		}
+		if (request.getNotes() != null) {
+			room.setNotes(request.getNotes());
+		}
 		room.setUpdatedAt(LocalDateTime.now());
 		roomRepository.save(room);
 
@@ -159,9 +199,75 @@ public class RoomService {
 		return roomMapper.toResponse(room, roomType, branch == null ? "Unknown" : branch.getCity(), null);
 	}
 
+	/**
+	 * Cập nhật thông tin room type.
+	 * Khi basePrice thay đổi → cập nhật rooms.rate của tất cả phòng thuộc room type này.
+	 * Khi capacity thay đổi → cập nhật rooms.maxOccupancy để dữ liệu phòng khớp với loại phòng.
+	 * Phòng đang OCCUPIED vẫn được giữ nguyên rate cho đến khi check-out nếu cần.
+	 */
 	@Transactional
-	public boolean deleteRoom(String id) {
-		UUID roomId = parseUuid(id);
+	public java.util.Map<String, Object> updateRoomType(String id, java.util.Map<String, Object> payload) {
+		RoomTypeEntity rt = roomTypeRepository.findById(parseUuid(id))
+			.orElseThrow(() -> new NotFoundException("Room type not found: " + id));
+
+		java.math.BigDecimal oldBasePrice = rt.getBasePrice();
+		Integer oldCapacity = rt.getCapacity();
+
+		if (payload.containsKey("name") && payload.get("name") != null) {
+			rt.setName((String) payload.get("name"));
+		}
+		if (payload.containsKey("description")) {
+			rt.setDescription((String) payload.get("description"));
+		}
+		if (payload.containsKey("basePrice") && payload.get("basePrice") != null) {
+			rt.setBasePrice(new java.math.BigDecimal(payload.get("basePrice").toString()));
+		}
+		if (payload.containsKey("capacity") && payload.get("capacity") != null) {
+			rt.setCapacity(Integer.parseInt(payload.get("capacity").toString()));
+		}
+		if (payload.containsKey("bedType")) {
+			rt.setBedType((String) payload.get("bedType"));
+		}
+		rt.setUpdatedAt(LocalDateTime.now());
+		roomTypeRepository.save(rt);
+
+		// Nếu basePrice thay đổi → cập nhật rooms.rate của tất cả phòng thuộc room type này
+		// Nếu capacity thay đổi → cập nhật rooms.maxOccupancy để đồng bộ dữ liệu room_type/room
+		if (rt.getBasePrice() != null && !rt.getBasePrice().equals(oldBasePrice)) {
+			List<RoomEntity> rooms = roomRepository.findByRoomTypeId(rt.getId());
+			for (RoomEntity room : rooms) {
+				if (room.getStatus() != RoomStatus.OCCUPIED) {
+					room.setRate(rt.getBasePrice());
+					room.setUpdatedAt(LocalDateTime.now());
+					roomRepository.save(room);
+				}
+			}
+		}
+		if (oldCapacity != null && !oldCapacity.equals(rt.getCapacity())) {
+			List<RoomEntity> rooms = roomRepository.findByRoomTypeId(rt.getId());
+			for (RoomEntity room : rooms) {
+				room.setMaxOccupancy(rt.getCapacity());
+				room.setUpdatedAt(LocalDateTime.now());
+				roomRepository.save(room);
+			}
+		}
+
+		java.util.Map<String, Object> result = new java.util.LinkedHashMap<>();
+		result.put("id", rt.getId().toString());
+		result.put("branchId", rt.getBranchId() != null ? rt.getBranchId().toString() : null);
+		result.put("code", rt.getCode());
+		result.put("name", rt.getName());
+		result.put("description", rt.getDescription());
+		result.put("basePrice", rt.getBasePrice());
+		result.put("capacity", rt.getCapacity());
+		result.put("bedType", rt.getBedType());
+		result.put("active", rt.isActive());
+		result.put("averageRating", rt.getAverageRating());
+		return result;
+	}
+
+	@Transactional
+	public boolean deleteRoom(String id) {		UUID roomId = parseUuid(id);
 		if (!roomRepository.existsById(roomId)) {
 			return false;
 		}
@@ -172,7 +278,23 @@ public class RoomService {
 	@Transactional
 	public RoomResponse updateRoomStatus(String id, String status) {
 		RoomEntity room = roomRepository.findById(parseUuid(id)).orElseThrow(() -> new NotFoundException("Room not found: " + id));
-		room.setStatus(parseStatus(status));
+		RoomStatus newStatus = parseStatus(status);
+
+		// DB trigger fn_enforce_room_status_consistency requires:
+		//   OCCUPIED  → current_booking_id must NOT be null
+		//   AVAILABLE / MAINTENANCE → current_booking_id must be null
+		// Staff can only manually set AVAILABLE, HELD, MAINTENANCE.
+		// OCCUPIED is managed automatically by the booking flow (check-in/confirm).
+		if (newStatus == RoomStatus.OCCUPIED) {
+			throw new BusinessException("Không thể đặt trạng thái OCCUPIED thủ công. Trạng thái này được cập nhật tự động khi khách check-in.");
+		}
+
+		// When setting AVAILABLE or MAINTENANCE, clear current_booking_id to satisfy the trigger
+		if (newStatus == RoomStatus.AVAILABLE || newStatus == RoomStatus.MAINTENANCE) {
+			room.setCurrentBookingId(null);
+		}
+
+		room.setStatus(newStatus);
 		room.setUpdatedAt(LocalDateTime.now());
 		roomRepository.save(room);
 		RoomTypeEntity roomType = roomTypeRepository.findById(room.getRoomTypeId()).orElse(null);
@@ -235,7 +357,7 @@ public class RoomService {
 		List<TopRoomProjection> projections = roomRepository.findTopRoomsByLocation(latitude, longitude, limit);
 		Map<String, Double> averageRatingsByRoom = feedbackService.getAverageRatingsByRoom();
 		List<UUID> roomIds = projections.stream()
-			.map(p -> UUID.fromString(p.getRoom_id()))
+			.map(p -> UUID.fromString(p.getRoomId()))
 			.toList();
 
 		Map<UUID, String> coverImageByRoomId = roomRepository.findCoverImageUrls(roomIds)
@@ -244,24 +366,26 @@ public class RoomService {
 
 		return projections.stream()
 			.map(p -> {
-				Double liveAverageRating = averageRatingsByRoom.getOrDefault(p.getRoom_id(), p.getAverage_rating() == null ? 0.0d : p.getAverage_rating());
+				Double averageRating = p.getAverageRating() == null ? 0.0d : p.getAverageRating();
+				Double liveAverageRating = averageRatingsByRoom.getOrDefault(p.getRoomId(), averageRating);
 				TopRoomResponse response = new TopRoomResponse(
-					p.getRoom_id(),
-					p.getRoom_number(),
+					p.getRoomId(),
+					p.getRoomNumber(),
 					liveAverageRating,
 					p.getRate(),
 					p.getStatus(),
-					p.getMax_occupancy(),
-					p.getRoom_type_id(),
-					p.getRoom_type_name(),
-					p.getBranch_id(),
-					p.getBranch_name(),
-					p.getBranch_city(),
-					p.getBranch_latitude(),
-					p.getBranch_longitude(),
-					p.getDistance_km()
+					p.getMaxOccupancy() == null ? 0 : p.getMaxOccupancy(),
+					p.getRoomTypeId(),
+					p.getRoomTypeName(),
+					p.getBranchId(),
+					p.getBranchName(),
+					p.getBranchCity(),
+					p.getBranchLatitude(),
+					p.getBranchLongitude(),
+					p.getScore(),
+					p.getDistanceKm()
 				);
-				response.setImageUrl(coverImageByRoomId.get(UUID.fromString(p.getRoom_id())));
+				response.setImageUrl(coverImageByRoomId.get(UUID.fromString(p.getRoomId())));
 				return response;
 			})
 			.toList();

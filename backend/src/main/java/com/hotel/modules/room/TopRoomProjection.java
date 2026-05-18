@@ -3,18 +3,19 @@ package com.hotel.modules.room;
 import java.math.BigDecimal;
 
 public interface TopRoomProjection {
-	String getRoom_id();
-	String getRoom_number();
-	Double getAverage_rating();
+	String getRoomId();
+	String getRoomNumber();
+	Double getAverageRating();
+	Double getScore();
 	BigDecimal getRate();
 	String getStatus();
-	Integer getMax_occupancy();
-	String getRoom_type_id();
-	String getRoom_type_name();
-	String getBranch_id();
-	String getBranch_name();
-	String getBranch_city();
-	Double getBranch_latitude();
-	Double getBranch_longitude();
-	Double getDistance_km();
+	Integer getMaxOccupancy();
+	String getRoomTypeId();
+	String getRoomTypeName();
+	String getBranchId();
+	String getBranchName();
+	String getBranchCity();
+	Double getBranchLatitude();
+	Double getBranchLongitude();
+	Double getDistanceKm();
 }

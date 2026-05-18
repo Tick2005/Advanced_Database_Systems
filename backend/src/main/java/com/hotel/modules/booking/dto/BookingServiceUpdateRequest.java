@@ -1,21 +1,29 @@
 package com.hotel.modules.booking.dto;
 
 import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 
 import java.math.BigDecimal;
 
 public class BookingServiceUpdateRequest {
 
-    @NotBlank
+    // Frontend gửi serviceId (UUID) — ưu tiên dùng serviceId nếu có.
+    // serviceCode vẫn giữ để backward-compat với các client cũ.
+    private String serviceId;
+
     private String serviceCode;
 
     @Min(1)
     private int quantity = 1;
 
-    @NotNull
     private BigDecimal actualPrice;
+
+    public String getServiceId() {
+        return serviceId;
+    }
+
+    public void setServiceId(String serviceId) {
+        this.serviceId = serviceId;
+    }
 
     public String getServiceCode() {
         return serviceCode;

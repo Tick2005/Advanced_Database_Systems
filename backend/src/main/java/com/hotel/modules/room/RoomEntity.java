@@ -50,6 +50,12 @@ public class RoomEntity {
 	@Column(name = "average_rating")
 	private Double averageRating = 0.0;
 
+	@Column(name = "notes")
+	private String notes;
+
+	@Column(name = "floor")
+	private Integer floor;
+
 	@Column(name = "created_at")
 	private LocalDateTime createdAt;
 
@@ -126,6 +132,22 @@ public class RoomEntity {
 
 	public void setAverageRating(Double averageRating) {
 		this.averageRating = averageRating;
+	}
+
+	public String getNotes() {
+		return notes;
+	}
+
+	public void setNotes(String notes) {
+		this.notes = notes;
+	}
+
+	public Integer getFloor() {
+		return floor;
+	}
+
+	public void setFloor(Integer floor) {
+		this.floor = floor;
 	}
 
 	public LocalDateTime getCreatedAt() {

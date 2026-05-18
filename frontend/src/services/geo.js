@@ -44,14 +44,24 @@ function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
 }
 
+/**
+ * Blended score matching the backend V10 formula:
+ *   rating_score   = (rating / 5) * 5          → 0–5, linear
+ *   distance_score = 5 * max(0, 1 - dist/2000) → 0–5, linear, 2000 km cap
+ *   total          = rating_score + distance_score (0–10)
+ *
+ * 2000 km cap covers the full length of Vietnam (Hanoi → Ca Mau ≈ 1700 km).
+ * Without location: score = rating_score only.
+ */
 function computeBlendedScore(rating, distanceKmValue) {
-  const normalizedRating = clamp(Number(rating || 0) / 5, 0, 1);
-  const distanceScore = Number.isFinite(distanceKmValue)
-    ? 1 / (1 + Math.max(0, distanceKmValue))
-    : 0;
+  const ratingScore = clamp(Number(rating || 0) / 5, 0, 1) * 5; // 0–5
 
-  // Prioritize quality while still rewarding closer locations.
-  return normalizedRating * 0.72 + distanceScore * 0.28;
+  if (!Number.isFinite(distanceKmValue)) {
+    return ratingScore; // no location — rating only
+  }
+
+  const distanceScore = 5 * Math.max(0, 1 - distanceKmValue / 2000); // 0–5
+  return ratingScore + distanceScore; // 0–10
 }
 
 export function sortRoomsByProximityAndRating(rooms, branches, location, allowLocation = true) {
@@ -67,6 +77,13 @@ export function sortRoomsByProximityAndRating(rooms, branches, location, allowLo
         return rightRating - leftRating;
       }
       return Number(right.rate || 0) - Number(left.rate || 0);
+    }
+
+    const isLeftAvailable = left.status === "AVAILABLE";
+    const isRightAvailable = right.status === "AVAILABLE";
+
+    if (isLeftAvailable !== isRightAvailable) {
+      return isLeftAvailable ? -1 : 1;
     }
 
     const leftBranch = branchById.get(left.branchId);

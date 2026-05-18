@@ -26,6 +26,8 @@ import com.hotel.modules.room.RoomService;
 import com.hotel.modules.room.dto.RoomResponse;
 import com.hotel.modules.room.dto.RoomSearchFilter;
 import com.hotel.modules.room.dto.RoomStatusUpdateRequest;
+import com.hotel.modules.service.ServiceService;
+import com.hotel.modules.service.dto.ServiceResponse;
 import com.hotel.security.CurrentUser;
 import com.hotel.security.SecurityUtils;
 
@@ -37,22 +39,24 @@ public class StaffController {
 
 	private final BookingService bookingService;
 	private final RoomService roomService;
+	private final ServiceService serviceService;
 	private final SecurityUtils securityUtils;
 
-	public StaffController(BookingService bookingService, RoomService roomService, SecurityUtils securityUtils) {
+	public StaffController(BookingService bookingService, RoomService roomService,
+			ServiceService serviceService, SecurityUtils securityUtils) {
 		this.bookingService = bookingService;
 		this.roomService = roomService;
+		this.serviceService = serviceService;
 		this.securityUtils = securityUtils;
 	}
 
 	@GetMapping("/bookings/today")
 	public ApiResponse<List<BookingResponse>> getTodayBookings() {
-		BookingFilterRequest filter = new BookingFilterRequest();
+		String branchId = requireBranchIdFromToken();
 		LocalDate today = LocalDate.now();
-		filter.setFromDate(today);
-		filter.setToDate(today);
-		filter.setBranchId(requireBranchIdFromToken());
-		return ApiResponse.ok("Today bookings", bookingService.findByFilter(filter));
+		// Lấy tất cả booking đang active hôm nay (checkIn <= today <= checkOut)
+		// với status cần xử lý: CONFIRMED (chờ check-in) và CHECKED_IN (chờ check-out)
+		return ApiResponse.ok("Today bookings", bookingService.findTodayActiveBookings(branchId, today));
 	}
 
 	@PutMapping("/bookings/{id}/checkin")
@@ -67,7 +71,8 @@ public class StaffController {
 
 	@PostMapping("/bookings/walk-in")
 	public ApiResponse<BookingResponse> walkIn(@Valid @RequestBody StaffWalkInBookingCreateRequest payload) {
-		return ApiResponse.ok("Walk-in booking created", bookingService.createBooking(toBookingCreateRequest(payload)));
+		// Walk-in: thanh toán tại quầy → CONFIRMED + room OCCUPIED ngay lập tức
+		return ApiResponse.ok("Walk-in booking created", bookingService.createWalkInBooking(toBookingCreateRequest(payload)));
 	}
 
 	@GetMapping("/rooms/status")
@@ -85,6 +90,29 @@ public class StaffController {
 	@PutMapping("/bookings/{id}/services")
 	public ApiResponse<BookingServiceResponse> updateBookingServices(@PathVariable String id, @Valid @RequestBody BookingServiceUpdateRequest payload) {
 		return ApiResponse.ok("Booking services updated", bookingService.addService(id, payload));
+	}
+
+	/**
+	 * GET /api/staff/services
+	 * Returns services for the staff's branch so StaffBookingsTodayPage can
+	 * populate the service dropdown without a separate branch lookup.
+	 */
+	@GetMapping("/services")
+	public ApiResponse<List<ServiceResponse>> getServices() {
+		return ApiResponse.ok("Staff branch services",
+			serviceService.getByBranch(requireBranchIdFromToken()));
+	}
+
+	/**
+	 * POST /api/staff/bookings/{id}/add-service
+	 * Convenience endpoint used by StaffBookingsTodayPage to add a service
+	 * to an active booking by serviceId + quantity.
+	 */
+	@PostMapping("/bookings/{id}/add-service")
+	public ApiResponse<BookingServiceResponse> addServiceToBooking(
+			@PathVariable String id,
+			@Valid @RequestBody BookingServiceUpdateRequest payload) {
+		return ApiResponse.ok("Service added to booking", bookingService.addService(id, payload));
 	}
 
 	private String requireBranchIdFromToken() {

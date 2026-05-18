@@ -15,7 +15,6 @@ export default function DashLayout({ children }) {
       { group: "Vận hành", to: PATHS.STAFF, label: "Dashboard", icon: "📊" },
       { group: "Vận hành", to: PATHS.STAFF_BOOKINGS_TODAY, label: "Booking hôm nay", icon: "📅" },
       { group: "Vận hành", to: PATHS.STAFF_ROOMS_STATUS, label: "Trạng thái phòng", icon: "🏨" },
-      { group: "Vận hành", to: PATHS.STAFF_SERVICE_USAGE, label: "Dịch vụ booking", icon: "🍽️" }
     ],
     MANAGER: [
       { group: "Vận hành", to: PATHS.MANAGER, label: "Dashboard", icon: "📊" },
@@ -28,11 +27,12 @@ export default function DashLayout({ children }) {
     ],
     OWNER: [
       { group: "Điều hành", to: PATHS.OWNER, label: "Dashboard", icon: "📊" },
+      { group: "Điều hành", to: PATHS.OWNER_BOOKINGS, label: "Phân tích booking", icon: "📋" },
       { group: "Điều hành", to: PATHS.OWNER_BRANCHES, label: "Chi nhánh", icon: "🏢" },
-      { group: "Điều hành", to: PATHS.OWNER_BOOKINGS, label: "Toàn bộ booking", icon: "📋" },
       { group: "Điều hành", to: PATHS.OWNER_USERS, label: "Người dùng", icon: "👥" },
-      { group: "Giá và tài chính", to: PATHS.OWNER_PRICING, label: "Pricing", icon: "💵" },
-      { group: "Giá và tài chính", to: PATHS.OWNER_PRICING_REQUESTS, label: "Duyệt request", icon: "✅" }
+      { group: "Giá và tài chính", to: PATHS.OWNER_PRICING, label: "Pricing Seasons", icon: "💵" },
+      { group: "Giá và tài chính", to: PATHS.OWNER_PRICING_REQUESTS, label: "Duyệt request", icon: "✅" },
+      { group: "Quản lý phòng", to: PATHS.OWNER_ROOM_TYPES, label: "Loại phòng", icon: "🛏️" },
     ]
   };
 
@@ -54,18 +54,18 @@ export default function DashLayout({ children }) {
     const titleMappings = [
       { prefix: PATHS.STAFF_BOOKINGS_TODAY.replace(":id", ""), title: "Booking hôm nay" },
       { prefix: PATHS.STAFF_ROOMS_STATUS.replace(":id", ""), title: "Trạng thái phòng" },
-      { prefix: PATHS.STAFF_SERVICE_USAGE.replace(":id", ""), title: "Quản lý dịch vụ booking" },
       { prefix: PATHS.MANAGER_ROOMS.replace(":id", ""), title: "Quản lý phòng" },
       { prefix: PATHS.MANAGER_BOOKINGS.replace(":id", ""), title: "Booking chi nhánh" },
       { prefix: PATHS.MANAGER_STAFF.replace(":id", ""), title: "Quản lý nhân sự" },
       { prefix: PATHS.MANAGER_FEEDBACKS.replace(":id", ""), title: "Feedback khách hàng" },
       { prefix: PATHS.MANAGER_SERVICES.replace(":id", ""), title: "Dịch vụ chi nhánh" },
       { prefix: PATHS.MANAGER_PRICING_REQUESTS.replace(":id", ""), title: "Pricing requests" },
+      { prefix: PATHS.OWNER_BOOKINGS.replace(":id", ""), title: "Phân tích booking" },
       { prefix: PATHS.OWNER_BRANCHES.replace(":id", ""), title: "Quản lý chi nhánh" },
-      { prefix: PATHS.OWNER_PRICING.replace(":id", ""), title: "Quản lý pricing" },
+      { prefix: PATHS.OWNER_PRICING.replace(":id", ""), title: "Quản lý Pricing Seasons" },
       { prefix: PATHS.OWNER_PRICING_REQUESTS.replace(":id", ""), title: "Duyệt pricing requests" },
+      { prefix: PATHS.OWNER_ROOM_TYPES.replace(":id", ""), title: "Quản lý Loại Phòng" },
       { prefix: PATHS.OWNER_USERS.replace(":id", ""), title: "Quản lý người dùng" },
-      { prefix: PATHS.OWNER_BOOKINGS.replace(":id", ""), title: "Toàn bộ booking" }
     ];
 
     const matched = titleMappings.find((item) => location.pathname.startsWith(item.prefix));

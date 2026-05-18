@@ -1,9 +1,9 @@
 package com.hotel.modules.auth;
 
-import org.springframework.data.mongodb.repository.MongoRepository;
-
 import java.time.Instant;
 import java.util.Optional;
+
+import org.springframework.data.mongodb.repository.MongoRepository;
 
 public interface PasswordResetTokenRepository extends MongoRepository<PasswordResetTokenDocument, String> {
 
@@ -12,4 +12,6 @@ public interface PasswordResetTokenRepository extends MongoRepository<PasswordRe
         String tokenHash,
         Instant now
     );
+
+    long deleteByEmail(String email);
 }

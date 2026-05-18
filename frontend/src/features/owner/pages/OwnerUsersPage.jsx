@@ -106,14 +106,16 @@ export default function OwnerUsersPage() {
     }
   };
 
-  // Activity status: based on lastLoginAt timestamp
+  // Activity status: based on updatedAt (proxy for last activity) or createdAt
   const getActivityStatus = (row) => {
-    if (!row.lastLoginAt) return { label: "Chưa đăng nhập", color: "#94a3b8", bg: "#f1f5f9" };
-    const diff = Date.now() - new Date(row.lastLoginAt).getTime();
+    // Use updatedAt as proxy for last activity; fall back to createdAt
+    const lastActivity = row.lastLoginAt || row.updatedAt || row.createdAt;
+    if (!lastActivity) return { label: 'Chưa có dữ liệu', color: '#94a3b8', bg: '#f1f5f9' };
+    const diff = Date.now() - new Date(lastActivity).getTime();
     const days = Math.floor(diff / 86400000);
-    if (days === 0) return { label: "Hoạt động hôm nay", color: "#16a34a", bg: "#dcfce7" };
-    if (days <= 7) return { label: `${days} ngày trước`, color: "#d97706", bg: "#fef9c3" };
-    return { label: `${days} ngày trước`, color: "#b91c1c", bg: "#fee2e2" };
+    if (days === 0) return { label: 'Hoạt động hôm nay', color: '#16a34a', bg: '#dcfce7' };
+    if (days <= 7) return { label: `${days} ngày trước`, color: '#d97706', bg: '#fef9c3' };
+    return { label: `${days} ngày trước`, color: '#b91c1c', bg: '#fee2e2' };
   };
 
   return (

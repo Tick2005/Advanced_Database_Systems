@@ -6,57 +6,32 @@ public class RoomSearchFilter {
 
 	private String branchId;
 	private String roomTypeId;
+	/** Lọc theo tên loại phòng (Standard / Deluxe / Family) — không phân biệt hoa thường */
+	private String roomTypeName;
 	private String status;
-	private BigDecimal minPrice;
-	private BigDecimal maxPrice;
+	private java.math.BigDecimal minPrice;
+	private java.math.BigDecimal maxPrice;
 	private Double minRating;
 
-	public String getBranchId() {
-		return branchId;
-	}
+	public String getBranchId() { return branchId; }
+	public void setBranchId(String branchId) { this.branchId = branchId; }
 
-	public void setBranchId(String branchId) {
-		this.branchId = branchId;
-	}
+	public String getRoomTypeId() { return roomTypeId; }
+	public void setRoomTypeId(String roomTypeId) { this.roomTypeId = roomTypeId; }
 
-	public String getRoomTypeId() {
-		return roomTypeId;
-	}
+	public String getRoomTypeName() { return roomTypeName; }
+	public void setRoomTypeName(String roomTypeName) { this.roomTypeName = roomTypeName; }
 
-	public void setRoomTypeId(String roomTypeId) {
-		this.roomTypeId = roomTypeId;
-	}
+	public String getStatus() { return status; }
+	public void setStatus(String status) { this.status = status; }
 
-	public String getStatus() {
-		return status;
-	}
+	public java.math.BigDecimal getMinPrice() { return minPrice; }
+	public void setMinPrice(java.math.BigDecimal minPrice) { this.minPrice = minPrice; }
 
-	public void setStatus(String status) {
-		this.status = status;
-	}
+	public java.math.BigDecimal getMaxPrice() { return maxPrice; }
+	public void setMaxPrice(java.math.BigDecimal maxPrice) { this.maxPrice = maxPrice; }
 
-	public BigDecimal getMinPrice() {
-		return minPrice;
-	}
-
-	public void setMinPrice(BigDecimal minPrice) {
-		this.minPrice = minPrice;
-	}
-
-	public BigDecimal getMaxPrice() {
-		return maxPrice;
-	}
-
-	public void setMaxPrice(BigDecimal maxPrice) {
-		this.maxPrice = maxPrice;
-	}
-
-	public Double getMinRating() {
-		return minRating;
-	}
-
-	public void setMinRating(Double minRating) {
-		this.minRating = minRating;
-	}
+	public Double getMinRating() { return minRating; }
+	public void setMinRating(Double minRating) { this.minRating = minRating; }
 }
 

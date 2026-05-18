@@ -115,12 +115,15 @@ export default function ManagerFeedbacksPage() {
     if (!selectedFeedbackId || !reportReason.trim()) return;
     try {
       await dashboardService.reportManagerFeedback(selectedFeedbackId, reportReason);
-      setMessage("Đã gửi báo cáo feedback");
+      setMessage("Đã gửi báo cáo feedback thành công");
       closeModal();
+      // Reload feedbacks to hide the reported one
+      const data = await dashboardService.getManagerFeedbackByRoom(roomId);
+      setFeedbacks(data || []);
     } catch (err) {
       setError(err.message || "Không thể gửi báo cáo");
     }
-  }, [selectedFeedbackId, reportReason, closeModal]);
+  }, [selectedFeedbackId, reportReason, roomId, closeModal]);
 
   return (
     <section style={dashboardStyles.gridSection}>

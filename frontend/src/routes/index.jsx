@@ -19,16 +19,14 @@ const ResetPasswordPage = lazy(() => import("../features/auth/pages/ForgotResetP
 const VerifyEmail = lazy(() => import("../features/auth/pages/VerifyEmail"));
 const RoomList = lazy(() => import("../features/rooms/pages/RoomList"));
 const RoomDetail = lazy(() => import("../features/rooms/pages/RoomDetail"));
+// PreviewBooking — step 1 of booking flow, navigated to from RoomDetail with state
 const PreviewBooking = lazy(() => import("../features/booking/pages/PreviewBooking"));
-const VnPayPayment = lazy(() => import("../features/booking/pages/VnPayPayment"));
 const ReviewBooking = lazy(() => import("../features/booking/pages/ReviewBooking"));
-const VnPayTransition = lazy(() => import("../features/booking/pages/VnPayTransition"));
 const VnPayReturn = lazy(() => import("../features/booking/pages/VnPayReturn"));
 const PaymentSuccessPage = lazy(() => import("../features/booking/pages/PaymentSuccessPage"));
 const PaymentFailedPage = lazy(() => import("../features/booking/pages/PaymentFailedPage"));
 const BookingsPage = lazy(() => import("../features/booking/pages/BookingsPage"));
 const BookingDetailPage = lazy(() => import("../features/booking/pages/BookingDetailPage"));
-const Feedbacks = lazy(() => import("../features/feedback/pages/Feedbacks"));
 const CreateFeedback = lazy(() => import("../features/feedback/pages/CreateFeedback"));
 const Profile = lazy(() => import("../features/users/pages/Profile"));
 const Settings = lazy(() => import("../features/users/pages/Settings"));
@@ -38,7 +36,7 @@ const StaffBookingsTodayPage = lazy(() => import("../features/staff/pages/StaffB
 const StaffCheckinPage = lazy(() => import("../features/staff/pages/StaffCheckinPage"));
 const StaffCheckoutPage = lazy(() => import("../features/staff/pages/StaffCheckoutPage"));
 const StaffRoomStatusPage = lazy(() => import("../features/staff/pages/StaffRoomStatusPage"));
-const StaffServiceUsagePage = lazy(() => import("../features/staff/pages/StaffServiceUsagePage"));
+// StaffServiceUsagePage removed — merged into StaffBookingsTodayPage
 const ManagerHomePage = lazy(() => import("../features/manager/pages/ManagerHomePage"));
 const ManagerRoomsPage = lazy(() => import("../features/manager/pages/ManagerRoomsPage"));
 const ManagerRoomCreatePage = lazy(() => import("../features/manager/pages/ManagerRoomCreatePage"));
@@ -50,10 +48,11 @@ const ManagerFeedbacksPage = lazy(() => import("../features/manager/pages/Manage
 const ManagerServicesPage = lazy(() => import("../features/manager/pages/ManagerServicesPage"));
 const ManagerPricingRequestsPage = lazy(() => import("../features/manager/pages/ManagerPricingRequestsPage"));
 const OwnerHomePage = lazy(() => import("../features/owner/pages/OwnerHomePage"));
-const OwnerBranchesPage = lazy(() => import("../features/owner/pages/OwnerBranchesPage"));
 const OwnerBookingsPage = lazy(() => import("../features/owner/pages/OwnerBookingsPage"));
+const OwnerBranchesPage = lazy(() => import("../features/owner/pages/OwnerBranchesPage"));
 const OwnerPricingPage = lazy(() => import("../features/owner/pages/OwnerPricingPage"));
 const OwnerPricingRequestsPage = lazy(() => import("../features/owner/pages/OwnerPricingRequestsPage"));
+const OwnerRoomTypesPage = lazy(() => import("../features/owner/pages/OwnerRoomTypesPage"));
 const OwnerUsersPage = lazy(() => import("../features/owner/pages/OwnerUsersPage"));
 
 function defaultRedirectByRole(role) {
@@ -105,23 +104,23 @@ export function AppRoutes() {
           <Route path={PATHS.RESET_PASSWORD} element={<GuestOnlyRoute><ResetPasswordPage /></GuestOnlyRoute>} />
             <Route path={PATHS.VERIFY_EMAIL} element={<VerifyEmail />} />
           <Route path={PATHS.CUSTOMER_BOOKING_RESULT} element={<VnPayReturn />} />
+          <Route path="/payment/vnpay-return" element={<VnPayReturn />} />
+          <Route path={PATHS.PAYMENT_SUCCESS} element={<PaymentSuccessPage />} />
+          <Route path={PATHS.PAYMENT_FAILED} element={<PaymentFailedPage />} />
+          <Route path={PATHS.CUSTOMER_BOOKING_SUCCESS} element={<PaymentSuccessPage />} />
+          <Route path={PATHS.CUSTOMER_BOOKING_FAILED} element={<PaymentFailedPage />} />
         </Route>
 
         <Route element={<CustomerLayout />}>
           <Route path={PATHS.CUSTOMER_HOME} element={<Home />} />
           <Route path={PATHS.CUSTOMER_ROOMS} element={<RoomList customer />} />
           <Route path={PATHS.CUSTOMER_ROOM_DETAIL} element={<RoomDetail customer />} />
+          {/* booking/create — step 1 of booking flow from RoomDetail; redirects to rooms if accessed directly without state */}
           <Route path={PATHS.CUSTOMER_BOOKING_CREATE} element={<PreviewBooking />} />
           <Route path={PATHS.CUSTOMER_BOOKING_REVIEW} element={<ReviewBooking />} />
-          <Route path="/customer/booking/vnpay-transition" element={<VnPayTransition />} />
-          <Route path={PATHS.CUSTOMER_BOOKING_PAYMENT} element={<VnPayPayment />} />
-          <Route path={PATHS.CUSTOMER_BOOKING_SUCCESS} element={<PaymentSuccessPage />} />
-          <Route path={PATHS.CUSTOMER_BOOKING_FAILED} element={<PaymentFailedPage />} />
           <Route path={PATHS.CUSTOMER_BOOKINGS} element={<BookingsPage />} />
           <Route path={PATHS.CUSTOMER_BOOKING_DETAIL} element={<BookingDetailPage />} />
-          <Route path={PATHS.CUSTOMER_FEEDBACKS} element={<Feedbacks />} />
           <Route path={PATHS.CUSTOMER_FEEDBACK_CREATE} element={<CreateFeedback />} />
-          <Route path="/customer/feedbacks" element={<Navigate to={PATHS.CUSTOMER_FEEDBACKS} replace />} />
           <Route path="/customer/feedbacks/create" element={<Navigate to={PATHS.CUSTOMER_FEEDBACK_CREATE} replace />} />
           <Route path={PATHS.CUSTOMER_PROFILE} element={<Profile />} />
           <Route path={PATHS.CUSTOMER_SETTINGS} element={<Settings />} />
@@ -134,7 +133,7 @@ export function AppRoutes() {
           <Route path="checkin/:id" element={<StaffCheckinPage />} />
           <Route path="checkout/:id" element={<StaffCheckoutPage />} />
           <Route path="rooms/status" element={<StaffRoomStatusPage />} />
-          <Route path="service-usage" element={<StaffServiceUsagePage />} />
+          <Route path="service-usage" element={<Navigate to={PATHS.STAFF_BOOKINGS_TODAY} replace />} />
         </Route>
 
         <Route path={PATHS.MANAGER} element={<RoleShell roles={["MANAGER"]} />}>
@@ -152,10 +151,11 @@ export function AppRoutes() {
 
         <Route path={PATHS.OWNER} element={<RoleShell roles={["OWNER"]} />}>
           <Route index element={<OwnerHomePage />} />
+          <Route path="bookings" element={<OwnerBookingsPage />} />
           <Route path="branches" element={<OwnerBranchesPage />} />
-            <Route path="bookings" element={<OwnerBookingsPage />} />
           <Route path="pricing" element={<OwnerPricingPage />} />
           <Route path="pricing-requests" element={<OwnerPricingRequestsPage />} />
+          <Route path="room-types" element={<OwnerRoomTypesPage />} />
           <Route path="users" element={<OwnerUsersPage />} />
         </Route>
 

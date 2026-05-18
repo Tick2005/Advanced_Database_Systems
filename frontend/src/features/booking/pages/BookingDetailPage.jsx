@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useParams } from "react-router-dom";
 import { bookingService } from "../bookingService";
+import { paymentService } from "../paymentService";
 import { feedbackService } from "../../feedback/feedbackService";
 import LoadingState from "../../../components/common/LoadingState";
 import ErrorState from "../../../components/common/ErrorState";
@@ -51,10 +52,12 @@ export default function BookingDetailPage() {
   if (!booking) return <ErrorState message="Không tìm thấy booking" />;
 
   const onCancel = async () => {
+    if (!window.confirm("Bạn có chắc muốn hủy booking này không? Hành động này không thể hoàn tác.")) return;
     setUpdating(true);
     setError("");
     try {
       await bookingService.cancelBooking(booking.id, "Customer cancelled from detail");
+      // Reload để hiển thị trạng thái CANCELLED mới
       await fetchData();
     } catch (err) {
       setError(err.message || "Không thể hủy booking");
@@ -69,7 +72,9 @@ export default function BookingDetailPage() {
   const stayNights = booking.checkInDate && booking.checkOutDate
     ? Math.max(0, Math.round((new Date(booking.checkOutDate) - new Date(booking.checkInDate)) / (1000 * 60 * 60 * 24)))
     : 0;
-  const bookingFeedback = (feedbackQuery.data || []).find((item) => item.bookingId === booking.id);
+  const bookingFeedback = (feedbackQuery.data || []).find(
+    (item) => item.bookingId === booking.id && !item.isReported
+  );
 
   return (
     <section className="container page-shell" style={{ padding: "28px 24px", maxWidth: 980 }}>
@@ -155,9 +160,28 @@ export default function BookingDetailPage() {
                 <span style={{ color: "#64748b" }}>Tiền phòng</span>
                 <span style={{ fontWeight: 600 }}>{formatCurrencyVnd(booking.totalPrice || 0)}</span>
               </div>
+              {Array.isArray(booking.services) && booking.services.length > 0 && (
+                <>
+                  {booking.services.map((svc, i) => (
+                    <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
+                      <span style={{ color: "#64748b" }}>
+                        {svc.serviceName || svc.name || `Dịch vụ ${i + 1}`}
+                        {svc.quantity > 1 ? ` ×${svc.quantity}` : ""}
+                      </span>
+                      <span style={{ fontWeight: 600 }}>{formatCurrencyVnd(svc.actualPrice || 0)}</span>
+                    </div>
+                  ))}
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, paddingTop: 6, borderTop: "1px dashed #e2e8f0" }}>
+                    <span style={{ color: "#64748b" }}>Tổng dịch vụ</span>
+                    <span style={{ fontWeight: 600 }}>{formatCurrencyVnd(booking.servicesTotalPrice || 0)}</span>
+                  </div>
+                </>
+              )}
               <div style={{ borderTop: "1px solid #e2e8f0", paddingTop: 10, display: "flex", justifyContent: "space-between", gap: 16 }}>
                 <span style={{ fontWeight: 700, color: "#0d2238" }}>Tổng cộng (gồm VAT 8%)</span>
-                <span style={{ fontWeight: 800, fontSize: 16, color: "#9a7d24" }}>{formatCurrencyVnd(Math.round((booking.totalPrice || 0) * 1.08))}</span>
+                <span style={{ fontWeight: 800, fontSize: 16, color: "#9a7d24" }}>
+                  {formatCurrencyVnd(Math.round((booking.grandTotalPrice || booking.totalPrice || 0) * 1.08))}
+                </span>
               </div>
             </div>
           </div>
@@ -174,15 +198,40 @@ export default function BookingDetailPage() {
                   {updating ? "Đang hủy..." : "Hủy booking"}
                 </button>
               )}
-              {booking.status === "PENDING_PAYMENT" && (
-                <Link className="btn btn-gold" to={PATHS.CUSTOMER_BOOKING_PAYMENT} state={{ booking }}>💳 Thanh toán ngay</Link>
+              {["HOLD", "PENDING_PAYMENT"].includes(booking.status) && (
+                <button
+                  className="btn btn-gold"
+                  disabled={updating}
+                  onClick={async () => {
+                    setUpdating(true);
+                    try {
+                      const response = await paymentService.createVnPayPayment({
+                        bookingId: booking.id,
+                        amount: Math.round(booking.totalPrice * 1.08),
+                        currency: "VND",
+                        orderInfo: `BOOKING ${booking.id}`
+                      });
+                      if (response.checkoutUrl) {
+                        window.location.href = response.checkoutUrl;
+                      } else {
+                        throw new Error("Không nhận được URL thanh toán");
+                      }
+                    } catch (err) {
+                      setError(err.message || "Không thể khởi tạo thanh toán");
+                      setUpdating(false);
+                    }
+                  }}
+                >
+                  {updating ? "⏳ Đang xử lý..." : "💳 Thanh toán ngay"}
+                </button>
               )}
-              {booking.status === "CHECKED_OUT" && (
-                bookingFeedback ? (
-                  <Link className="btn pill pill-soft" to={PATHS.CUSTOMER_FEEDBACKS} state={{ bookingId: booking.id }}>💬 Xem đánh giá</Link>
-                ) : (
-                  <Link className="btn btn-gold" to={PATHS.CUSTOMER_FEEDBACK_CREATE} state={{ booking }}>⭐ Đánh giá phòng</Link>
-                )
+              {booking.status === "CHECKED_OUT" && !bookingFeedback && (
+                <Link className="btn btn-gold" to={PATHS.CUSTOMER_FEEDBACK_CREATE} state={{ booking }}>⭐ Đánh giá phòng</Link>
+              )}
+              {booking.status === "CHECKED_OUT" && bookingFeedback && (
+                <div style={{ padding: "8px 14px", background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 8, fontSize: 13, color: "#166534", fontWeight: 600 }}>
+                  ✅ Đã đánh giá — {bookingFeedback.rating}/5 sao
+                </div>
               )}
             </div>
           </div>

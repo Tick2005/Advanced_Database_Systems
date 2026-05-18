@@ -8,7 +8,7 @@ public class FeedbackCreateRequest {
 
     @NotBlank
     private String bookingId;
-    @NotBlank
+    // userId is resolved from JWT on the backend — no validation needed here
     private String userId;
     @NotBlank
     private String roomId;

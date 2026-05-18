@@ -3,6 +3,7 @@ package com.hotel.config;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.Customizer;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -43,6 +44,9 @@ public class SecurityConfig {
                     "/actuator/health",
                     "/actuator/info"
                 ).permitAll()
+                .requestMatchers(HttpMethod.GET, ApiPath.INTERNAL + "/payments/vnpay-return").permitAll()
+                .requestMatchers(HttpMethod.GET, ApiPath.INTERNAL + "/payments/vnpay-callback").permitAll()
+                .requestMatchers(HttpMethod.POST, ApiPath.INTERNAL + "/payments/vnpay-ipn").permitAll()
                 .requestMatchers(ApiPath.CUSTOMER + "/**").hasAnyRole("CUSTOMER", "MANAGER", "OWNER")
                 .requestMatchers(ApiPath.STAFF + "/**").hasAnyRole("STAFF", "MANAGER", "OWNER")
                 .requestMatchers(ApiPath.MANAGER + "/**").hasAnyRole("MANAGER", "OWNER")

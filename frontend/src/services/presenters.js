@@ -8,22 +8,22 @@ export function humanizeEnum(value) {
 }
 
 const STATUS_LABELS = {
-  AVAILABLE: "Con phong",
-  HELD: "Tam giu",
-  OCCUPIED: "Dang co khach",
-  MAINTENANCE: "Bao tri",
-  HOLD: "Giu cho",
-  PENDING_PAYMENT: "Cho thanh toan",
-  CONFIRMED: "Da xac nhan",
-  CHECKED_IN: "Da nhan phong",
-  CHECKED_OUT: "Da tra phong",
-  CANCELLED: "Da huy",
-  EXPIRED: "Het han",
-  INITIATED: "Khoi tao",
-  PENDING: "Dang xu ly",
-  SUCCESS: "Thanh cong",
-  FAILED: "That bai",
-  REFUNDED: "Da hoan tien"
+  AVAILABLE:       "Còn phòng",
+  HELD:            "Tạm giữ",
+  OCCUPIED:        "Đang có khách",
+  MAINTENANCE:     "Bảo trì",
+  HOLD:            "Đang giữ chỗ",
+  PENDING_PAYMENT: "Chờ thanh toán",
+  CONFIRMED:       "Đã xác nhận",
+  CHECKED_IN:      "Đã nhận phòng",
+  CHECKED_OUT:     "Đã trả phòng",
+  CANCELLED:       "Đã hủy",
+  EXPIRED:         "Hết hạn",
+  INITIATED:       "Khởi tạo",
+  PENDING:         "Đang xử lý",
+  SUCCESS:         "Thành công",
+  FAILED:          "Thất bại",
+  REFUNDED:        "Đã hoàn tiền",
 };
 
 const STATUS_COLORS = {
@@ -57,9 +57,35 @@ export function getStatusStyle(value) {
   return STATUS_COLORS[value] || { bg: "#e2e8f0", color: "#334155" };
 }
 
+const intlVndInteger = new Intl.NumberFormat("vi-VN", {
+  minimumFractionDigits: 0,
+  maximumFractionDigits: 0
+});
+
+/**
+ * Phần số tiền (nhóm hàng nghìn theo vi-VN), không kèm đơn vị — dùng cho biểu đồ hoặc ghép chuỗi.
+ */
+export function formatVndAmount(value) {
+  const n = Math.round(Number(value));
+  if (!Number.isFinite(n)) return "0";
+  return intlVndInteger.format(n);
+}
+
+/**
+ * Tiền VNĐ chuẩn: số + " đồng" (không dùng ký hiệu tắt K/M/tr/đ/₫/VNĐ).
+ */
 export function formatCurrencyVnd(value) {
-  const amount = Number(value || 0);
-  return new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND", maximumFractionDigits: 0 }).format(amount);
+  return `${formatVndAmount(value)} đồng`;
+}
+
+/** Cùng quy tắc với formatCurrencyVnd (giữ export cho mã cũ). */
+export function formatCurrencyVndShort(value) {
+  return formatCurrencyVnd(value);
+}
+
+/** Giá theo đêm: "x đồng / đêm" */
+export function formatCurrencyVndPerNight(value) {
+  return `${formatVndAmount(value)} đồng / đêm`;
 }
 
 export function formatDate(value) {
@@ -83,8 +109,11 @@ export function getRoomImage(room) {
 
 export function getRoomAmenities(room) {
   const text = (room?.roomTypeName || "").toLowerCase();
-  if (text.includes("family")) return ["2 phong ngu", "Bep mini", "Ban an", "Wifi toc do cao"];
-  if (text.includes("business")) return ["Ban lam viec", "Wifi toc do cao", "May pha ca phe", "Don phong nhanh"];
-  if (text.includes("deluxe") || text.includes("king")) return ["Bon tam", "Smart TV", "Mini bar", "View thanh pho"];
-  return ["Dieu hoa", "Wifi", "Nuoc uong mien phi", "Ke an toan"];
+  if (text.includes("family"))
+    return ["2 phòng ngủ", "Bếp mini", "Bàn ăn", "Wifi tốc độ cao"];
+  if (text.includes("business"))
+    return ["Bàn làm việc", "Wifi tốc độ cao", "Máy pha cà phê", "Dọn phòng nhanh"];
+  if (text.includes("deluxe") || text.includes("king"))
+    return ["Bồn tắm", "Smart TV", "Mini bar", "View thành phố"];
+  return ["Điều hòa", "Wifi", "Nước uống miễn phí", "Két an toàn"];
 }

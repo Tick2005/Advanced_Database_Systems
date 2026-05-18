@@ -1,50 +1,56 @@
 package com.hotel.modules.user.settings;
 
 import java.time.Instant;
+import java.util.UUID;
 
-import org.springframework.data.annotation.Id;
-import org.springframework.data.mongodb.core.mapping.Document;
-import org.springframework.data.mongodb.core.mapping.Field;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 
-@Document(collection = "customer_settings")
+@Entity
+@Table(name = "customer_settings")
 public class CustomerSettingsDocument {
 
     @Id
-    private String id;
+    private UUID id;
 
-    @Field("user_id")
-    private String userId;
+    @Column(name = "user_id", nullable = false)
+    private UUID userId;
 
     private String theme;
 
-    @Field("allow_location")
+    @Column(name = "allow_location")
     private boolean allowLocation;
 
-    @Field("allow_camera")
+    @Column(name = "allow_camera")
     private boolean allowCamera;
 
-    @Field("font_scale")
+    @Column(name = "font_scale")
     private String fontScale;
 
-    @Field("created_at")
+    @Column(name = "location_permission_shown")
+    private boolean locationPermissionShown;
+
+    @Column(name = "created_at")
     private Instant createdAt;
 
-    @Field("updated_at")
+    @Column(name = "updated_at")
     private Instant updatedAt;
 
-    public String getId() {
+    public UUID getId() {
         return id;
     }
 
-    public void setId(String id) {
+    public void setId(UUID id) {
         this.id = id;
     }
 
-    public String getUserId() {
+    public UUID getUserId() {
         return userId;
     }
 
-    public void setUserId(String userId) {
+    public void setUserId(UUID userId) {
         this.userId = userId;
     }
 
@@ -78,6 +84,14 @@ public class CustomerSettingsDocument {
 
     public void setFontScale(String fontScale) {
         this.fontScale = fontScale;
+    }
+
+    public boolean isLocationPermissionShown() {
+        return locationPermissionShown;
+    }
+
+    public void setLocationPermissionShown(boolean locationPermissionShown) {
+        this.locationPermissionShown = locationPermissionShown;
     }
 
     public Instant getCreatedAt() {

@@ -6,13 +6,15 @@ import { branchService } from "../features/branches/branchService";
 import { feedbackService } from "../features/feedback/feedbackService";
 import { PATHS } from "../routes/pathConstants";
 import { useCustomerSettings } from "../hooks/useCustomerSettings";
+import { useAuth } from "../features/auth/useAuth";
 import LoadingState from "../components/common/LoadingState";
 import ErrorState from "../components/common/ErrorState";
 import RatingStars from "../components/common/RatingStars";
+import BranchMapPanel from "../components/common/BranchMapPanel";
 import { formatCurrencyVnd } from "../services/presenters";
 import { useApiQuery } from "../hooks/useApiQuery";
 import { queryKeys } from "../services/queryKeys";
-import { getBrowserLocation, loadLocationFromStorage, saveLocationToStorage } from "../services/geo";
+import { useTopRooms } from "../hooks/useTopRooms";
 
 /* ─── STATIC DATA (fallback + enrichment) ─────────────────────────────────── */
 const HERO_IMAGES = [
@@ -31,90 +33,65 @@ const ROOM_IMAGES = [
   "https://images.pexels.com/photos/258154/pexels-photo-258154.jpeg",
 ];
 
-const SERVICE_CATEGORIES = ["Tất cả", "BOTH", "PREBOOK", "ON_SITE"];
-
 
 
 /* ─── COMPONENT ─────────────────────────────────────────────────────────────── */
 export default function Home() {
-  const { settings } = useCustomerSettings();
+  const { isAuthenticated, role, auth } = useAuth();
+  const { settings, loading: settingsLoading, updateSettings: updateCustomerSettings } = useCustomerSettings();
   const [heroIdx, setHeroIdx] = useState(0);
   const [heroPaused, setHeroPaused] = useState(false);
   const [roomSlideIdx, setRoomSlideIdx] = useState(0);
   const [serviceCategory, setServiceCategory] = useState("Tất cả");
   const [selectedService, setSelectedService] = useState(null);
   const [selectedBranchId, setSelectedBranchId] = useState("");
-  const [userLocation, setUserLocation] = useState(() => loadLocationFromStorage());
-  const [allowLocation, setAllowLocation] = useState(true);
+  const [userLocation, setUserLocation] = useState(null);
+  const [allowLocation, setAllowLocation] = useState(false);
+  const [showLocationPrompt, setShowLocationPrompt] = useState(false);
   const [reviewIdx, setReviewIdx] = useState(0);
   const roomSliderRef = useRef(null);
   const [reviewFade, setReviewFade] = useState(true);
 
-  // Sync allowLocation from settings hook
   useEffect(() => {
-    setAllowLocation(settings.allowLocation);
-  }, [settings.allowLocation]);
-
-  // Watch for location changes from other components (e.g., PublicLayout)
-  useEffect(() => {
-    const handleStorageChange = (e) => {
-      if (e.key === "user_location") {
-        try {
-          const newLoc = e.newValue ? JSON.parse(e.newValue) : null;
-          setUserLocation(newLoc);
-        } catch (err) {
-          console.error("Failed to parse location from storage", err);
-        }
-      }
-    };
-
-    const handleCustom = (e) => {
-      try {
-        const newLoc = e?.detail || loadLocationFromStorage();
-        setUserLocation(newLoc);
-      } catch (err) {
-        console.error("Failed to handle custom user_location_updated event", err);
-      }
-    };
-
-    window.addEventListener("storage", handleStorageChange);
-    window.addEventListener("user_location_updated", handleCustom);
-    return () => {
-      window.removeEventListener("storage", handleStorageChange);
-      window.removeEventListener("user_location_updated", handleCustom);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!allowLocation || userLocation) {
+    if (settingsLoading || !isAuthenticated || role !== "CUSTOMER") {
+      setShowLocationPrompt(false);
       return;
     }
+    setShowLocationPrompt(!settings.allowLocation && !settings.locationPermissionShown);
+  }, [settingsLoading, isAuthenticated, role, settings.allowLocation, settings.locationPermissionShown]);
 
-    let cancelled = false;
-    getBrowserLocation().then((location) => {
-      if (cancelled || !location) {
-        return;
-      }
-      setUserLocation(location);
-      saveLocationToStorage(location);
+  // Sync allowLocation từ settings
+  useEffect(() => {
+    setAllowLocation(isAuthenticated && role === "CUSTOMER" && settings.allowLocation);
+  }, [isAuthenticated, role, settings.allowLocation]);
+
+  const dismissLocationPrompt = () => {
+    setShowLocationPrompt(false);
+    if (isAuthenticated && role === "CUSTOMER") {
+      updateCustomerSettings({ locationPermissionShown: true }).catch(() => {});
+    }
+  };
+
+  // Lắng nghe event location từ useTopRooms hook (watchPosition)
+  useEffect(() => {
+    const handleCustom = (e) => {
       try {
-        window.dispatchEvent(new CustomEvent("user_location_updated", { detail: location }));
-      } catch (err) {
-        // Ignore cross-component event errors.
-      }
-    });
-
-    return () => {
-      cancelled = true;
+        setUserLocation(e?.detail || null);
+      } catch (_) {}
     };
-  }, [allowLocation, userLocation]);
+    window.addEventListener("user_location_updated", handleCustom);
+    return () => window.removeEventListener("user_location_updated", handleCustom);
+  }, []);
 
   /* ── Queries ── */
   const branchesQ = useApiQuery({ queryKey: queryKeys.branches, queryFn: () => branchService.getTopBranches(), staleTime: 60000 });
   const roomsQ = useApiQuery({ queryKey: queryKeys.rooms(), queryFn: () => roomService.getRooms(), staleTime: 60000 });
+
+  // Services: load theo branch được chọn — mỗi branch có services riêng
+  // selectedBranchId được set tự động từ branch đầu tiên, user có thể đổi qua branch selector
   const servicesQ = useApiQuery({
     queryKey: ["home-services", selectedBranchId],
-    queryFn: () => (selectedBranchId ? serviceService.getPublicServicesByBranch(selectedBranchId) : []),
+    queryFn: () => serviceService.getPublicServicesByBranch(selectedBranchId),
     staleTime: 60000,
     enabled: Boolean(selectedBranchId),
   });
@@ -146,35 +123,18 @@ export default function Home() {
     }, {});
   }, [roomFeedbackSummaryQ.data]);
 
-  /* ── Query top rooms from backend (with optional location) ── */
-  const topRoomsQ = useApiQuery({
-    queryKey: ["home-top-rooms", allowLocation, userLocation?.latitude, userLocation?.longitude],
-    queryFn: () => roomService.getTopRooms({
-      latitude: allowLocation && userLocation?.latitude ? userLocation.latitude : undefined,
-      longitude: allowLocation && userLocation?.longitude ? userLocation.longitude : undefined,
-      limit: 4
-    }),
-    staleTime: 60000,
+  /* ── Top rooms — dùng useTopRooms hook với watchPosition (reactive, không cần reload) ── */
+  const { topRooms: topRoomsRaw } = useTopRooms({
+    allowLocation: !settingsLoading && allowLocation,
+    limit: 4,
   });
-  const roomsWithFeedback = useMemo(() => {
-    return rooms.map((room) => {
-      const summary = roomFeedbackSummaryMap[room.id];
-      return {
-        ...room,
-        averageRating: summary?.averageRating ?? Number(room.averageRating || 0),
-        reviewCount: summary?.reviewCount ?? Number(room.reviewCount || 0),
-      };
-    });
-  }, [rooms, roomFeedbackSummaryMap]);
-  
-  /* ── Top rooms from API (calculated by backend: distance + rating) ── */
+  /* ── Top rooms enriched với fallback image ── */
   const topRooms = useMemo(() => {
-    const data = topRoomsQ.data || [];
-    return data.map((room, index) => ({
+    return topRoomsRaw.map((room, index) => ({
       ...room,
       img: room.imageUrl || ROOM_IMAGES[index % ROOM_IMAGES.length],
     }));
-  }, [topRoomsQ.data]);
+  }, [topRoomsRaw]);
 
   const reviews = useMemo(() => {
     return feedbackQ.data || [];
@@ -183,7 +143,8 @@ export default function Home() {
   const services = useMemo(() => {
     const live = servicesQ.data || [];
     if (serviceCategory === "Tất cả") return live;
-    return live.filter((service) => service.serviceMode === serviceCategory);
+    // API trả về field serviceMode (BOTH / PREBOOK / ON_SITE)
+    return live.filter((svc) => svc.serviceMode === serviceCategory);
   }, [servicesQ.data, serviceCategory]);
 
   /* ── Hero auto-slide with CSS opacity (no jump) ── */
@@ -209,7 +170,7 @@ export default function Home() {
   useEffect(() => {
     if (!selectedBranchId && branches.length > 0) setSelectedBranchId(branches[0].id);
   }, [branches, selectedBranchId]);
-  if (servicesQ.isLoading) return <LoadingState text="Đang tải dịch vụ..." />;
+
   /* ── Room slider scroll sync ── */
   const CARD_W = 300;
   const scrollRooms = (dir) => {
@@ -270,17 +231,27 @@ export default function Home() {
             </div>
             {/* Stats row */}
             <div style={{ display: "flex", gap: 28, marginTop: 40, flexWrap: "wrap" }}>
-              {[
-                { val: "4.9★", label: "Đánh giá TB" },
-                { val: "500+", label: "Phòng cao cấp" },
-                { val: "12+", label: "Chi nhánh" },
-                { val: "24/7", label: "Hỗ trợ" },
-              ].map((s) => (
-                <div key={s.label}>
-                  <div style={{ fontWeight: 800, fontSize: 22, color: "#c9a84c" }}>{s.val}</div>
-                  <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>{s.label}</div>
-                </div>
-              ))}
+              {(() => {
+                const totalRooms = rooms.length || 0;
+                const totalBranches = branches.length || 0;
+                const avgRating = (() => {
+                  const vals = Object.values(roomFeedbackSummaryMap).map((r) => Number(r.averageRating || 0));
+                  if (vals.length === 0) return 0;
+                  return (vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(1);
+                })();
+                const stats = [
+                  { val: `${avgRating}★`, label: "Đánh giá TB" },
+                  { val: `${totalRooms}`, label: "Phòng" },
+                  { val: `${totalBranches}`, label: "Chi nhánh" },
+                  { val: "24/7", label: "Hỗ trợ" },
+                ];
+                return stats.map((s) => (
+                  <div key={s.label}>
+                    <div style={{ fontWeight: 800, fontSize: 22, color: "#c9a84c" }}>{s.val}</div>
+                    <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>{s.label}</div>
+                  </div>
+                ));
+              })()}
             </div>
           </div>
         </div>
@@ -324,6 +295,15 @@ export default function Home() {
       {/* ═══════════════════════════ TOP ROOMS SLIDER ═══════════════════════ */}
       <section style={{ background: "#f8fafc", padding: "64px 0" }}>
         <div className="container">
+          {showLocationPrompt && (
+            <div style={{ marginBottom: 20, padding: "14px 16px", borderRadius: 16, background: "linear-gradient(135deg, rgba(201,168,76,0.14), rgba(13,34,56,0.06))", border: "1px solid rgba(201,168,76,0.35)", display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+              <div>
+                <div style={{ fontWeight: 800, color: "#0d2238", marginBottom: 4 }}>Bật vị trí để gợi ý phòng gần bạn hơn</div>
+                <div style={{ color: "#64748b", fontSize: 13 }}>Thông báo này chỉ hiện lần đầu sau khi bạn đăng nhập. Bạn vẫn có thể đổi lại bất kỳ lúc nào trong Settings.</div>
+              </div>
+              <button type="button" onClick={dismissLocationPrompt} className="btn btn-gold">Đã hiểu</button>
+            </div>
+          )}
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 28, flexWrap: "wrap", gap: 12 }}>
             <div>
               <div style={{ fontSize: 12, fontWeight: 700, color: "#9a7d24", textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 8 }}>⭐ Được đặt nhiều nhất</div>
@@ -403,7 +383,7 @@ export default function Home() {
       {/* ═══════════════════════════ SERVICES ═══════════════════════════════ */}
       <section style={{ padding: "64px 0", background: "#fff" }}>
         <div className="container">
-          <div style={{ textAlign: "center", marginBottom: 36 }}>
+          <div style={{ textAlign: "center", marginBottom: 28 }}>
             <div style={{ fontSize: 12, fontWeight: 700, color: "#9a7d24", textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 8 }}>🛎️ Dịch vụ đẳng cấp</div>
             <h2 style={{ margin: 0, fontSize: "clamp(22px,3vw,32px)", fontWeight: 800, fontFamily: "Playfair Display, serif", color: "#0d2238" }}>
               Dịch vụ được quan tâm
@@ -413,20 +393,59 @@ export default function Home() {
             </p>
           </div>
 
-          {/* Category filter */}
-          <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap", marginBottom: 28 }}>
-            {SERVICE_CATEGORIES.map((cat) => (
-              <button key={cat} type="button" onClick={() => setServiceCategory(cat)}
+          {/* Bộ lọc: Chi nhánh + Loại dịch vụ — dùng select gọn */}
+          <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap", marginBottom: 28, alignItems: "center" }}>
+            {/* Branch select */}
+            {branches.length > 0 && (
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <label style={{ fontSize: 13, fontWeight: 600, color: "#64748b", whiteSpace: "nowrap" }}>🏢 Chi nhánh:</label>
+                <select
+                  value={selectedBranchId}
+                  onChange={(e) => setSelectedBranchId(e.target.value)}
+                  style={{
+                    padding: "8px 14px", borderRadius: 99, fontSize: 13, fontWeight: 600,
+                    border: "1px solid #e2e8f0", background: "white", color: "#0d2238",
+                    cursor: "pointer", outline: "none", minWidth: 160,
+                  }}
+                >
+                  {branches.map((b) => (
+                    <option key={b.id} value={b.id}>{b.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {/* Mode select */}
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <label style={{ fontSize: 13, fontWeight: 600, color: "#64748b", whiteSpace: "nowrap" }}>🔖 Loại:</label>
+              <select
+                value={serviceCategory}
+                onChange={(e) => setServiceCategory(e.target.value)}
                 style={{
-                  padding: "8px 18px", borderRadius: 99, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "1px solid",
-                  borderColor: serviceCategory === cat ? "#0d2238" : "#e2e8f0",
-                  background: serviceCategory === cat ? "#0d2238" : "white",
-                  color: serviceCategory === cat ? "white" : "#475569",
-                  transition: "all 0.15s",
+                  padding: "8px 14px", borderRadius: 99, fontSize: 13, fontWeight: 600,
+                  border: "1px solid #e2e8f0", background: "white", color: "#0d2238",
+                  cursor: "pointer", outline: "none", minWidth: 140,
                 }}
-              >{cat}</button>
-            ))}
+              >
+                <option value="Tất cả">Tất cả</option>
+                <option value="BOTH">Đặt trước & Tại chỗ</option>
+                <option value="PREBOOK">Đặt trước</option>
+                <option value="ON_SITE">Tại chỗ</option>
+              </select>
+            </div>
           </div>
+
+          {/* Loading / empty state */}
+          {servicesQ.isLoading && (
+            <div style={{ textAlign: "center", padding: "32px 0", color: "#94a3b8", fontSize: 14 }}>
+              Đang tải dịch vụ...
+            </div>
+          )}
+          {!servicesQ.isLoading && services.length === 0 && selectedBranchId && (
+            <div style={{ textAlign: "center", padding: "32px 0", color: "#94a3b8", fontSize: 14 }}>
+              Chưa có dịch vụ nào cho chi nhánh này.
+            </div>
+          )}
 
           {/* Service grid */}
           <div style={{ display: "grid", gap: 14, gridTemplateColumns: "repeat(auto-fill,minmax(175px,1fr))" }}>
@@ -435,27 +454,28 @@ export default function Home() {
                 onClick={() => setSelectedService(svc)}
                 style={{
                   padding: 12, borderRadius: 16, border: "1px solid #e2e8f0", background: "white",
-                  cursor: "pointer", textAlign: "center", transition: "all 0.15s",
-                  display: "grid", gap: 10,
+                  cursor: "pointer", transition: "all 0.15s", display: "grid", gap: 10,
                 }}
                 onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#c9a84c"; e.currentTarget.style.boxShadow = "0 8px 24px rgba(0,0,0,0.08)"; e.currentTarget.style.transform = "translateY(-3px)"; }}
                 onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#e2e8f0"; e.currentTarget.style.boxShadow = "none"; e.currentTarget.style.transform = "none"; }}
               >
-                <div style={{ display: "grid", gridTemplateColumns: "72px 1fr", gap: 12, alignItems: "stretch", textAlign: "left" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "72px 1fr", gap: 12, alignItems: "stretch" }}>
                   <div style={{ borderRadius: 12, overflow: "hidden", minHeight: 76, display: "grid", placeItems: "center", background: "#f8fafc" }}>
                     {svc.thumbnailUrl ? (
                       <img src={svc.thumbnailUrl} alt={svc.name} style={{ width: 72, height: 76, objectFit: "cover" }} />
                     ) : (
-                      <div style={{ borderRadius: 14, background: "linear-gradient(135deg,#0d2238 0%,#1e3a5f 60%,#c9a84c 100%)", minHeight: 76, display: "grid", placeItems: "center", color: "white" }}>
-                        <div style={{ fontSize: 22, lineHeight: 1 }}>{svc.category?.slice(0, 1) || "•"}</div>
+                      <div style={{ background: "linear-gradient(135deg,#0d2238 0%,#1e3a5f 60%,#c9a84c 100%)", minHeight: 76, width: "100%", display: "grid", placeItems: "center", color: "white" }}>
+                        <div style={{ fontSize: 22 }}>🛎️</div>
                       </div>
                     )}
                   </div>
                   <div style={{ display: "grid", alignContent: "center", gap: 4 }}>
                     <div style={{ fontWeight: 700, fontSize: 13, color: "#0d2238" }}>{svc.name}</div>
-                    <div style={{ fontSize: 11, color: "#94a3b8" }}>{svc.category}</div>
-                    <div style={{ fontWeight: 800, color: svc.price === 0 ? "#16a34a" : "#9a7d24", fontSize: 13 }}>
-                      {svc.price === 0 ? "Miễn phí" : formatCurrencyVnd(svc.price)}
+                    <div style={{ fontSize: 11, color: "#94a3b8" }}>
+                      {svc.serviceMode === "PREBOOK" ? "Đặt trước" : svc.serviceMode === "ON_SITE" ? "Tại chỗ" : "Đặt trước & Tại chỗ"}
+                    </div>
+                    <div style={{ fontWeight: 800, color: Number(svc.price) === 0 ? "#16a34a" : "#9a7d24", fontSize: 13 }}>
+                      {Number(svc.price) === 0 ? "Miễn phí" : formatCurrencyVnd(svc.price)}
                     </div>
                   </div>
                 </div>
@@ -543,68 +563,30 @@ export default function Home() {
             <div style={{ fontSize: 12, fontWeight: 700, color: "#9a7d24", textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 8 }}>🏢 Hệ thống</div>
             <h2 style={{ margin: 0, fontSize: "clamp(22px,3vw,32px)", fontWeight: 800, fontFamily: "Playfair Display, serif", color: "#0d2238" }}>Chi nhánh nổi bật</h2>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1.6fr", gap: 16 }}>
-            <div style={{ display: "grid", gap: 8, alignContent: "start" }}>
-              {branches.slice(0, 6).map((b) => (
-                <button key={b.id} type="button" onClick={() => setSelectedBranchId(b.id)}
-                  style={{ padding: "14px 16px", borderRadius: 14, border: `1.5px solid ${selectedBranchId === b.id ? "#c9a84c" : "#e2e8f0"}`, background: selectedBranchId === b.id ? "#fffbeb" : "white", cursor: "pointer", textAlign: "left", transition: "all 0.15s" }}>
-                  <div style={{ fontWeight: 700, fontSize: 14, color: "#0d2238" }}>{b.name}</div>
-                  <div style={{ fontSize: 12, color: "#64748b", marginTop: 3 }}>📍 {b.address}, {b.city}</div>
-                </button>
-              ))}
-            </div>
-            <div style={{ borderRadius: 18, overflow: "hidden", minHeight: 360, boxShadow: "0 4px 24px rgba(0,0,0,0.08)" }}>
-              <iframe
-                key={selectedBranchId}
-                title="branch-map"
-                src={`https://maps.google.com/maps?q=${encodeURIComponent([selectedBranch?.address, selectedBranch?.city, "Vietnam"].filter(Boolean).join(", "))}&z=14&output=embed`}
-                style={{ width: "100%", height: "100%", border: 0, minHeight: 360 }}
-                loading="lazy"
-              />
-            </div>
-          </div>
+          <BranchMapPanel branches={branches.slice(0, 6)} selectedBranchId={selectedBranchId} onSelect={setSelectedBranchId} />
         </div>
       </section>
-      {/* Advantages boxes */}
-      {selectedBranch && (() => {
-        const ADVANTAGES = {
-          "default": [
-            { icon: "🏊", title: "Hồ bơi sang trọng", desc: "View thành phố tuyệt đẹp" },
-            { icon: "🍳", title: "Buffet cao cấp", desc: "40+ món mỗi sáng" },
-            { icon: "🧖", title: "Spa & Massage", desc: "Chuyên nghiệp, thư giãn" },
-            { icon: "🏋️", title: "Gym 24/7", desc: "Trang thiết bị hiện đại" },
-          ],
-          "beach": [
-            { icon: "🏖️", title: "Bãi biển riêng", desc: "Khu vực dành cho khách" },
-            { icon: "🚤", title: "Water Sports", desc: "Kayak, lướt ván miễn phí" },
-            { icon: "🌅", title: "Sunset Bar", desc: "Đón hoàng hôn tuyệt đẹp" },
-            { icon: "🐠", title: "Hải sản tươi sống", desc: "Nhà hàng seafood chuẩn vị" },
-          ],
-        };
-        const city = (selectedBranch.city || "").toLowerCase();
-        const type = (city.includes("đà nẵng") || city.includes("nha trang") || city.includes("phú quốc")) ? "beach" : "default";
-        const advs = ADVANTAGES[type];
-        return (
-          <section style={{ padding: "48px 0", background: "linear-gradient(135deg,#0d2238 0%,#1e3a5f 100%)", color: "white" }}>
-            <div className="container">
-              <div style={{ textAlign: "center", marginBottom: 28 }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: "#c9a84c", textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 8 }}>
-                  ✨ Ưu điểm nổi bật — {selectedBranch.name}
-                </div>
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))", gap: 16 }}>
-                {advs.map((adv, i) => (
-                  <div key={i} style={{ padding: "24px 16px", borderRadius: 16, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.15)", textAlign: "center" }}>
-                    <div style={{ fontSize: 36, marginBottom: 12 }}>{adv.icon}</div>
-                    <div style={{ fontWeight: 700, fontSize: 15, color: "#c9a84c", marginBottom: 6 }}>{adv.title}</div>
-                    <div style={{ fontSize: 13, color: "rgba(255,255,255,0.75)" }}>{adv.desc}</div>
-                  </div>
-                ))}
+      {/* Advantages boxes — uses branch amenities from API if available */}
+      {selectedBranch && selectedBranch.amenities && selectedBranch.amenities.length > 0 && (
+        <section style={{ padding: "48px 0", background: "linear-gradient(135deg,#0d2238 0%,#1e3a5f 100%)", color: "white" }}>
+          <div className="container">
+            <div style={{ textAlign: "center", marginBottom: 28 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "#c9a84c", textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 8 }}>
+                ✨ Tiện ích nổi bật — {selectedBranch.name}
               </div>
             </div>
-          </section>
-        );
-      })()}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))", gap: 16 }}>
+              {selectedBranch.amenities.map((adv, i) => (
+                <div key={i} style={{ padding: "24px 16px", borderRadius: 16, background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.15)", textAlign: "center" }}>
+                  <div style={{ fontSize: 36, marginBottom: 12 }}>{adv.icon || "✨"}</div>
+                  <div style={{ fontWeight: 700, fontSize: 15, color: "#c9a84c", marginBottom: 6 }}>{adv.title || adv.name}</div>
+                  <div style={{ fontSize: 13, color: "rgba(255,255,255,0.75)" }}>{adv.desc || adv.description || ""}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
       {/* Service Detail Modal */}
       {selectedService && (
         <div

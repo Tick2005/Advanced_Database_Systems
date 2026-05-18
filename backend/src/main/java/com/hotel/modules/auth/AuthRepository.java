@@ -1,5 +1,8 @@
 package com.hotel.modules.auth;
 
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -50,5 +53,21 @@ public class AuthRepository {
     public Optional<UUID> findBranchIdByUserId(UUID userId) {
         return userBranchAssignmentRepository.findByUserId(userId)
             .map(assignment -> assignment.getBranchId());
+    }
+
+    /**
+     * Find inactive, unverified accounts created before the given cutoff time.
+     * Used by the cleanup scheduler to remove stale registrations.
+     */
+    public List<UserEntity> findInactiveUsersCreatedBefore(LocalDateTime cutoff) {
+        return userRepository.findAllByActiveFalseAndEmailVerifiedFalseAndCreatedAtBefore(cutoff);
+    }
+
+    public void deleteProfileByUserId(UUID userId) {
+        profileRepository.findByUserId(userId).ifPresent(profileRepository::delete);
+    }
+
+    public void deleteUser(UUID userId) {
+        userRepository.deleteById(Objects.requireNonNull(userId, "userId"));
     }
 }

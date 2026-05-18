@@ -4,9 +4,9 @@ export function validatePreviewBookingForm(form, selectedRoom, nights) {
   today.setHours(0, 0, 0, 0);
 
   if (!form.roomId) errors.roomId = "Vui long chon phong";
-  if (!form.branchId) errors.branchId = "Vui long chon chi nhanh";
   if (!form.checkInDate) errors.checkInDate = "Vui long chon ngay check-in";
-  if (!form.checkOutDate) errors.checkOutDate = "Vui long chon ngay check-out";
+  if (!form.checkInTime) errors.checkInTime = "Vui long chon gio check-in";
+  if (!Number.isFinite(nights) || nights < 1) errors.stayNights = "So dem phai lon hon 0";
 
   if (form.checkInDate) {
     const checkIn = new Date(form.checkInDate);
@@ -15,11 +15,17 @@ export function validatePreviewBookingForm(form, selectedRoom, nights) {
     }
   }
 
-  if (form.checkInDate && form.checkOutDate) {
+  const checkOutDate = (() => {
+    if (!form.checkInDate || !Number.isFinite(nights) || nights < 1) return null;
+    const date = new Date(form.checkInDate);
+    date.setDate(date.getDate() + nights);
+    return date;
+  })();
+
+  if (form.checkInDate && checkOutDate) {
     const checkIn = new Date(form.checkInDate);
-    const checkOut = new Date(form.checkOutDate);
-    if (checkOut <= checkIn) {
-      errors.checkOutDate = "Ngay check-out phai sau check-in";
+    if (checkOutDate <= checkIn) {
+      errors.stayNights = "Ngay tra phong phai sau ngay check-in";
     }
   }
 
@@ -28,10 +34,6 @@ export function validatePreviewBookingForm(form, selectedRoom, nights) {
 
   if (selectedRoom && form.adults + form.children > selectedRoom.maxOccupancy) {
     errors.adults = `Tong so khach vuot suc chua toi da (${selectedRoom.maxOccupancy})`;
-  }
-
-  if (nights <= 0) {
-    errors.checkOutDate = errors.checkOutDate || "So dem luu tru phai lon hon 0";
   }
 
   return errors;

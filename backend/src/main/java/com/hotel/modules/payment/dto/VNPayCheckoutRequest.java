@@ -2,6 +2,7 @@ package com.hotel.modules.payment.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 
 import java.math.BigDecimal;
 
@@ -11,6 +12,7 @@ public class VNPayCheckoutRequest {
     private String bookingId;
 
     @NotNull
+    @Positive
     private BigDecimal amount;
 
     private String currency = "VND";
